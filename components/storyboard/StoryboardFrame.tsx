@@ -19,18 +19,15 @@ import {
 import { StoryboardFrame as IStoryboardFrame, GeneratedImage } from "@/types"
 
 import { InpaintingEditor } from "./InpaintingEditor"
+import { AI_MODELS } from "@/lib/ai-models"
 
 interface StoryboardFrameProps {
   frame: IStoryboardFrame
   index: number
 }
 
-// Model Selection Options
-const MODEL_OPTIONS = [
-    { id: "fal-flux-pro-v1.1", name: "Flux Pro 1.1" },
-    { id: "fal-flux-dev", name: "Flux Dev" },
-    { id: "fal-flux-schnell", name: "Flux Schnell" }
-]
+// Model Selection Options - Filter for text-to-image models
+const MODEL_OPTIONS = AI_MODELS.filter(m => m.type === 'text-to-image');
 
 export function StoryboardFrame({ frame, index }: StoryboardFrameProps) {
   const { updateFrame, deleteFrame, assets } = useStoryStore()
