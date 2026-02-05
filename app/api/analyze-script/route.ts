@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 export async function POST(req: NextRequest) {
   try {
     const { script } = await req.json();
-    const apiKey = req.headers.get("x-llm-key");
+    const apiKey = process.env.LLM_KEY;
 
     if (!script) {
       return NextResponse.json(
@@ -14,8 +14,8 @@ export async function POST(req: NextRequest) {
 
     if (!apiKey) {
       return NextResponse.json(
-        { error: "LLM API Key is missing" },
-        { status: 401 }
+        { error: "Server Configuration Error: LLM_KEY is missing" },
+        { status: 500 }
       );
     }
 
@@ -45,14 +45,6 @@ export async function POST(req: NextRequest) {
     }`;
 
     // Call OpenAI Compatible API (e.g. Minimax, DeepSeek, OpenAI)
-    // Defaulting to OpenAI standard endpoint for now, but user can point to others if we allowed base_url config.
-    // For now we assume standard OpenAI structure.
-    
-    // NOTE: If using Minimax, the URL might be different (https://api.minimax.chat/v1/...)
-    // Since we don't have a base_url setting yet, we'll try a generic fetch that works for OpenAI.
-    // If the user uses Minimax, they might need to proxy or we hardcode Minimax if they selected it.
-    // Given the requirements, I'll use a standard OpenAI completion call which is widely compatible.
-    
     const response = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -70,10 +62,6 @@ export async function POST(req: NextRequest) {
     });
 
     if (!response.ok) {
-        // Fallback or Error
-        // If 401, it means key is invalid for OpenAI. 
-        // We could try Minimax if the key format looks like Minimax? 
-        // For this MVP, let's just return the error.
         const err = await response.text();
         return NextResponse.json({ error: `LLM API Error: ${err}` }, { status: response.status });
     }

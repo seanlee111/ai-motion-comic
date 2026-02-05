@@ -6,6 +6,13 @@ export interface Asset {
   imageKeys: string[]; // Keys in IndexedDB
 }
 
+export interface GeneratedImage {
+  id: string;
+  url: string;
+  modelId: string; // e.g. "fal-flux-pro-v1.1"
+  timestamp: number;
+}
+
 export interface StoryboardFrame {
   id: string;
   
@@ -15,13 +22,24 @@ export interface StoryboardFrame {
   actionNotes?: string; // Camera movement, specific character acting details
   
   // Asset Links
-  characterId?: string;
+  characterIds: string[]; // Changed from single ID to array
   sceneId?: string;
   
   // Visuals
-  imageUrl?: string; // Kept for backward compatibility or single-image mode
+  // Deprecated single string URLs in favor of array of GeneratedImage
+  // We keep the "selected" URL for display, but store all candidates
+  
+  startImages: GeneratedImage[];
+  endImages: GeneratedImage[];
+  
+  selectedStartImageId?: string;
+  selectedEndImageId?: string;
+
+  // Backward compatibility
+  imageUrl?: string;
   startImageUrl?: string;
   endImageUrl?: string;
+  characterId?: string;
   
   // State
   isGenerating?: boolean;

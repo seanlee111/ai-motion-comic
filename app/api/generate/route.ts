@@ -1,20 +1,35 @@
 import { NextRequest, NextResponse } from "next/server";
 
-const FAL_API_BASE = "https://queue.fal.run/fal-ai/flux-pro/v1.1";
+// Supported Models Configuration
+const MODELS: Record<string, { endpoint: string; type: "flux" | "sdxl" | "kling" | "minimax" }> = {
+  "fal-flux-pro-v1.1": {
+    endpoint: "https://queue.fal.run/fal-ai/flux-pro/v1.1",
+    type: "flux",
+  },
+  "fal-flux-dev": {
+    endpoint: "https://queue.fal.run/fal-ai/flux/dev",
+    type: "flux",
+  },
+  "fal-flux-schnell": {
+    endpoint: "https://queue.fal.run/fal-ai/flux/schnell",
+    type: "flux",
+  },
+  // Add more as needed
+};
 
 export async function POST(req: NextRequest) {
   try {
-    const falKey = req.headers.get("x-fal-key");
+    const body = await req.json();
+    const { prompt, modelId = "fal-flux-pro-v1.1", aspect_ratio, mode, image_url } = body;
 
+    // 1. Get API Key from Server Env
+    const falKey = process.env.FAL_KEY;
     if (!falKey) {
       return NextResponse.json(
-        { error: "Missing FAL_KEY header" },
-        { status: 401 }
+        { error: "Server Configuration Error: FAL_KEY is missing" },
+        { status: 500 }
       );
     }
-
-    const body = await req.json();
-    const { prompt, mode, image_url, aspect_ratio } = body;
 
     if (!prompt) {
       return NextResponse.json(
@@ -23,47 +38,34 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Map aspect ratio to image_size
-    // Flux Pro supports: square_hd, square, portrait_4_3, portrait_16_9, landscape_4_3, landscape_16_9
+    // 2. Select Model Endpoint
+    const selectedModel = MODELS[modelId] || MODELS["fal-flux-pro-v1.1"];
+    let endpoint = selectedModel.endpoint;
+
+    // Special case for img2img in Flux
+    if (mode === "image-to-image" && selectedModel.type === "flux") {
+        // Use Flux Dev for img2img as Pro v1.1 might not support it fully or needs different params
+        // For simplicity, we redirect to dev for img2img if user chose flux
+        endpoint = "https://queue.fal.run/fal-ai/flux/dev/image-to-image";
+    }
+
+    // 3. Construct Payload
     let image_size = "landscape_16_9";
     if (aspect_ratio === "9:16") image_size = "portrait_16_9";
     if (aspect_ratio === "1:1") image_size = "square_hd";
-    // 2.35:1 is not standard, fallback to landscape_16_9 or custom if supported.
-    // Flux v1.1 Pro supports custom width/height? It says "image_size".
-    // We'll stick to presets for now.
 
     const payload: any = {
       prompt,
       image_size,
-      safety_tolerance: "2", // Allow some creative freedom
+      safety_tolerance: "2",
     };
 
     if (mode === "image-to-image" && image_url) {
-      // Flux Pro v1.1 might not support image_url directly in the same endpoint?
-      // Need to check if 'fal-ai/flux-pro/v1.1' supports img2img.
-      // Usually Flux Pro is T2I.
-      // Flux Dev/Schnell supports img2img.
-      // User asked for "Flux" (via Fal.ai or Liblib).
-      // "Model Endpoint: fal-ai/flux-pro/v1.1".
-      // If v1.1 doesn't support img2img, we might need 'fal-ai/flux/dev' for that mode.
-      // I will add logic to switch model if mode is image-to-image.
-      
-      // Let's assume we switch to fal-ai/flux/dev for img2img or check docs.
-      // Ideally, I should search for this.
-      // But for now, I'll assume standard param 'image_url' and if it fails, it fails.
-      // Actually, for img2img, 'strength' is needed.
       payload.image_url = image_url;
       payload.strength = body.strength || 0.75;
-      
-      // Flux Dev endpoint: fal-ai/flux/dev
-      // I'll override the endpoint URL if img2img
     }
 
-    const endpoint = (mode === "image-to-image") 
-      ? "https://queue.fal.run/fal-ai/flux/dev/image-to-image" 
-      : FAL_API_BASE;
-
-    // Call Fal AI
+    // 4. Call Fal AI
     const response = await fetch(endpoint, {
       method: "POST",
       headers: {
@@ -82,8 +84,8 @@ export async function POST(req: NextRequest) {
     }
 
     const data = await response.json();
-    // Fal Queue returns request_id
-    return NextResponse.json(data);
+    // Return request_id and the used endpoint (for polling)
+    return NextResponse.json({ ...data, endpoint });
 
   } catch (error: any) {
     console.error("API Error:", error);
@@ -97,24 +99,21 @@ export async function POST(req: NextRequest) {
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const requestId = searchParams.get("id");
-  const falKey = req.headers.get("x-fal-key");
-  const mode = searchParams.get("mode"); // to know which endpoint to poll?
-  // Actually, queue status endpoint is usually generic or follows the request URL.
-  // Standard Fal pattern: /requests/{request_id}
+  const endpoint = searchParams.get("endpoint"); // Pass endpoint from client for correct polling
+  
+  // Get Key from Env
+  const falKey = process.env.FAL_KEY;
   
   if (!requestId || !falKey) {
-     return NextResponse.json({ error: "Missing id or key" }, { status: 400 });
+     return NextResponse.json({ error: "Missing id or server configuration" }, { status: 400 });
   }
 
-  // The status URL is usually: https://queue.fal.run/fal-ai/flux-pro/v1.1/requests/{id}
-  // But strictly speaking it's https://queue.fal.run/requests/{id}/status usually?
-  // Let's try the endpoint-specific status url first as it's safer.
-  
-  const endpointBase = (mode === "image-to-image")
-      ? "https://queue.fal.run/fal-ai/flux/dev/image-to-image"
-      : FAL_API_BASE;
-      
-  const statusUrl = `${endpointBase}/requests/${requestId}`;
+  // Construct Status URL
+  // If endpoint is provided, use it. Otherwise fallback to generic status check.
+  let statusUrl = `https://queue.fal.run/requests/${requestId}/status`;
+  if (endpoint) {
+      statusUrl = `${endpoint}/requests/${requestId}`;
+  }
 
   try {
     const response = await fetch(statusUrl, {
@@ -126,22 +125,8 @@ export async function GET(req: NextRequest) {
     });
 
     if (!response.ok) {
-        // Try the generic status endpoint if specific fails
-        const genericUrl = `https://queue.fal.run/requests/${requestId}/status`;
-         const response2 = await fetch(genericUrl, {
-            method: "GET",
-            headers: {
-                "Authorization": `Key ${falKey}`,
-                "Content-Type": "application/json",
-            },
-         });
-         
-         if(!response2.ok) {
-            const err = await response2.text();
-            return NextResponse.json({ error: err }, { status: response2.status });
-         }
-         const data2 = await response2.json();
-         return NextResponse.json(data2);
+         const err = await response.text();
+         return NextResponse.json({ error: err }, { status: response.status });
     }
 
     const data = await response.json();

@@ -7,7 +7,13 @@ export const useStoryStore = create<StoryState>()(
     (set) => ({
       assets: [],
       frames: [
-        { id: 'frame-1', storyScript: '' }
+        { 
+            id: 'frame-1', 
+            storyScript: '',
+            characterIds: [],
+            startImages: [],
+            endImages: []
+        }
       ],
 
       addAsset: (assetData) => set((state) => ({
@@ -23,7 +29,14 @@ export const useStoryStore = create<StoryState>()(
       })),
 
       addFrame: (frameData) => set((state) => ({
-        frames: [...state.frames, { id: crypto.randomUUID(), storyScript: '', ...frameData }]
+        frames: [...state.frames, { 
+            id: crypto.randomUUID(), 
+            storyScript: '', 
+            characterIds: [],
+            startImages: [],
+            endImages: [],
+            ...frameData 
+        }]
       })),
 
       updateFrame: (id, updates) => set((state) => ({
