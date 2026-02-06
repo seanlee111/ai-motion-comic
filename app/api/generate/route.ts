@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { getModelConfig } from "@/lib/ai-models";
 import { getProvider } from "@/lib/ai-providers/registry";
 
+export const runtime = "nodejs";
+
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();

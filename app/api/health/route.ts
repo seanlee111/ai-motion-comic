@@ -7,8 +7,17 @@ export const runtime = "nodejs";
 type ServiceStatus = {
   ok: boolean;
   message?: string;
+  detail?: string;
   requestId?: string;
+  endpoint?: string;
 };
+
+function splitMessage(message: string) {
+  const parts = message.split("\n");
+  const head = parts.shift() || message;
+  const detail = parts.join("\n").trim();
+  return { head, detail: detail || undefined };
+}
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
@@ -36,9 +45,11 @@ export async function GET(req: NextRequest) {
         prompt: "test",
         aspect_ratio: "1:1",
       } as any);
-      status.kling = { ok: true, message: "submit ok", requestId: res.request_id };
+      status.kling = { ok: true, message: "submit ok", requestId: res.request_id, endpoint: klingConfig.endpoint };
     } catch (e: any) {
-      status.kling = { ok: false, message: e.message || "submit failed" };
+      const msg = e.message || "submit failed";
+      const { head, detail } = splitMessage(msg);
+      status.kling = { ok: false, message: head, detail, endpoint: klingConfig.endpoint };
     }
   }
 
@@ -56,12 +67,13 @@ export async function GET(req: NextRequest) {
         prompt: "test",
         aspect_ratio: "1:1",
       } as any);
-      status.jimeng = { ok: true, message: "submit ok", requestId: res.request_id };
+      status.jimeng = { ok: true, message: "submit ok", requestId: res.request_id, endpoint: jimengConfig.endpoint };
     } catch (e: any) {
-      status.jimeng = { ok: false, message: e.message || "submit failed" };
+      const msg = e.message || "submit failed";
+      const { head, detail } = splitMessage(msg);
+      status.jimeng = { ok: false, message: head, detail, endpoint: jimengConfig.endpoint };
     }
   }
 
   return NextResponse.json({ probe, status });
 }
-

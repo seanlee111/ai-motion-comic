@@ -8,7 +8,9 @@ import { Loader2, Activity, Copy } from "lucide-react"
 type HealthStatus = {
   ok: boolean
   message?: string
+  detail?: string
   requestId?: string
+  endpoint?: string
 }
 
 type HealthResponse = {
@@ -67,27 +69,57 @@ export function ApiHealthDialog() {
                   复制结果
                 </Button>
               </div>
-              <div className="flex justify-between">
-                <span>Kling</span>
-                <span className={result.status.kling?.ok ? "text-green-600" : "text-red-600"}>
-                  {result.status.kling?.ok ? "OK" : "FAIL"} {result.status.kling?.message || ""}
-                </span>
+              <div className="space-y-2">
+                <div className="flex justify-between">
+                  <span>Kling</span>
+                  <span className={result.status.kling?.ok ? "text-green-600" : "text-red-600"}>
+                    {result.status.kling?.ok ? "OK" : "FAIL"}{" "}
+                    <span className="ml-1 inline-block max-w-[200px] truncate align-bottom" title={result.status.kling?.message}>
+                      {result.status.kling?.message || ""}
+                    </span>
+                  </span>
+                </div>
+                {result.status.kling?.detail && (
+                  <details className="rounded-md bg-muted p-2">
+                    <summary>详情</summary>
+                    <pre className="mt-2 max-h-48 overflow-auto text-xs">{result.status.kling.detail}</pre>
+                  </details>
+                )}
               </div>
-              <div className="flex justify-between">
-                <span>Jimeng</span>
-                <span className={result.status.jimeng?.ok ? "text-green-600" : "text-red-600"}>
-                  {result.status.jimeng?.ok ? "OK" : "FAIL"} {result.status.jimeng?.message || ""}
-                </span>
+              <div className="space-y-2">
+                <div className="flex justify-between">
+                  <span>Jimeng</span>
+                  <span className={result.status.jimeng?.ok ? "text-green-600" : "text-red-600"}>
+                    {result.status.jimeng?.ok ? "OK" : "FAIL"}{" "}
+                    <span className="ml-1 inline-block max-w-[200px] truncate align-bottom" title={result.status.jimeng?.message}>
+                      {result.status.jimeng?.message || ""}
+                    </span>
+                  </span>
+                </div>
+                {result.status.jimeng?.detail && (
+                  <details className="rounded-md bg-muted p-2">
+                    <summary>详情</summary>
+                    <pre className="mt-2 max-h-48 overflow-auto text-xs">{result.status.jimeng.detail}</pre>
+                  </details>
+                )}
               </div>
-              <div className="flex justify-between">
-                <span>LLM</span>
-                <span className={result.status.llm?.ok ? "text-green-600" : "text-red-600"}>
-                  {result.status.llm?.ok ? "OK" : "FAIL"} {result.status.llm?.message || ""}
-                </span>
+              <div className="space-y-2">
+                <div className="flex justify-between">
+                  <span>LLM</span>
+                  <span className={result.status.llm?.ok ? "text-green-600" : "text-red-600"}>
+                    {result.status.llm?.ok ? "OK" : "FAIL"}{" "}
+                    <span className="ml-1 inline-block max-w-[200px] truncate align-bottom" title={result.status.llm?.message}>
+                      {result.status.llm?.message || ""}
+                    </span>
+                  </span>
+                </div>
+                {result.status.llm?.detail && (
+                  <details className="rounded-md bg-muted p-2">
+                    <summary>详情</summary>
+                    <pre className="mt-2 max-h-48 overflow-auto text-xs">{result.status.llm.detail}</pre>
+                  </details>
+                )}
               </div>
-              <pre className="mt-2 max-h-48 overflow-auto rounded-md bg-muted p-2 text-xs">
-{raw}
-              </pre>
             </div>
           )}
         </div>

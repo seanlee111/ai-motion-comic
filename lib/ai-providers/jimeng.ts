@@ -45,7 +45,7 @@ export const JimengProvider: AIProviderAdapter = {
 
     // Prepare Signed Request
     const host = 'visual.volcengineapi.com';
-    const path = '/?Action=CVProcess&Version=2022-08-31';
+    const path = '/?Action=CVSync2AsyncSubmitTask&Version=2022-08-31';
     
     const requestOptions = {
         host,
@@ -55,7 +55,7 @@ export const JimengProvider: AIProviderAdapter = {
             'Content-Type': 'application/json',
         },
         body: JSON.stringify(payload),
-        service: 'cv', // Volcengine Visual Service
+        service: 'visual',
         region: 'cn-north-1'
     };
 
@@ -77,7 +77,7 @@ export const JimengProvider: AIProviderAdapter = {
           httpStatus: response.status,
           endpoint: `https://${host}${path}`,
           region: "cn-north-1",
-          service: "cv",
+          service: "visual",
           req_key: payload.req_key,
           iss: maskKey(ak),
           response: json || text
@@ -93,7 +93,22 @@ export const JimengProvider: AIProviderAdapter = {
           httpStatus: response.status,
           endpoint: `https://${host}${path}`,
           region: "cn-north-1",
-          service: "cv",
+          service: "visual",
+          req_key: payload.req_key,
+          iss: maskKey(ak),
+          response: data
+        };
+        throw new Error(`Jimeng Submit Failed\n${JSON.stringify(debug, null, 2)}`);
+    }
+
+    if (!data?.data?.task_id) {
+        const debug = {
+          provider: "jimeng",
+          stage: "submit",
+          httpStatus: response.status,
+          endpoint: `https://${host}${path}`,
+          region: "cn-north-1",
+          service: "visual",
           req_key: payload.req_key,
           iss: maskKey(ak),
           response: data
@@ -122,25 +137,7 @@ export const JimengProvider: AIProviderAdapter = {
       };
 
       const host = 'visual.volcengineapi.com';
-      const path = '/?Action=CVProcess&Version=2022-08-31'; // Same action for query? Yes, based on doc, SDK calls `cv_sync2_async_get_result` which maps to same endpoint usually?
-      // Wait, SDK method `cv_sync2_async_get_result` might map to a specific Action name.
-      // Based on typical Volcengine patterns, it might be `CVGetResult` or similar.
-      // However, the prompt doc says `service.cv_sync2_async_get_result`.
-      // Let's assume the Action is `CVProcess` but the payload distinguishes it? 
-      // Actually, looking at Volcengine docs, usually query is a different Action or parameter.
-      // BUT, for "CVProcess", it's a general gateway. 
-      // Let's look closely at the python code: `service.cv_sync2_async_get_result`.
-      // This likely maps to `Action=CVProcess` with specific params OR `Action=GetResult`.
-      // Given I can't verify exact Action mapping without SDK source code, I will try `CVProcess` as it's the main entry.
-      // If that fails, we might need `Action=GetImageResult` etc.
-      
-      // CORRECTION: In Volcengine Visual, `cv_sync2_async_get_result` usually maps to `Action=CVProcess` but with specific input?
-      // No, usually it's `Action=GetImageAsyncResult` or `Action=GetResult`.
-      // Let's try `Action=CVProcess` first as the prompt implies a unified interface structure.
-      // Actually, the prompt says "查询结果（轮询）... result = service.cv_sync2_async_get_result(...)".
-      
-      // Let's try `Action=CVProcess` first. If it fails, I'll update.
-      
+      const path = '/?Action=CVSync2AsyncGetResult&Version=2022-08-31';
       const requestOptions = {
         host,
         path,
@@ -149,7 +146,7 @@ export const JimengProvider: AIProviderAdapter = {
             'Content-Type': 'application/json',
         },
         body: JSON.stringify(payload),
-        service: 'cv',
+        service: 'visual',
         region: 'cn-north-1'
     };
 
@@ -170,7 +167,7 @@ export const JimengProvider: AIProviderAdapter = {
           httpStatus: response.status,
           endpoint: `https://${host}${path}`,
           region: "cn-north-1",
-          service: "cv",
+          service: "visual",
           req_key: payload.req_key,
           iss: maskKey(ak),
           response: json || text
