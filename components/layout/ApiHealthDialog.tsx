@@ -3,7 +3,7 @@
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
-import { Loader2, Activity } from "lucide-react"
+import { Loader2, Activity, Copy } from "lucide-react"
 
 type HealthStatus = {
   ok: boolean
@@ -24,6 +24,7 @@ export function ApiHealthDialog() {
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
   const [result, setResult] = useState<HealthResponse | null>(null)
+  const [raw, setRaw] = useState<string>("")
 
   const runCheck = async () => {
     setLoading(true)
@@ -31,6 +32,7 @@ export function ApiHealthDialog() {
       const res = await fetch("/api/health?probe=1")
       const data = await res.json()
       setResult(data)
+      setRaw(JSON.stringify(data, null, 2))
     } finally {
       setLoading(false)
     }
@@ -55,6 +57,16 @@ export function ApiHealthDialog() {
           </Button>
           {result && (
             <div className="space-y-2 text-sm">
+              <div className="flex justify-end">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => raw && navigator.clipboard.writeText(raw)}
+                >
+                  <Copy className="mr-2 h-4 w-4" />
+                  复制结果
+                </Button>
+              </div>
               <div className="flex justify-between">
                 <span>Kling</span>
                 <span className={result.status.kling?.ok ? "text-green-600" : "text-red-600"}>
@@ -73,6 +85,9 @@ export function ApiHealthDialog() {
                   {result.status.llm?.ok ? "OK" : "FAIL"} {result.status.llm?.message || ""}
                 </span>
               </div>
+              <pre className="mt-2 max-h-48 overflow-auto rounded-md bg-muted p-2 text-xs">
+{raw}
+              </pre>
             </div>
           )}
         </div>
@@ -80,4 +95,3 @@ export function ApiHealthDialog() {
     </Dialog>
   )
 }
-

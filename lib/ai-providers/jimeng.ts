@@ -1,6 +1,19 @@
 import { AIProviderAdapter, GenerationRequest, GenerationResponse } from './types';
 import aws4 from 'aws4';
 
+function safeJsonParse(text: string): unknown {
+  try {
+    return JSON.parse(text);
+  } catch {
+    return undefined;
+  }
+}
+
+function maskKey(key: string) {
+  if (key.length <= 8) return "****";
+  return `${key.slice(0, 4)}****${key.slice(-4)}`;
+}
+
 export const JimengProvider: AIProviderAdapter = {
   async generate(req: GenerationRequest): Promise<GenerationResponse> {
     const { modelConfig, prompt, aspect_ratio } = req;
@@ -56,12 +69,36 @@ export const JimengProvider: AIProviderAdapter = {
     });
 
     if (!response.ok) {
-        throw new Error(`Jimeng Submit Error: ${await response.text()}`);
+        const text = await response.text();
+        const json = safeJsonParse(text);
+        const debug = {
+          provider: "jimeng",
+          stage: "submit",
+          httpStatus: response.status,
+          endpoint: `https://${host}${path}`,
+          region: "cn-north-1",
+          service: "cv",
+          req_key: payload.req_key,
+          iss: maskKey(ak),
+          response: json || text
+        };
+        throw new Error(`Jimeng Submit Failed\n${JSON.stringify(debug, null, 2)}`);
     }
 
     const data = await response.json();
     if (data.code !== 10000) {
-        throw new Error(`Jimeng API Error Code: ${data.code} - ${data.message}`);
+        const debug = {
+          provider: "jimeng",
+          stage: "submit",
+          httpStatus: response.status,
+          endpoint: `https://${host}${path}`,
+          region: "cn-north-1",
+          service: "cv",
+          req_key: payload.req_key,
+          iss: maskKey(ak),
+          response: data
+        };
+        throw new Error(`Jimeng Submit Failed\n${JSON.stringify(debug, null, 2)}`);
     }
 
     return {
@@ -125,7 +162,20 @@ export const JimengProvider: AIProviderAdapter = {
     });
 
     if (!response.ok) {
-        throw new Error(`Jimeng Status Check Error: ${await response.text()}`);
+        const text = await response.text();
+        const json = safeJsonParse(text);
+        const debug = {
+          provider: "jimeng",
+          stage: "status",
+          httpStatus: response.status,
+          endpoint: `https://${host}${path}`,
+          region: "cn-north-1",
+          service: "cv",
+          req_key: payload.req_key,
+          iss: maskKey(ak),
+          response: json || text
+        };
+        throw new Error(`Jimeng Status Failed\n${JSON.stringify(debug, null, 2)}`);
     }
 
     const data = await response.json();

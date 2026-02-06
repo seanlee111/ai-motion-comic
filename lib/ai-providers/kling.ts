@@ -10,6 +10,19 @@ function generateKlingToken(accessKey: string, secretKey: string): string {
     return jwt.sign(payload, secretKey, { algorithm: 'HS256', header: { alg: 'HS256', typ: 'JWT' } });
 }
 
+function safeJsonParse(text: string): unknown {
+  try {
+    return JSON.parse(text);
+  } catch {
+    return undefined;
+  }
+}
+
+function maskKey(key: string) {
+  if (key.length <= 8) return "****";
+  return `${key.slice(0, 4)}****${key.slice(-4)}`;
+}
+
 export const KlingProvider: AIProviderAdapter = {
   async generate(req: GenerationRequest): Promise<GenerationResponse> {
     const { modelConfig, prompt, aspect_ratio } = req;
@@ -40,12 +53,34 @@ export const KlingProvider: AIProviderAdapter = {
     });
 
     if (!response.ok) {
-        throw new Error(`Kling Submit Error: ${await response.text()}`);
+        const text = await response.text();
+        const json = safeJsonParse(text);
+        const debug = {
+          provider: "kling",
+          stage: "submit",
+          httpStatus: response.status,
+          endpoint,
+          model_name: payload.model_name,
+          aspect_ratio: payload.aspect_ratio,
+          iss: maskKey(ak),
+          response: json || text
+        };
+        throw new Error(`Kling Submit Failed\n${JSON.stringify(debug, null, 2)}`);
     }
 
     const data = await response.json();
     if (data.code !== 0) {
-        throw new Error(`Kling API Error: ${data.message} (Code ${data.code})`);
+        const debug = {
+          provider: "kling",
+          stage: "submit",
+          httpStatus: response.status,
+          endpoint,
+          model_name: payload.model_name,
+          aspect_ratio: payload.aspect_ratio,
+          iss: maskKey(ak),
+          response: data
+        };
+        throw new Error(`Kling Submit Failed\n${JSON.stringify(debug, null, 2)}`);
     }
 
     return {
@@ -76,12 +111,30 @@ export const KlingProvider: AIProviderAdapter = {
       });
 
       if (!response.ok) {
-          throw new Error(`Kling Status Error: ${await response.text()}`);
+          const text = await response.text();
+          const json = safeJsonParse(text);
+          const debug = {
+            provider: "kling",
+            stage: "status",
+            httpStatus: response.status,
+            statusUrl,
+            iss: maskKey(ak),
+            response: json || text
+          };
+          throw new Error(`Kling Status Failed\n${JSON.stringify(debug, null, 2)}`);
       }
 
       const data = await response.json();
       if (data.code !== 0) {
-          throw new Error(`Kling API Error: ${data.message}`);
+          const debug = {
+            provider: "kling",
+            stage: "status",
+            httpStatus: response.status,
+            statusUrl,
+            iss: maskKey(ak),
+            response: data
+          };
+          throw new Error(`Kling Status Failed\n${JSON.stringify(debug, null, 2)}`);
       }
 
       const taskData = data.data;
