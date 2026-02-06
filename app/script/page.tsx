@@ -4,7 +4,6 @@ import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { Wand2, ArrowRight, Loader2 } from "lucide-react"
 import { useStoryStore } from "@/lib/story-store"
-import { useAppStore } from "@/lib/store"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card"
@@ -12,15 +11,10 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/com
 export default function ScriptPage() {
   const router = useRouter()
   const { setFrames, frames } = useStoryStore()
-  const { llmKey } = useAppStore()
   const [script, setScript] = useState("")
   const [loading, setLoading] = useState(false)
 
   const handleAnalyze = async () => {
-    if (!llmKey) {
-      alert("Please configure your LLM_KEY in settings first.")
-      return
-    }
     if (!script) return
 
     setLoading(true)
@@ -29,7 +23,6 @@ export default function ScriptPage() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "x-llm-key": llmKey,
         },
         body: JSON.stringify({ script }),
       })

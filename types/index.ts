@@ -4,6 +4,7 @@ export interface Asset {
   name: string;
   description: string;
   imageKeys: string[]; // Keys in IndexedDB
+  imageUrl?: string;
 }
 
 export interface GeneratedImage {
@@ -53,6 +54,7 @@ export interface StoryState {
   addAsset: (asset: Omit<Asset, 'id'>) => void;
   updateAsset: (id: string, updates: Partial<Asset>) => void;
   deleteAsset: (id: string) => void;
+  setAssets: (assets: Asset[]) => void;
 
   // Frame Actions
   addFrame: (frameData?: Partial<StoryboardFrame>) => void;

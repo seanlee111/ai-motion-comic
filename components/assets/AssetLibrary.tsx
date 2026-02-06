@@ -2,27 +2,19 @@
 
 import { useEffect, useState } from "react"
 import { useStoryStore } from "@/lib/story-store"
-import { ImageStorage } from "@/lib/image-storage"
 import { CreateAssetDialog } from "./CreateAssetDialog"
 import { Card, CardContent } from "@/components/ui/card"
 import { Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 
 function AssetCard({ asset }: { asset: any }) {
-  const [imageUrl, setImageUrl] = useState<string | null>(null)
   const { deleteAsset } = useStoryStore()
-
-  useEffect(() => {
-    if (asset.imageKeys && asset.imageKeys.length > 0) {
-      ImageStorage.get(asset.imageKeys[0]).then(setImageUrl)
-    }
-  }, [asset.imageKeys])
 
   return (
     <Card className="relative overflow-hidden group">
       <div className="aspect-square w-full bg-muted">
-        {imageUrl ? (
-          <img src={imageUrl} alt={asset.name} className="h-full w-full object-cover" />
+        {asset.imageUrl ? (
+          <img src={asset.imageUrl} alt={asset.name} className="h-full w-full object-cover" />
         ) : (
           <div className="flex h-full w-full items-center justify-center text-xs text-muted-foreground">
             No Image
@@ -38,7 +30,10 @@ function AssetCard({ asset }: { asset: any }) {
             variant="destructive" 
             size="icon" 
             className="h-6 w-6" 
-            onClick={() => deleteAsset(asset.id)}
+            onClick={async () => {
+              await fetch(`/api/assets?id=${asset.id}`, { method: "DELETE" })
+              deleteAsset(asset.id)
+            }}
          >
             <Trash2 className="h-3 w-3" />
          </Button>
@@ -48,7 +43,23 @@ function AssetCard({ asset }: { asset: any }) {
 }
 
 export function AssetLibrary() {
-  const { assets } = useStoryStore()
+  const { assets, setAssets } = useStoryStore()
+  const [loading, setLoading] = useState(false)
+
+  useEffect(() => {
+    const load = async () => {
+      setLoading(true)
+      try {
+        const res = await fetch("/api/assets", { cache: "no-store" })
+        if (!res.ok) return
+        const data = await res.json()
+        if (Array.isArray(data.assets)) setAssets(data.assets)
+      } finally {
+        setLoading(false)
+      }
+    }
+    load()
+  }, [setAssets])
   
   const characters = assets.filter(a => a.type === 'character')
   const scenes = assets.filter(a => a.type === 'scene')
@@ -67,6 +78,9 @@ export function AssetLibrary() {
             {characters.map(asset => (
               <AssetCard key={asset.id} asset={asset} />
             ))}
+            {loading && (
+              <div className="text-xs text-muted-foreground">Loading...</div>
+            )}
           </div>
         </div>
 
@@ -76,6 +90,9 @@ export function AssetLibrary() {
             {scenes.map(asset => (
               <AssetCard key={asset.id} asset={asset} />
             ))}
+            {loading && (
+              <div className="text-xs text-muted-foreground">Loading...</div>
+            )}
           </div>
         </div>
       </div>

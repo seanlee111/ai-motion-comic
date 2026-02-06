@@ -13,9 +13,10 @@ interface InpaintingEditorProps {
   onClose: () => void
   imageUrl: string
   onSave: (newImageUrl: string) => void
+  modelId: string
 }
 
-export function InpaintingEditor({ open, onClose, imageUrl, onSave }: InpaintingEditorProps) {
+export function InpaintingEditor({ open, onClose, imageUrl, onSave, modelId }: InpaintingEditorProps) {
   const [prompt, setPrompt] = useState("")
   const [loading, setLoading] = useState(false)
   const canvasRef = useRef<any>(null)
@@ -47,7 +48,7 @@ export function InpaintingEditor({ open, onClose, imageUrl, onSave }: Inpainting
           mode: "inpainting", // We need to handle this mode in API
           image_url: imageUrl,
           mask_url: maskDataUrl, // Pass base64 data url directly (Fal supports this)
-          modelId: "fal-flux-pro-v1.1" // Or specialized inpainting model
+          modelId
         })
       })
 
@@ -57,7 +58,7 @@ export function InpaintingEditor({ open, onClose, imageUrl, onSave }: Inpainting
       // Poll
       const pollInterval = setInterval(async () => {
           try {
-            const statusRes = await fetch(`/api/generate?id=${request_id}&endpoint=${encodeURIComponent(endpoint)}`)
+            const statusRes = await fetch(`/api/generate?id=${request_id}&endpoint=${encodeURIComponent(endpoint)}&modelId=${modelId}`)
             const data = await statusRes.json()
             if (data.status === "COMPLETED") {
                 clearInterval(pollInterval)

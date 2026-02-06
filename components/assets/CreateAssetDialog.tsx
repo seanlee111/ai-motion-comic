@@ -3,7 +3,6 @@
 import { useState, useRef } from "react"
 import { Upload, X, Loader2 } from "lucide-react"
 import { useStoryStore } from "@/lib/story-store"
-import { ImageStorage } from "@/lib/image-storage"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -30,68 +29,70 @@ export function CreateAssetDialog() {
   const [type, setType] = useState<"character" | "scene">("character")
   const [name, setName] = useState("")
   const [description, setDescription] = useState("")
-  const [uploadedKeys, setUploadedKeys] = useState<string[]>([])
+  const [files, setFiles] = useState<File[]>([])
   const [previews, setPreviews] = useState<string[]>([])
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files
-    if (!files || files.length === 0) return
+    const selectedFiles = e.target.files
+    if (!selectedFiles || selectedFiles.length === 0) return
 
     setLoading(true)
     try {
-      const newKeys: string[] = []
+      const newFiles: File[] = []
       const newPreviews: string[] = []
 
-      for (let i = 0; i < files.length; i++) {
-        const file = files[i]
-        const key = await ImageStorage.save(file)
-        newKeys.push(key)
+      for (let i = 0; i < selectedFiles.length; i++) {
+        const file = selectedFiles[i]
+        newFiles.push(file)
         newPreviews.push(URL.createObjectURL(file))
       }
 
-      setUploadedKeys([...uploadedKeys, ...newKeys])
-      setPreviews([...previews, ...newPreviews])
-    } catch (error) {
-      console.error("Failed to save image", error)
-      alert("Failed to save image")
+      setFiles([...files, ...newFiles].slice(0, 3))
+      setPreviews([...previews, ...newPreviews].slice(0, 3))
     } finally {
       setLoading(false)
     }
   }
 
   const handleRemoveImage = (index: number) => {
-    // Note: We should ideally delete from IDB too, but for now we just remove from state
-    // Real implementation would call ImageStorage.delete(uploadedKeys[index])
-    const newKeys = [...uploadedKeys]
+    const newFiles = [...files]
     const newPreviews = [...previews]
-    
-    // Cleanup URL object
-    // URL.revokeObjectURL(newPreviews[index]) // React might handle this but good practice
-
-    newKeys.splice(index, 1)
+    newFiles.splice(index, 1)
     newPreviews.splice(index, 1)
-    
-    setUploadedKeys(newKeys)
+    setFiles(newFiles)
     setPreviews(newPreviews)
   }
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!name) return
-    
-    addAsset({
-      type,
-      name,
-      description,
-      imageKeys: uploadedKeys
-    })
+    setLoading(true)
+    try {
+      const formData = new FormData()
+      formData.append("type", type)
+      formData.append("name", name)
+      formData.append("description", description)
+      if (files[0]) formData.append("file", files[0])
 
-    // Reset
-    setName("")
-    setDescription("")
-    setUploadedKeys([])
-    setPreviews([])
-    setOpen(false)
+      const res = await fetch("/api/assets", { method: "POST", body: formData })
+      if (!res.ok) {
+        const err = await res.json()
+        throw new Error(err.error || "Failed to create asset")
+      }
+
+      const data = await res.json()
+      addAsset(data.asset)
+
+      setName("")
+      setDescription("")
+      setFiles([])
+      setPreviews([])
+      setOpen(false)
+    } catch (error: any) {
+      alert(error.message)
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (

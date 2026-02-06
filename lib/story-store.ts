@@ -27,6 +27,7 @@ export const useStoryStore = create<StoryState>()(
       deleteAsset: (id) => set((state) => ({
         assets: state.assets.filter(a => a.id !== id)
       })),
+      setAssets: (assets: Asset[]) => set({ assets }),
 
       addFrame: (frameData) => set((state) => ({
         frames: [...state.frames, { 

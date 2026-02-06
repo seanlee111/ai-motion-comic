@@ -35,6 +35,12 @@ export function StoryboardFrame({ frame, index }: StoryboardFrameProps) {
   const [selectedModels, setSelectedModels] = useState<string[]>(MODEL_OPTIONS.map(m => m.id))
   const [editImage, setEditImage] = useState<{ url: string, type: "start" | "end" } | null>(null)
 
+  const selectedCharacters = (frame.characterIds || [])
+    .map(id => assets.find(a => a.id === id))
+    .filter(Boolean)
+  const selectedScene = assets.find(a => a.id === frame.sceneId)
+  const inpaintModelId = AI_MODELS.find(m => m.type === "inpainting")?.id
+
   const toggleModel = (modelId: string) => {
       if (selectedModels.includes(modelId)) {
           if (selectedModels.length > 1) {
@@ -103,7 +109,7 @@ export function StoryboardFrame({ frame, index }: StoryboardFrameProps) {
       validResults.forEach(async (result) => {
           const pollInterval = setInterval(async () => {
             try {
-                const statusRes = await fetch(`/api/generate?id=${result.request_id}&endpoint=${encodeURIComponent(result.endpoint)}`)
+                const statusRes = await fetch(`/api/generate?id=${result.request_id}&endpoint=${encodeURIComponent(result.endpoint)}&modelId=${result.modelId}`)
                 const data = await statusRes.json()
                 
                 if (data.status === "COMPLETED") {
@@ -248,14 +254,16 @@ export function StoryboardFrame({ frame, index }: StoryboardFrameProps) {
                                             >
                                                 {selectedId === img.id ? <div className="h-2 w-2 rounded-full bg-green-500" /> : "Select"}
                                             </Button>
-                                            <Button
-                                                variant="ghost" 
-                                                size="icon"
-                                                className="h-6 w-6 text-white hover:text-yellow-400"
-                                                onClick={() => setEditImage({ url: img.url, type })}
-                                            >
-                                                <Wand2 className="h-3 w-3" />
-                                            </Button>
+                                            {inpaintModelId && (
+                                              <Button
+                                                  variant="ghost" 
+                                                  size="icon"
+                                                  className="h-6 w-6 text-white hover:text-yellow-400"
+                                                  onClick={() => setEditImage({ url: img.url, type })}
+                                              >
+                                                  <Wand2 className="h-3 w-3" />
+                                              </Button>
+                                            )}
                                         </div>
                                         <a href={img.url} target="_blank" download className="text-white hover:text-blue-400">
                                             <Download className="h-4 w-4" />
@@ -278,12 +286,13 @@ export function StoryboardFrame({ frame, index }: StoryboardFrameProps) {
 
   return (
     <div className="flex flex-col lg:flex-row gap-6 p-6 border-b hover:bg-muted/5 transition-colors">
-      {editImage && (
+      {editImage && inpaintModelId && (
         <InpaintingEditor 
             open={!!editImage} 
             imageUrl={editImage.url} 
             onClose={() => setEditImage(null)} 
             onSave={handleSaveEdit}
+            modelId={inpaintModelId}
         />
       )}
       <div className="flex-none w-8 pt-1 text-center font-bold text-muted-foreground/50 text-xl">
@@ -301,6 +310,20 @@ export function StoryboardFrame({ frame, index }: StoryboardFrameProps) {
                 onChange={(v) => updateFrame(frame.id, { characterIds: Array.isArray(v) ? v : [v] })} 
                 multi
               />
+              <div className="mt-2 flex flex-wrap gap-2">
+                {selectedCharacters.map((char: any) => (
+                  <div key={char.id} className="flex items-center gap-2">
+                    {char.imageUrl ? (
+                      <img src={char.imageUrl} alt={char.name} className="h-7 w-7 rounded-full object-cover border" />
+                    ) : (
+                      <div className="h-7 w-7 rounded-full bg-muted text-[10px] flex items-center justify-center border">
+                        {char.name?.slice(0, 1)}
+                      </div>
+                    )}
+                    <span className="text-xs text-muted-foreground">{char.name}</span>
+                  </div>
+                ))}
+              </div>
            </div>
            <div className="sm:col-span-1">
               <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 block">Scene</label>
@@ -309,6 +332,18 @@ export function StoryboardFrame({ frame, index }: StoryboardFrameProps) {
                 value={frame.sceneId} 
                 onChange={(v) => updateFrame(frame.id, { sceneId: v === 'none' ? undefined : v as string })} 
               />
+              {selectedScene && (
+                <div className="mt-2 flex items-center gap-2">
+                  {selectedScene.imageUrl ? (
+                    <img src={selectedScene.imageUrl} alt={selectedScene.name} className="h-7 w-7 rounded-full object-cover border" />
+                  ) : (
+                    <div className="h-7 w-7 rounded-full bg-muted text-[10px] flex items-center justify-center border">
+                      {selectedScene.name?.slice(0, 1)}
+                    </div>
+                  )}
+                  <span className="text-xs text-muted-foreground">{selectedScene.name}</span>
+                </div>
+              )}
            </div>
            <div className="sm:col-span-1">
               <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 block">Duration (s)</label>

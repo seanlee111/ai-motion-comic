@@ -46,15 +46,10 @@ export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const requestId = searchParams.get("id");
   const endpoint = searchParams.get("endpoint"); 
-  // We need to know which provider/model handled this request to get the right key/logic
-  // But GET requests are stateless. 
-  // Simple fix: Client passes `modelId` in query param too.
-  // Or we try to infer from endpoint (if unique).
-  // Or we just require `modelId` param.
-  const modelId = searchParams.get("modelId") || "fal-flux-pro-v1.1"; // Default fallback
+  const modelId = searchParams.get("modelId");
 
-  if (!requestId) {
-     return NextResponse.json({ error: "Missing id" }, { status: 400 });
+  if (!requestId || !modelId) {
+     return NextResponse.json({ error: "Missing id or modelId" }, { status: 400 });
   }
 
   const modelConfig = getModelConfig(modelId);
