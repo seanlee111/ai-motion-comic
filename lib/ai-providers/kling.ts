@@ -1,85 +1,108 @@
 import { AIProviderAdapter, GenerationRequest, GenerationResponse } from './types';
+import jwt from 'jsonwebtoken';
 
-// TODO: Replace with official Kling API Endpoint
-// const KLING_API_BASE = "https://api.klingai.com/v1"; 
+function generateKlingToken(accessKey: string, secretKey: string): string {
+    const payload = {
+        iss: accessKey,
+        exp: Math.floor(Date.now() / 1000) + 1800, // 30 mins validity
+        nbf: Math.floor(Date.now() / 1000) - 5
+    };
+    return jwt.sign(payload, secretKey, { algorithm: 'HS256', header: { alg: 'HS256', typ: 'JWT' } });
+}
 
 export const KlingProvider: AIProviderAdapter = {
   async generate(req: GenerationRequest): Promise<GenerationResponse> {
     const { modelConfig, prompt, aspect_ratio } = req;
     
-    const apiKey = process.env[modelConfig.envKey];
-    if (!apiKey) throw new Error(`Missing API Key: ${modelConfig.envKey}`);
+    // Auth
+    const ak = process.env.KLING_ACCESS_KEY;
+    const sk = process.env.KLING_SECRET_KEY;
+    if (!ak || !sk) throw new Error("Missing Kling Credentials (KLING_ACCESS_KEY/KLING_SECRET_KEY)");
 
-    const endpoint = modelConfig.endpoint; 
-    if (!endpoint) throw new Error("Kling API Endpoint not configured in lib/ai-models.ts");
+    const token = generateKlingToken(ak, sk);
+    const endpoint = modelConfig.endpoint || "https://api.klingai.com/v1/images/generations";
 
-    // Construct Payload (Hypothetical Standard Structure)
-    // Please consult Kling AI documentation for exact fields
+    // Payload
     const payload = {
-      model: "kling-v1", // or whatever model identifier they use
-      input: {
-          prompt: prompt,
-          aspect_ratio: aspect_ratio || "16:9"
-      }
+        model_name: "kling-v1", // Default, can be overridden if we add more Kling models to config
+        prompt,
+        aspect_ratio: aspect_ratio || "16:9",
+        n: 1
     };
 
-    // Example API Call
     const response = await fetch(endpoint, {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${apiKey}`, // Check if it's Bearer or Key or X-API-KEY
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(payload),
+        method: "POST",
+        headers: {
+            "Authorization": `Bearer ${token}`,
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify(payload)
     });
 
     if (!response.ok) {
-      throw new Error(`Kling API Error: ${await response.text()}`);
+        throw new Error(`Kling Submit Error: ${await response.text()}`);
     }
 
     const data = await response.json();
-    
-    // Assuming Async Task Pattern
+    if (data.code !== 0) {
+        throw new Error(`Kling API Error: ${data.message} (Code ${data.code})`);
+    }
+
     return {
-        request_id: data.task_id || data.id, 
+        request_id: data.data.task_id,
         status: 'QUEUED',
-        endpoint // Pass endpoint if needed for status check construction
+        endpoint: endpoint // Used to derive status url
     };
   },
 
   async checkStatus(requestId: string, endpoint: string, apiKey: string): Promise<GenerationResponse> {
-      // Construct Status URL
-      // Example: https://api.klingai.com/v1/tasks/{id}
-      // You need to adjust this based on real docs
+      // Re-generate token (stateless check)
+      const ak = process.env.KLING_ACCESS_KEY;
+      const sk = process.env.KLING_SECRET_KEY;
+      if (!ak || !sk) throw new Error("Missing Kling Credentials");
       
-      // We assume the endpoint passed is the generation endpoint, so we might need to derive status endpoint
-      // For now, let's assume a standard pattern or use what's passed if it was a status url
+      const token = generateKlingToken(ak, sk);
       
-      const baseUrl = endpoint.split('/images')[0]; // Quick hack to get base
-      const statusUrl = `${baseUrl}/tasks/${requestId}`; 
+      // Construct Status URL: /v1/images/generations/{task_id}
+      // Endpoint passed is usually ".../generations"
+      const statusUrl = `${endpoint}/${requestId}`;
 
       const response = await fetch(statusUrl, {
           method: "GET",
           headers: {
-              "Authorization": `Bearer ${apiKey}`
+              "Authorization": `Bearer ${token}`,
+              "Content-Type": "application/json"
           }
       });
 
-      if (!response.ok) throw new Error("Kling Status Failed");
-      
+      if (!response.ok) {
+          throw new Error(`Kling Status Error: ${await response.text()}`);
+      }
+
       const data = await response.json();
-      
-      // Map Kling status to our internal status
-      // Kling might use: "created", "processing", "succeeded", "failed"
+      if (data.code !== 0) {
+          throw new Error(`Kling API Error: ${data.message}`);
+      }
+
+      const taskData = data.data;
       let status: GenerationResponse['status'] = 'IN_PROGRESS';
-      if (data.status === 'succeeded' || data.status === 'COMPLETED') status = 'COMPLETED';
-      if (data.status === 'failed') status = 'FAILED';
+      let images: { url: string }[] = [];
+      let error = undefined;
+
+      // Status mapping: submitted, processing, succeed, failed
+      if (taskData.task_status === 'succeed') {
+          status = 'COMPLETED';
+          images = (taskData.task_result?.images || []).map((img: any) => ({ url: img.url }));
+      } else if (taskData.task_status === 'failed') {
+          status = 'FAILED';
+          error = taskData.task_status_msg || "Kling Generation Failed";
+      }
 
       return {
           request_id: requestId,
           status,
-          images: data.output?.images?.map((url: string) => ({ url })), // Adjust path to image url
-          error: data.error
+          images,
+          error
       };
   }
 };

@@ -36,13 +36,12 @@ export const AI_MODELS: AIModelConfig[] = [
     type: 'text-to-image'
   },
 
-  // --- Kling AI Models (Placeholder) ---
+  // --- Kling AI Models ---
   {
     id: 'kling-v1',
-    name: 'Kling 1.0 (Experimental)',
+    name: 'Kling 1.0 (Kuaishou)',
     provider: 'KLING',
-    envKey: 'KLING_KEY',
-    // TODO: Update with official Kling API endpoint when available
+    envKey: 'KLING_ACCESS_KEY', // Kling requires AK/SK to generate JWT
     endpoint: 'https://api.klingai.com/v1/images/generations', 
     type: 'text-to-image'
   },
