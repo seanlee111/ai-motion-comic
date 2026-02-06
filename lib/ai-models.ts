@@ -10,32 +10,6 @@ export interface AIModelConfig {
 }
 
 export const AI_MODELS: AIModelConfig[] = [
-  // --- Fal AI Models ---
-  {
-    id: 'fal-flux-pro-v1.1',
-    name: 'Flux Pro 1.1 (Fal)',
-    provider: 'FAL',
-    envKey: 'FAL_KEY',
-    endpoint: 'https://queue.fal.run/fal-ai/flux-pro/v1.1',
-    type: 'text-to-image'
-  },
-  {
-    id: 'fal-flux-dev',
-    name: 'Flux Dev (Fal)',
-    provider: 'FAL',
-    envKey: 'FAL_KEY',
-    endpoint: 'https://queue.fal.run/fal-ai/flux/dev',
-    type: 'text-to-image'
-  },
-  {
-    id: 'fal-flux-schnell',
-    name: 'Flux Schnell (Fal)',
-    provider: 'FAL',
-    envKey: 'FAL_KEY',
-    endpoint: 'https://queue.fal.run/fal-ai/flux/schnell',
-    type: 'text-to-image'
-  },
-
   // --- Kling AI Models ---
   {
     id: 'kling-v1',
@@ -55,7 +29,33 @@ export const AI_MODELS: AIModelConfig[] = [
     // Official Endpoint for Visual Service
     endpoint: 'https://visual.volcengineapi.com', 
     type: 'text-to-image'
-  }
+  },
+
+  // --- Fal AI Models (Disabled for now) ---
+  // {
+  //   id: 'fal-flux-pro-v1.1',
+  //   name: 'Flux Pro 1.1 (Fal)',
+  //   provider: 'FAL',
+  //   envKey: 'FAL_KEY',
+  //   endpoint: 'https://queue.fal.run/fal-ai/flux-pro/v1.1',
+  //   type: 'text-to-image'
+  // },
+  // {
+  //   id: 'fal-flux-dev',
+  //   name: 'Flux Dev (Fal)',
+  //   provider: 'FAL',
+  //   envKey: 'FAL_KEY',
+  //   endpoint: 'https://queue.fal.run/fal-ai/flux/dev',
+  //   type: 'text-to-image'
+  // },
+  // {
+  //   id: 'fal-flux-schnell',
+  //   name: 'Flux Schnell (Fal)',
+  //   provider: 'FAL',
+  //   envKey: 'FAL_KEY',
+  //   endpoint: 'https://queue.fal.run/fal-ai/flux/schnell',
+  //   type: 'text-to-image'
+  // },
 ];
 
 export const getModelConfig = (modelId: string): AIModelConfig | undefined => {

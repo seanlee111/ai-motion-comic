@@ -32,7 +32,7 @@ const MODEL_OPTIONS = AI_MODELS.filter(m => m.type === 'text-to-image');
 export function StoryboardFrame({ frame, index }: StoryboardFrameProps) {
   const { updateFrame, deleteFrame, assets } = useStoryStore()
   const [loading, setLoading] = useState<"start" | "end" | "all" | null>(null)
-  const [selectedModels, setSelectedModels] = useState<string[]>(["fal-flux-pro-v1.1"])
+  const [selectedModels, setSelectedModels] = useState<string[]>(MODEL_OPTIONS.map(m => m.id))
   const [editImage, setEditImage] = useState<{ url: string, type: "start" | "end" } | null>(null)
 
   const toggleModel = (modelId: string) => {
