@@ -37,16 +37,19 @@ export const KlingProvider: AIProviderAdapter = {
     const { modelConfig, prompt, aspect_ratio } = req;
     
     // Auth
-    const ak = process.env.KLING_ACCESS_KEY;
-    const sk = process.env.KLING_SECRET_KEY;
-    if (!ak || !sk) throw new Error("Missing Kling Credentials (KLING_ACCESS_KEY/KLING_SECRET_KEY)");
+    const rawAk = process.env.KLING_ACCESS_KEY;
+    const rawSk = process.env.KLING_SECRET_KEY;
+    if (!rawAk || !rawSk) throw new Error("Missing Kling Credentials (KLING_ACCESS_KEY/KLING_SECRET_KEY)");
+
+    const ak = rawAk.trim();
+    const sk = rawSk.trim();
 
     const token = generateKlingToken(ak, sk);
     const endpoint = modelConfig.endpoint || "https://api.klingai.com/v1/images/generations";
 
     // Payload
     const payload = {
-        model_name: "kling-v1", // Default, can be overridden if we add more Kling models to config
+        model_name: "kling-v2", // Updated to kling-v2 based on docs
         prompt,
         aspect_ratio: aspect_ratio || "16:9",
         n: 1
@@ -121,9 +124,12 @@ export const KlingProvider: AIProviderAdapter = {
 
   async checkStatus(requestId: string, endpoint: string, apiKey: string): Promise<GenerationResponse> {
       // Re-generate token (stateless check)
-      const ak = process.env.KLING_ACCESS_KEY;
-      const sk = process.env.KLING_SECRET_KEY;
-      if (!ak || !sk) throw new Error("Missing Kling Credentials");
+      const rawAk = process.env.KLING_ACCESS_KEY;
+      const rawSk = process.env.KLING_SECRET_KEY;
+      if (!rawAk || !rawSk) throw new Error("Missing Kling Credentials");
+      
+      const ak = rawAk.trim();
+      const sk = rawSk.trim();
       
       const token = generateKlingToken(ak, sk);
       

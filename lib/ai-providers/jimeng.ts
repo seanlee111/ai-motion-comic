@@ -19,12 +19,15 @@ export const JimengProvider: AIProviderAdapter = {
     const { modelConfig, prompt, aspect_ratio } = req;
     
     // Credentials
-    const ak = process.env.JIMENG_AK;
-    const sk = process.env.JIMENG_SK;
+    const rawAk = process.env.JIMENG_AK;
+    const rawSk = process.env.JIMENG_SK;
     
-    if (!ak || !sk) {
+    if (!rawAk || !rawSk) {
         throw new Error("Missing Jimeng Credentials (JIMENG_AK/JIMENG_SK)");
     }
+    
+    const ak = rawAk.trim();
+    const sk = rawSk.trim();
 
     // Map Aspect Ratio to Width/Height
     // Default 2K (2048x2048) or similar
@@ -53,9 +56,10 @@ export const JimengProvider: AIProviderAdapter = {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
+            'Host': host, // Explicitly set Host
         },
         body: JSON.stringify(payload),
-        service: 'visual',
+        service: 'cv', // Updated from 'visual' to 'cv' based on docs
         region: 'cn-north-1'
     };
 
@@ -77,7 +81,7 @@ export const JimengProvider: AIProviderAdapter = {
           httpStatus: response.status,
           endpoint: `https://${host}${path}`,
           region: "cn-north-1",
-          service: "visual",
+          service: "cv",
           req_key: payload.req_key,
           iss: maskKey(ak),
           response: json || text
@@ -93,7 +97,7 @@ export const JimengProvider: AIProviderAdapter = {
           httpStatus: response.status,
           endpoint: `https://${host}${path}`,
           region: "cn-north-1",
-          service: "visual",
+          service: "cv",
           req_key: payload.req_key,
           iss: maskKey(ak),
           response: data
@@ -108,7 +112,7 @@ export const JimengProvider: AIProviderAdapter = {
           httpStatus: response.status,
           endpoint: `https://${host}${path}`,
           region: "cn-north-1",
-          service: "visual",
+          service: "cv",
           req_key: payload.req_key,
           iss: maskKey(ak),
           response: data
@@ -125,10 +129,13 @@ export const JimengProvider: AIProviderAdapter = {
 
   async checkStatus(requestId: string, endpoint: string, apiKey: string): Promise<GenerationResponse> {
       // apiKey argument is just the AK passed from route, we need SK from env
-      const ak = process.env.JIMENG_AK;
-      const sk = process.env.JIMENG_SK;
+      const rawAk = process.env.JIMENG_AK;
+      const rawSk = process.env.JIMENG_SK;
 
-      if (!ak || !sk) throw new Error("Missing Jimeng Credentials");
+      if (!rawAk || !rawSk) throw new Error("Missing Jimeng Credentials");
+
+      const ak = rawAk.trim();
+      const sk = rawSk.trim();
 
       const payload = {
           req_key: "jimeng_t2i_v40",
@@ -144,9 +151,10 @@ export const JimengProvider: AIProviderAdapter = {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
+            'Host': host, // Explicitly set Host
         },
         body: JSON.stringify(payload),
-        service: 'visual',
+        service: 'cv', // Updated from 'visual' to 'cv' based on docs
         region: 'cn-north-1'
     };
 
@@ -167,7 +175,7 @@ export const JimengProvider: AIProviderAdapter = {
           httpStatus: response.status,
           endpoint: `https://${host}${path}`,
           region: "cn-north-1",
-          service: "visual",
+          service: "cv",
           req_key: payload.req_key,
           iss: maskKey(ak),
           response: json || text

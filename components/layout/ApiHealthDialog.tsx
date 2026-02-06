@@ -82,7 +82,7 @@ export function ApiHealthDialog() {
                 {result.status.kling?.detail && (
                   <details className="rounded-md bg-muted p-2">
                     <summary>详情</summary>
-                    <pre className="mt-2 max-h-48 overflow-auto text-xs">{result.status.kling.detail}</pre>
+                    <pre className="mt-2 max-h-48 overflow-auto text-xs whitespace-pre-wrap break-all">{result.status.kling.detail}</pre>
                   </details>
                 )}
               </div>
@@ -99,7 +99,7 @@ export function ApiHealthDialog() {
                 {result.status.jimeng?.detail && (
                   <details className="rounded-md bg-muted p-2">
                     <summary>详情</summary>
-                    <pre className="mt-2 max-h-48 overflow-auto text-xs">{result.status.jimeng.detail}</pre>
+                    <pre className="mt-2 max-h-48 overflow-auto text-xs whitespace-pre-wrap break-all">{result.status.jimeng.detail}</pre>
                   </details>
                 )}
               </div>
@@ -116,7 +116,7 @@ export function ApiHealthDialog() {
                 {result.status.llm?.detail && (
                   <details className="rounded-md bg-muted p-2">
                     <summary>详情</summary>
-                    <pre className="mt-2 max-h-48 overflow-auto text-xs">{result.status.llm.detail}</pre>
+                    <pre className="mt-2 max-h-48 overflow-auto text-xs whitespace-pre-wrap break-all">{result.status.llm.detail}</pre>
                   </details>
                 )}
               </div>
