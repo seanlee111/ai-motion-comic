@@ -47,14 +47,14 @@ export const AI_MODELS: AIModelConfig[] = [
     type: 'text-to-image'
   },
 
-  // --- Jimeng AI Models (Placeholder) ---
+  // --- Jimeng AI Models ---
   {
-    id: 'jimeng-v1',
-    name: 'Jimeng (Experimental)',
+    id: 'jimeng-v4',
+    name: 'Jimeng 4.0 (Volcengine)',
     provider: 'JIMENG',
-    envKey: 'JIMENG_KEY',
-    // TODO: Update with official Jimeng/Volcengine API endpoint
-    endpoint: 'https://api.jimeng.volcengine.com/v1/generate', 
+    envKey: 'JIMENG_AK', // Jimeng requires AK/SK pair, we'll store AK here and assume SK is JIMENG_SK
+    // Official Endpoint for Visual Service
+    endpoint: 'https://visual.volcengineapi.com', 
     type: 'text-to-image'
   }
 ];
