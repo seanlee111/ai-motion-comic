@@ -6,37 +6,44 @@ import { CreateAssetDialog } from "./CreateAssetDialog"
 import { Card, CardContent } from "@/components/ui/card"
 import { Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { EditAssetDialog } from "./EditAssetDialog"
 
 function AssetCard({ asset }: { asset: any }) {
   const { deleteAsset } = useStoryStore()
 
   return (
     <Card className="relative overflow-hidden group">
-      <div className="aspect-square w-full bg-muted">
-        {asset.imageUrl ? (
-          <img src={asset.imageUrl} alt={asset.name} className="h-full w-full object-cover" />
-        ) : (
-          <div className="flex h-full w-full items-center justify-center text-xs text-muted-foreground">
-            No Image
+      <EditAssetDialog
+        asset={asset}
+        trigger={
+          <div className="aspect-square w-full bg-muted cursor-pointer">
+            {asset.imageUrl ? (
+              <img src={asset.imageUrl} alt={asset.name} className="h-full w-full object-cover" />
+            ) : (
+              <div className="flex h-full w-full items-center justify-center text-xs text-muted-foreground">
+                No Image
+              </div>
+            )}
           </div>
-        )}
-      </div>
+        }
+      />
       <CardContent className="p-2">
         <h3 className="truncate text-sm font-semibold">{asset.name}</h3>
         <p className="truncate text-xs text-muted-foreground">{asset.type}</p>
       </CardContent>
-      <div className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity">
-         <Button 
-            variant="destructive" 
-            size="icon" 
-            className="h-6 w-6" 
-            onClick={async () => {
-              await fetch(`/api/assets?id=${asset.id}`, { method: "DELETE" })
-              deleteAsset(asset.id)
-            }}
-         >
-            <Trash2 className="h-3 w-3" />
-         </Button>
+      <div className="absolute top-1 right-1 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+        <EditAssetDialog asset={asset} />
+        <Button 
+          variant="destructive" 
+          size="icon" 
+          className="h-6 w-6" 
+          onClick={async () => {
+            await fetch(`/api/assets?id=${asset.id}`, { method: "DELETE" })
+            deleteAsset(asset.id)
+          }}
+        >
+          <Trash2 className="h-3 w-3" />
+        </Button>
       </div>
     </Card>
   )

@@ -128,3 +128,71 @@ export async function DELETE(req: NextRequest) {
     );
   }
 }
+
+export async function PATCH(req: NextRequest) {
+  try {
+    const formData = await req.formData();
+    const id = formData.get("id") as string | null;
+    const type = formData.get("type") as AssetType | null;
+    const name = formData.get("name") as string | null;
+    const description = (formData.get("description") as string | null) || "";
+    const file = formData.get("file") as File | null;
+
+    if (!id) {
+      return NextResponse.json({ error: "Missing id" }, { status: 400 });
+    }
+
+    const blobs = await list({ prefix: META_PREFIX });
+    const metaBlob = blobs.blobs.find((b) => b.pathname === `${META_PREFIX}${id}.json`);
+    if (!metaBlob) {
+      return NextResponse.json({ error: "Asset not found" }, { status: 404 });
+    }
+
+    const metaRes = await fetch(metaBlob.url, { cache: "no-store" });
+    const existing = metaRes.ok ? ((await metaRes.json()) as RemoteAsset) : undefined;
+    if (!existing) {
+      return NextResponse.json({ error: "Asset not found" }, { status: 404 });
+    }
+
+    let imageUrl = existing.imageUrl;
+
+    if (file) {
+      if (imageUrl) {
+        await del(imageUrl);
+      }
+      const ext =
+        file.type === "image/png"
+          ? "png"
+          : file.type === "image/jpeg"
+            ? "jpg"
+            : "bin";
+
+      const blob = await put(`${IMAGE_PREFIX}${id}.${ext}`, file, {
+        access: "public",
+        contentType: file.type || "application/octet-stream",
+      });
+      imageUrl = blob.url;
+    }
+
+    const updated: RemoteAsset = {
+      ...existing,
+      id,
+      type: type || existing.type,
+      name: name || existing.name,
+      description,
+      imageUrl,
+    };
+
+    await put(`${META_PREFIX}${id}.json`, JSON.stringify(updated), {
+      access: "public",
+      contentType: "application/json",
+    });
+
+    return NextResponse.json({ asset: updated });
+  } catch (error: any) {
+    return NextResponse.json(
+      { error: error?.message || "Failed to update asset" },
+      { status: 500 }
+    );
+  }
+}

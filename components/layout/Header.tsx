@@ -2,6 +2,7 @@ import Link from "next/link"
 import { Clapperboard, PenTool } from "lucide-react"
 import { SettingsModal } from "./SettingsModal"
 import { Button } from "@/components/ui/button"
+import { ApiHealthDialog } from "./ApiHealthDialog"
 
 export function Header() {
   return (
@@ -21,6 +22,7 @@ export function Header() {
                     Script Writer
                 </Button>
             </Link>
+            <ApiHealthDialog />
             <SettingsModal />
           </nav>
         </div>
