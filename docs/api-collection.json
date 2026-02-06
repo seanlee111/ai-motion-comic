@@ -1,0 +1,102 @@
+{
+	"info": {
+		"_postman_id": "ai-comic-collection",
+		"name": "AI Comic API",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "Generate (Jimeng)",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"provider\": \"JIMENG\",\n    \"modelConfig\": {\n        \"id\": \"jimeng-v4\"\n    },\n    \"prompt\": \"cyberpunk city\",\n    \"aspect_ratio\": \"16:9\"\n}"
+				},
+				"url": {
+					"raw": "{{baseUrl}}/api/v1/generate",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"generate"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Generate (Kling)",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"provider\": \"KLING\",\n    \"modelConfig\": {\n        \"id\": \"kling-v2\"\n    },\n    \"prompt\": \"cute cat\",\n    \"aspect_ratio\": \"1:1\"\n}"
+				},
+				"url": {
+					"raw": "{{baseUrl}}/api/v1/generate",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"generate"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Check Status",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"provider\": \"JIMENG\",\n    \"taskId\": \"task_id_here\"\n}"
+				},
+				"url": {
+					"raw": "{{baseUrl}}/api/v1/status",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"status"
+					]
+				}
+			},
+			"response": []
+		}
+	],
+	"variable": [
+		{
+			"key": "baseUrl",
+			"value": "http://localhost:3000"
+		}
+	]
+}
