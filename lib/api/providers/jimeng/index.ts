@@ -65,7 +65,7 @@ export class JimengProvider {
 
     this.sign(requestOptions);
 
-    const response = await this.client.request<any>(`https://${host}${path}`, {
+    const response = await this.client.request<any>(path, {
         method: 'POST',
         headers: requestOptions.headers as any,
         body: requestOptions.body

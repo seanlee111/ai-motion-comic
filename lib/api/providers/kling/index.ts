@@ -33,11 +33,12 @@ export class KlingProvider {
   }
 
   private generateToken(): string {
+    const now = Math.floor(Date.now() / 1000);
     const payload = {
         iss: this.ak,
-        iat: Math.floor(Date.now() / 1000),
-        exp: Math.floor(Date.now() / 1000) + 1800,
-        nbf: Math.floor(Date.now() / 1000) - 5
+        iat: now,
+        exp: now + 1800, // 30 mins validity
+        nbf: now - 300   // Allow 5 mins skew (backward)
     };
     return jwt.sign(payload, this.sk, { 
         algorithm: 'HS256', 
