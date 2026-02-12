@@ -34,16 +34,33 @@ export class FalProvider {
         enable_safety_checker: false
     };
 
+    // Set parameters based on model
     if (req.model.includes('flux')) {
+        payload.num_inference_steps = 28;
         payload.guidance_scale = 3.5;
     } else if (req.model.includes('sdxl')) {
+        payload.num_inference_steps = 30;
         payload.guidance_scale = 7.5;
     }
 
-    // Handle Image-to-Image
+    let endpoint = modelConfig.endpoint;
+
     if (req.imageUrl) {
         payload.image_url = req.imageUrl;
-        payload.strength = 0.85; // Default strength from reference
+        payload.strength = 0.85;
+        // Use general endpoint for flux img2img as per latest docs
+        if (req.model.includes('flux')) {
+            endpoint = "https://queue.fal.run/fal-ai/flux-general";
+        }
+    } else {
+        // If NOT image-to-image mode (or no image_url), revert to standard dev/schnell endpoints for Flux
+        if (req.model === 'fal-flux-dev') {
+            endpoint = "https://queue.fal.run/fal-ai/flux/dev";
+        } else if (req.model === 'fal-flux-schnell') {
+            endpoint = "https://queue.fal.run/fal-ai/flux/schnell";
+        } else if (req.model === 'fal-fast-sdxl') {
+            endpoint = "https://queue.fal.run/fal-ai/fast-sdxl";
+        }
     }
 
     // IP-Adapter & LoRA Support logic (Placeholder for future expansion)
@@ -55,7 +72,7 @@ export class FalProvider {
     // Flux uses fal-ai/flux-general which supports image_prompts for IP-Adapter
     // SDXL uses fal-ai/fast-sdxl which uses ip_adapter for IP-Adapter
 
-    const response = await this.client.request<any>(modelConfig.endpoint, {
+    const response = await this.client.request<any>(endpoint, {
         method: 'POST',
         headers: {
             'Authorization': `Key ${this.apiKey}`,

@@ -35,6 +35,15 @@ export const FalProvider: AIProviderAdapter = {
       if (modelConfig.id.includes('flux')) {
          endpoint = "https://queue.fal.run/fal-ai/flux-general";
       }
+    } else {
+       // If NOT image-to-image mode (or no image_url), revert to standard dev/schnell endpoints for Flux
+       if (modelConfig.id === 'fal-flux-dev') {
+           endpoint = "https://queue.fal.run/fal-ai/flux/dev";
+       } else if (modelConfig.id === 'fal-flux-schnell') {
+           endpoint = "https://queue.fal.run/fal-ai/flux/schnell";
+       } else if (modelConfig.id === 'fal-fast-sdxl') {
+           endpoint = "https://queue.fal.run/fal-ai/fast-sdxl";
+       }
     }
 
     if (mode === "inpainting" && image_url && mask_url) {
