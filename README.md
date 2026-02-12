@@ -1,28 +1,76 @@
-# AI Motion Comic Studio (MVP)
+# AI Motion Comic (AI 动态漫画助手)
 
-This is a Next.js 14 application for generating AI keyframes for motion comics.
+这是一个基于 Next.js 开发的 AI 辅助漫画创作工具，旨在帮助创作者将简单的故事创意快速转化为可视化的分镜脚本，并利用 AI 模型生成高质量的角色、场景和分镜图像。
 
-## Features
-- **Flux Pro/Dev Integration** via Fal.ai
-- **Text-to-Image** & **Image-to-Image**
-- **Cyberpunk UI** with Shadcn/UI & Tailwind
-- **Local API Key Storage** (Secure)
+## ✨ 核心功能
 
-## Setup
+*   **🤖 AI 剧本创作**: 输入一句话创意，AI (DeepSeek) 自动生成包含场景描述、镜头语言的专业分镜脚本。
+*   **🎨 AI 图像生成**: 集成多种顶级 AI 绘画模型：
+    *   **Fal.ai**: Flux Pro/Dev, SDXL (支持图生图、参考图控制)
+    *   **即梦 (Jimeng)**: 字节跳动出品的高质量文生图模型
+    *   **可灵 (Kling)**: 快手出品的视频/图像生成模型
+*   **📂 资产管理**: 集中管理角色 (Character) 和场景 (Scene) 资产，支持上传参考图，确保角色一致性。
+*   **🎬 可视化分镜**: 拖拽式分镜编辑器，支持对每个分镜进行单独的画面生成、编辑和管理。
 
-1. Install dependencies:
-   ```bash
-   npm install
-   ```
+## 🛠️ 技术栈
 
-2. Run the development server:
-   ```bash
-   npm run dev
-   ```
+*   **框架**: Next.js 14 (App Router)
+*   **语言**: TypeScript
+*   **样式**: Tailwind CSS + Shadcn UI
+*   **状态管理**: Zustand (本地持久化存储)
+*   **API 集成**: DeepSeek, Fal.ai, Volcengine (即梦), Kling AI
 
-3. Open [http://localhost:3000](http://localhost:3000)
+---
 
-4. Click the **Settings** icon in the header and enter your `FAL_KEY`.
+## 🚀 快速开始 (用户手册)
 
-## API Keys
-- Get your key from [Fal.ai](https://fal.ai/dashboard)
+### 1. 环境配置
+
+在使用前，请确保您已获取以下服务的 API Key，并在项目根目录的 `.env.local` 文件中配置（参考 `.env.example`）：
+
+*   `DEEPSEEK_API_KEY`: 用于生成剧本
+*   `FAL_KEY`: 用于 Flux/SDXL 图像生成
+*   `JIMENG_AK` / `JIMENG_SK`: 用于即梦模型
+*   `KLING_ACCESS_KEY` / `KLING_SECRET_KEY`: 用于可灵模型
+
+### 2. 创作流程
+
+#### 第一步：创意转剧本 (Script Creation)
+1.  点击首页顶部的 **"AI Script"** 按钮（或魔法棒图标）。
+2.  在文本框中输入您的故事创意（例如：“一个赛博朋克风格的侦探在雨夜寻找丢失的机器人”）。
+3.  点击 **"Generate Magic"**。
+4.  等待 AI 生成完毕，系统将自动为您创建分镜列表。
+    *   *进阶提示*：点击右上角的 **"Settings"** 按钮，可以自定义 AI 的 System Prompt，调整生成风格。
+
+#### 第二步：管理资产 (Asset Library)
+1.  在左侧 **"Assets"** 面板中，您可以添加 **角色** 和 **场景**。
+2.  点击 **"Add Asset"**，上传角色的参考图或填写详细描述。
+3.  **重要**：为了保证画面一致性，建议为每个主要角色和场景上传一张参考图。
+
+#### 第三步：编辑分镜 (Storyboard Editor)
+1.  在中间的分镜列表中，您会看到 AI 生成的每个场景卡片。
+2.  **关联资产**：点击分镜卡片上的 **"Characters"** 或 **"Scene"** 下拉菜单，选择该场景中出现的角色和背景。
+3.  **调整提示词**：
+    *   **Story Script**: 剧情描述（AI 已生成，可修改）。
+    *   **Camera & Movement**: 镜头语言备注。
+4.  **生成画面**：
+    *   在 **"Models"** 区域选择您想使用的模型（推荐 Flux 或 SDXL）。
+    *   点击 **"Start"**（生成起始帧）或 **"End"**（生成结束帧）。
+    *   *注意*：如果您关联了带有图片的资产，Flux/SDXL 会自动使用“图生图”模式，以参考图为基础生成，保持角色一致性。
+
+#### 第四步：导出与分享
+1.  生成满意的图片后，点击图片下方的 **"Select"** 将其设为该分镜的正式画面。
+2.  点击 **Download** 图标保存图片到本地。
+
+---
+
+## ❓ 常见问题
+
+**Q: 为什么生成图片时报错 "Field required image_url"?**
+A: 您选择了图生图模型（如 Flux Image-to-Image），但当前分镜未关联任何带有参考图的角色或场景。请先在左侧资产库添加图片，并在分镜中选中它。
+
+**Q: AI 生成的剧本不符合我的要求怎么办？**
+A: 在剧本创作页面，点击右上角的设置按钮，修改 System Prompt。您可以明确告诉 AI：“使用黑暗风格”、“少写对话，多描写动作”等。
+
+**Q: 可以在 Vercel 上部署吗？**
+A: 可以。本项目完全兼容 Vercel。请确保在 Vercel 后台的 Environment Variables 中填入所有 API Key。
