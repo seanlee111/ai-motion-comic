@@ -135,6 +135,12 @@ export class FalProvider {
         if (response.status === 'COMPLETED') {
             status = 'COMPLETED';
             // Fetch result
+            // IMPORTANT: For some endpoints like image-to-image, the result might already be in the status response?
+            // Fal queue API usually returns result in a separate call or in the status response if it's "sync" mode but here it is async.
+            // Wait, for fal queue, the result is at /requests/{id} (without /status) or inside the status payload if using webhooks?
+            // Actually, `queue.fal.run/.../requests/{id}` returns the result JSON.
+            // `queue.fal.run/.../requests/{id}/status` returns the status JSON.
+            
             const resultResponse = await this.client.request<any>(resultUrl, {
                 method: 'GET',
                 headers: { 'Authorization': `Key ${this.apiKey}` }
@@ -164,6 +170,8 @@ export class FalProvider {
 
   private async checkStatusLegacy(taskId: string): Promise<GenerateResult> {
       const knownEndpoints = [
+          'fal-ai/flux/dev/image-to-image',
+          'fal-ai/fast-sdxl/image-to-image',
           'fal-ai/flux/dev',
           'fal-ai/fast-sdxl'
       ];
