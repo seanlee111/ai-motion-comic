@@ -25,36 +25,35 @@ export class FalProvider {
         throw new APIError('Invalid Model Configuration for Fal', 400);
     }
 
-    // Fal usually works with 'image_url' parameter for image-to-image
-    // req should have 'imageUrl' or similar if it's image-to-image
-    // But our generic GenerateRequest might not strictly define it yet.
-    // Let's assume req.imageUrl is passed for image-to-image.
-    
     const payload: any = {
         prompt: req.prompt,
         image_size: req.aspect_ratio === '1:1' ? 'square_hd' : 
                     req.aspect_ratio === '16:9' ? 'landscape_16_9' : 
                     req.aspect_ratio === '9:16' ? 'portrait_16_9' : 'square_hd',
-        num_inference_steps: 30,
+        num_inference_steps: req.model.includes('flux') ? 28 : 30, // Flux: 28, SDXL: 30
         enable_safety_checker: false
     };
 
-    if (req.imageUrl) {
-        payload.image_url = req.imageUrl;
-        payload.strength = 0.75; // Default strength for img2img
+    if (req.model.includes('flux')) {
+        payload.guidance_scale = 3.5;
+    } else if (req.model.includes('sdxl')) {
+        payload.guidance_scale = 7.5;
     }
 
-    // IP-Adapter & LoRA Support logic
-    // Currently placeholder, requires user to provide file URLs or paths
-    // Example:
+    // Handle Image-to-Image
+    if (req.imageUrl) {
+        payload.image_url = req.imageUrl;
+        payload.strength = 0.85; // Default strength from reference
+    }
+
+    // IP-Adapter & LoRA Support logic (Placeholder for future expansion)
     // if (req.loras) {
     //     payload.loras = req.loras.map(l => ({ path: l.path, scale: l.scale }));
     // }
     
-    // Adjust payload for specific models if needed
-    if (req.model === 'fal-fast-sdxl') {
-       // SDXL specific params if any
-    }
+    // Check specific model requirements based on reference
+    // Flux uses fal-ai/flux-general which supports image_prompts for IP-Adapter
+    // SDXL uses fal-ai/fast-sdxl which uses ip_adapter for IP-Adapter
 
     const response = await this.client.request<any>(modelConfig.endpoint, {
         method: 'POST',

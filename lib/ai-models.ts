@@ -37,7 +37,7 @@ export const AI_MODELS: AIModelConfig[] = [
     name: 'FLUX.1 [dev] (Fal)',
     provider: 'FAL',
     envKey: 'FAL_KEY',
-    endpoint: 'https://queue.fal.run/fal-ai/flux/dev/image-to-image', // Ensure img2img endpoint
+    endpoint: 'https://queue.fal.run/fal-ai/flux-general', // Use flux-general for better compatibility
     type: 'image-to-image'
   },
   {
@@ -45,7 +45,7 @@ export const AI_MODELS: AIModelConfig[] = [
     name: 'FLUX.1 [schnell] (Fal)',
     provider: 'FAL',
     envKey: 'FAL_KEY',
-    endpoint: 'https://queue.fal.run/fal-ai/flux/schnell/image-to-image', // Ensure img2img endpoint
+    endpoint: 'https://queue.fal.run/fal-ai/flux-general', // Use flux-general
     type: 'image-to-image'
   },
   {
@@ -53,7 +53,7 @@ export const AI_MODELS: AIModelConfig[] = [
     name: 'Fast SDXL (Fal)',
     provider: 'FAL',
     envKey: 'FAL_KEY',
-    endpoint: 'https://queue.fal.run/fal-ai/fast-sdxl/image-to-image', // Ensure img2img endpoint
+    endpoint: 'https://queue.fal.run/fal-ai/fast-sdxl', // Fast SDXL supports img2img
     type: 'image-to-image'
   }
 ];
