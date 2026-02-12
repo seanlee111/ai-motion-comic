@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { JimengProvider } from "@/lib/api/providers/jimeng";
 import { KlingProvider } from "@/lib/api/providers/kling";
+import { FalProvider } from "@/lib/api/providers/fal";
 
 export const runtime = "nodejs";
 
@@ -62,6 +63,27 @@ export async function GET(req: NextRequest) {
        // APIError format
       const detail = e.detail ? JSON.stringify(e.detail, null, 2) : undefined;
       status.jimeng = { ok: false, message: msg, detail, endpoint: "https://visual.volcengineapi.com" };
+    }
+  }
+
+  // Check Fal
+  if (!process.env.FAL_KEY) {
+    status.fal = { ok: false, message: "missing FAL_KEY" };
+  } else if (!probe) {
+    status.fal = { ok: true, message: "configured" };
+  } else {
+    try {
+      const provider = new FalProvider();
+      const res = await provider.generate({
+        model: "fal-flux-dev", // Use one of the configured models for testing
+        prompt: "test",
+        aspect_ratio: "1:1"
+      });
+      status.fal = { ok: true, message: "submit ok", requestId: res.taskId, endpoint: "https://queue.fal.run" };
+    } catch (e: any) {
+      const msg = e.message || "submit failed";
+      const detail = e.detail ? JSON.stringify(e.detail, null, 2) : undefined;
+      status.fal = { ok: false, message: msg, detail, endpoint: "https://queue.fal.run" };
     }
   }
 

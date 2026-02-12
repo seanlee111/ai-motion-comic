@@ -42,6 +42,7 @@ export interface GenerateRequest {
   negative_prompt?: string;
   aspect_ratio?: string;
   n?: number;
+  imageUrl?: string; // Add support for input image (img2img)
   [key: string]: any;
 }
 

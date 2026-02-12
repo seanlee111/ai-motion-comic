@@ -47,25 +47,31 @@ export class JimengProvider {
         logo_info: { add_logo: false }
     };
 
+    // Prepare Signed Request
     const host = 'visual.volcengineapi.com';
-    const path = '/?Action=CVSync2AsyncSubmitTask&Version=2022-08-31';
+    const path = '/';
+    const query = 'Action=CVSync2AsyncSubmitTask&Version=2022-08-31';
     
     const requestOptions = {
         host,
-        path,
+        path: `${path}?${query}`,
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
             'Host': host,
         },
         body: JSON.stringify(payload),
-        service: 'cv',
+        service: 'visual', // Try 'visual' again as 'cv' failed
         region: 'cn-north-1'
     };
 
     this.sign(requestOptions);
 
-    const response = await this.client.request<any>(path, {
+    // Debug Headers
+    console.log('Jimeng Signed Headers:', JSON.stringify(requestOptions.headers, null, 2));
+
+    // Use the exact signed path (including query string) for the request
+    const response = await this.client.request<any>(requestOptions.path, {
         method: 'POST',
         headers: requestOptions.headers as any,
         body: requestOptions.body
@@ -93,24 +99,25 @@ export class JimengProvider {
     };
 
     const host = 'visual.volcengineapi.com';
-    const path = '/?Action=CVSync2AsyncGetResult&Version=2022-08-31';
+    const path = '/';
+    const query = 'Action=CVSync2AsyncGetResult&Version=2022-08-31';
     
     const requestOptions = {
         host,
-        path,
+        path: `${path}?${query}`,
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
             'Host': host,
         },
         body: JSON.stringify(payload),
-        service: 'cv',
+        service: 'visual', // Try 'visual' again as 'cv' failed
         region: 'cn-north-1'
     };
 
     this.sign(requestOptions);
 
-    const response = await this.client.request<any>(`https://${host}${path}`, {
+    const response = await this.client.request<any>(requestOptions.path, {
         method: 'POST',
         headers: requestOptions.headers as any,
         body: requestOptions.body

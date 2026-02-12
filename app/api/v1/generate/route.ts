@@ -3,20 +3,22 @@ import { z } from 'zod';
 import { validateRequest, handleError } from '@/lib/api/middleware';
 import { JimengProvider } from '@/lib/api/providers/jimeng';
 import { KlingProvider } from '@/lib/api/providers/kling';
+import { FalProvider } from '@/lib/api/providers/fal';
 import { logger } from '@/lib/api/core/logger';
 import { v4 as uuidv4 } from 'uuid';
 
 export const runtime = 'nodejs'; // Force Node.js runtime for crypto
 
 const GenerateSchema = z.object({
-  provider: z.enum(['JIMENG', 'KLING']),
+  provider: z.enum(['JIMENG', 'KLING', 'FAL']),
   modelConfig: z.object({
     id: z.string(),
     endpoint: z.string().optional()
   }).optional(), // Optional to allow backend to decide defaults or use minimal config
   prompt: z.string().min(1),
   aspect_ratio: z.string().optional(),
-  n: z.number().optional()
+  n: z.number().optional(),
+  imageUrl: z.string().optional() // Add support for input image
 });
 
 export async function POST(req: NextRequest) {
@@ -34,7 +36,8 @@ export async function POST(req: NextRequest) {
         model: body.modelConfig?.id || '',
         prompt: body.prompt,
         aspect_ratio: body.aspect_ratio,
-        n: body.n
+        n: body.n,
+        imageUrl: body.imageUrl
     };
 
     if (body.provider === 'JIMENG') {
@@ -42,6 +45,9 @@ export async function POST(req: NextRequest) {
         result = await provider.generate(requestData);
     } else if (body.provider === 'KLING') {
         const provider = new KlingProvider();
+        result = await provider.generate(requestData);
+    } else if (body.provider === 'FAL') {
+        const provider = new FalProvider();
         result = await provider.generate(requestData);
     } else {
         throw new Error('Invalid Provider');

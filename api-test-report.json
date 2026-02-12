@@ -1,0 +1,47 @@
+{
+  "timestamp": "2026-02-06T08:31:41.323Z",
+  "summary": {
+    "total": 2,
+    "passed": 0,
+    "failed": 2
+  },
+  "results": [
+    {
+      "name": "Jimeng API Connectivity Test",
+      "status": "FAILURE",
+      "duration": 7668,
+      "timestamp": "2026-02-06T08:31:32.324Z",
+      "error": "HTTP Error 400",
+      "details": {
+        "message": "Unknown Error",
+        "httpStatus": 400,
+        "raw": {
+          "ResponseMetadata": {
+            "RequestId": "20260206163139BCFF3D9D9D6A5C32BDE8",
+            "Action": "CVSync2AsyncSubmitTask",
+            "Version": "2022-08-31",
+            "Error": {
+              "CodeN": 100024,
+              "Code": "InvalidAuthorization",
+              "Message": "Invalid 'Authorization' header, Pls check your authorization header."
+            }
+          }
+        },
+        "endpoint": "https://visual.volcengineapi.com/?Action=CVSync2AsyncSubmitTask&Version=2022-08-31"
+      }
+    },
+    {
+      "name": "Kling API Connectivity Test",
+      "status": "FAILURE",
+      "duration": 1330,
+      "timestamp": "2026-02-06T08:31:39.993Z",
+      "error": "HTTP Error 500",
+      "details": {
+        "message": "{\"code\":1200,\"message\":\"\",\"request_id\":\"ChFAr2i1TVYAAAAAEZvCQw\",\"data\":null}",
+        "httpStatus": 500,
+        "raw": "{\"code\":1200,\"message\":\"\",\"request_id\":\"ChFAr2i1TVYAAAAAEZvCQw\",\"data\":null}",
+        "endpoint": "https://api.klingai.com/v1/images/generations/"
+      }
+    }
+  ]
+}

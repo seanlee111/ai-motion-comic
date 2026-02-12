@@ -42,20 +42,21 @@ export class KlingProvider {
     };
     return jwt.sign(payload, this.sk, { 
         algorithm: 'HS256', 
-        header: { alg: 'HS256', typ: 'JWT', kid: this.ak } 
+        header: { alg: 'HS256', typ: 'JWT' } // Removed kid to see if it fixes auth
     });
   }
 
   public async generate(req: GenerateRequest): Promise<GenerateResult> {
-    // Validation
-    const payload = KlingRequestSchema.parse({
-        model_name: req.model === 'kling-v2' ? 'kling-v2' : 'kling-v1', // Fallback logic
-        prompt: req.prompt,
-        aspect_ratio: req.aspect_ratio,
-        n: req.n
-    });
+    // Minimal Payload
+    const payload = {
+        model_name: "kling-v1", 
+        prompt: req.prompt
+    };
 
     const token = this.generateToken();
+    
+    // Debug Token Payload
+    console.log('Kling Token Payload:', JSON.stringify(jwt.decode(token), null, 2));
 
     const response = await this.client.request<any>('', { // Base URL is set in constructor
         method: 'POST',

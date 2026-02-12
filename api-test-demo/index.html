@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API 连接测试工具</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>API 连接测试工具</h1>
+            <p>用于本地调试和测试 API 连接性</p>
+        </header>
+
+        <main>
+            <section class="request-config">
+                <div class="form-group url-group">
+                    <select id="method">
+                        <option value="GET">GET</option>
+                        <option value="POST">POST</option>
+                        <option value="PUT">PUT</option>
+                        <option value="DELETE">DELETE</option>
+                    </select>
+                    <input type="text" id="url" placeholder="输入 API 地址 (例如: http://localhost:3000/api/health)" />
+                    <button id="sendBtn" class="primary-btn">发送请求</button>
+                </div>
+
+                <div class="tabs">
+                    <button class="tab-btn active" data-tab="headers">Headers</button>
+                    <button class="tab-btn" data-tab="body">Body</button>
+                    <button class="tab-btn" data-tab="history">历史记录</button>
+                </div>
+
+                <div id="headers" class="tab-content active">
+                    <div id="headersList">
+                        <!-- 动态添加 Header 输入行 -->
+                    </div>
+                    <button id="addHeaderBtn" class="secondary-btn">+ 添加 Header</button>
+                </div>
+
+                <div id="body" class="tab-content">
+                    <textarea id="requestBody" placeholder='{"key": "value"}'></textarea>
+                    <div class="body-tools">
+                        <button id="formatJsonBtn" class="small-btn">格式化 JSON</button>
+                    </div>
+                </div>
+
+                <div id="history" class="tab-content">
+                    <ul id="historyList">
+                        <!-- 历史记录列表 -->
+                    </ul>
+                    <button id="clearHistoryBtn" class="danger-btn">清空历史</button>
+                </div>
+            </section>
+
+            <section class="response-display">
+                <div class="response-header">
+                    <h2>响应结果</h2>
+                    <div class="status-bar">
+                        <span id="status" class="status-tag">Status: -</span>
+                        <span id="time" class="time-tag">Time: - ms</span>
+                    </div>
+                </div>
+                
+                <div class="response-tabs">
+                    <button class="res-tab-btn active" data-tab="res-body">Body</button>
+                    <button class="res-tab-btn" data-tab="res-headers">Headers</button>
+                </div>
+
+                <div id="res-body" class="res-tab-content active">
+                    <pre id="responseBody" class="code-block"></pre>
+                </div>
+
+                <div id="res-headers" class="res-tab-content">
+                    <pre id="responseHeaders" class="code-block"></pre>
+                </div>
+
+                <div class="response-actions">
+                    <button id="clearResultBtn" class="secondary-btn">清除结果</button>
+                </div>
+            </section>
+        </main>
+    </div>
+    <script src="script.js"></script>
+</body>
+</html>
