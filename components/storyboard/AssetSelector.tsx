@@ -99,7 +99,7 @@ export function AssetSelector({ type, value, onChange, multi = false }: AssetSel
               {filteredAssets.map((asset) => (
                 <CommandItem
                   key={asset.id}
-                  value={asset.name}
+                  value={`${asset.name}-${asset.id}`} // Use name-id combination for uniqueness and search
                   onSelect={() => multi ? handleMultiSelect(asset.id) : handleSingleSelect(asset.id)}
                 >
                   <Check
