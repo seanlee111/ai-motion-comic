@@ -8,7 +8,8 @@ import { v4 as uuidv4 } from 'uuid';
 export const runtime = 'nodejs';
 
 const ScriptGenerateSchema = z.object({
-  idea: z.string().min(1)
+  idea: z.string().min(1),
+  systemPrompt: z.string().optional()
 });
 
 export async function POST(req: NextRequest) {
@@ -20,7 +21,7 @@ export async function POST(req: NextRequest) {
     logger.info(`Script Generate Request [${traceId}]`, { ideaLength: body.idea.length });
 
     const provider = new DeepSeekProvider();
-    const script = await provider.generateScript(body.idea);
+    const script = await provider.generateScript(body.idea, body.systemPrompt);
 
     return NextResponse.json({
         code: 0,

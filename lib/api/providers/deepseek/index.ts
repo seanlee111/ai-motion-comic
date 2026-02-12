@@ -17,16 +17,16 @@ export class DeepSeekProvider {
     this.apiKey = apiKey ? apiKey.trim() : '';
   }
 
-  public async generateScript(idea: string): Promise<string> {
+  public async generateScript(idea: string, systemPromptOverride?: string): Promise<string> {
     if (!this.apiKey) {
         // Fallback or throw error. For now throw error to prompt user configuration.
         throw new APIError('Missing DeepSeek API Key', 500);
     }
 
     // Allow overriding system prompt via env var for easy tuning
-    const customSystemPrompt = process.env.DEEPSEEK_SYSTEM_PROMPT;
+    const envSystemPrompt = process.env.DEEPSEEK_SYSTEM_PROMPT;
     
-    if (customSystemPrompt) {
+    if (envSystemPrompt) {
         console.log('Using custom DeepSeek system prompt from environment variables');
     }
 
@@ -56,7 +56,8 @@ Your task is to transform a raw story idea into a cinematic, visually rich story
 [Scene 2] Close-up on a cracked helmet visor lying in the sand. A reflection in the visor shows a mysterious blue light approaching from the distance. High contrast, mystery thriller atmosphere.
 `;
 
-    const systemPrompt = customSystemPrompt || defaultSystemPrompt;
+    // Priority: systemPromptOverride (from UI) > envSystemPrompt > defaultSystemPrompt
+    const systemPrompt = systemPromptOverride || envSystemPrompt || defaultSystemPrompt;
 
     const payload = {
         model: "deepseek-chat",

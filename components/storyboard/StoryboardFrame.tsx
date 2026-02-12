@@ -95,6 +95,10 @@ export function StoryboardFrame({ frame, index }: StoryboardFrameProps) {
                 else if (selectedCharacters.length > 0 && selectedCharacters[0] && selectedCharacters[0].imageUrl) {
                     imageUrl = selectedCharacters[0].imageUrl;
                 }
+
+                if (!imageUrl) {
+                    throw new Error(`Model ${modelConfig.name} requires a reference image (Scene or Character with image)`);
+                }
             }
 
             const res = await fetch("/api/generate", {
