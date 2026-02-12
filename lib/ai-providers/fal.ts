@@ -14,24 +14,33 @@ export const FalProvider: AIProviderAdapter = {
     const payload: any = {
       prompt,
       image_size,
-      safety_tolerance: "2",
+      enable_safety_checker: false
     };
 
-    let endpoint = modelConfig.endpoint || "https://queue.fal.run/fal-ai/flux-pro/v1.1";
+    let endpoint = modelConfig.endpoint || "https://queue.fal.run/fal-ai/flux-general";
+
+    // Set parameters based on model
+    if (modelConfig.id.includes('flux')) {
+        payload.num_inference_steps = 28;
+        payload.guidance_scale = 3.5;
+    } else if (modelConfig.id.includes('sdxl')) {
+        payload.num_inference_steps = 30;
+        payload.guidance_scale = 7.5;
+    }
 
     if (mode === "image-to-image" && image_url) {
       payload.image_url = image_url;
-      payload.strength = strength || 0.75;
-      // Fal Flux Dev usually handles img2img
+      payload.strength = strength || 0.85;
+      // Use general endpoint for flux img2img as per latest docs
       if (modelConfig.id.includes('flux')) {
-         endpoint = "https://queue.fal.run/fal-ai/flux/dev/image-to-image";
+         endpoint = "https://queue.fal.run/fal-ai/flux-general";
       }
     }
 
     if (mode === "inpainting" && image_url && mask_url) {
         payload.image_url = image_url;
         payload.mask_url = mask_url;
-        endpoint = "https://queue.fal.run/fal-ai/flux-pro/v1.1-inpainting"; // Example endpoint
+        endpoint = "https://queue.fal.run/fal-ai/flux-pro/v1.1-inpainting"; // Keep as is for now if unused
     }
 
     const response = await fetch(endpoint, {
@@ -57,11 +66,16 @@ export const FalProvider: AIProviderAdapter = {
   },
 
   async checkStatus(requestId: string, endpoint: string, apiKey: string): Promise<GenerationResponse> {
-      // Fal uses a standard polling URL pattern usually, but here we passed the original endpoint
-      // Actually Fal status URL is usually `https://queue.fal.run/requests/{request_id}/status`
-      // Or `{endpoint}/requests/{request_id}` if it's a specific queue
+      // Use endpoint-specific status URL for robustness
+      // e.g. https://queue.fal.run/fal-ai/flux-general/requests/{request_id}/status
       
-      const statusUrl = `https://queue.fal.run/requests/${requestId}/status`;
+      let statusUrl = '';
+      if (endpoint) {
+           statusUrl = `${endpoint}/requests/${requestId}/status`;
+      } else {
+           // Fallback to generic request status
+           statusUrl = `https://queue.fal.run/requests/${requestId}/status`;
+      }
       
       const response = await fetch(statusUrl, {
         method: "GET",
@@ -72,6 +86,23 @@ export const FalProvider: AIProviderAdapter = {
       });
 
       if (!response.ok) {
+          // If 404 on specific endpoint, try generic one as fallback
+          if (response.status === 404 && endpoint) {
+               const fallbackUrl = `https://queue.fal.run/requests/${requestId}/status`;
+               const fallbackRes = await fetch(fallbackUrl, {
+                    method: "GET",
+                    headers: { "Authorization": `Key ${apiKey}` }
+               });
+               if (fallbackRes.ok) {
+                   const data = await fallbackRes.json();
+                   return {
+                       request_id: requestId,
+                       status: data.status,
+                       images: data.images,
+                       error: data.error
+                   };
+               }
+          }
           throw new Error(`Fal Status Error: ${await response.text()}`);
       }
 
