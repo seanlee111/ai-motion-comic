@@ -62,4 +62,9 @@ export interface StoryState {
   deleteFrame: (id: string) => void;
   reorderFrames: (fromIndex: number, toIndex: number) => void;
   setFrames: (frames: StoryboardFrame[]) => void; // For bulk import from script
+
+  // Script Actions
+  script?: string;
+  setScript: (script: string) => void;
+  generateStoryboardsFromScript: (script: string) => void;
 }

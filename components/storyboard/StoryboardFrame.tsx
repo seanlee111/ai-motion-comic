@@ -364,20 +364,6 @@ export function StoryboardFrame({ frame, index }: StoryboardFrameProps) {
                 </div>
               )}
            </div>
-           <div className="sm:col-span-1">
-              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 block">Duration (s)</label>
-              <div className="relative">
-                <Clock className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                <Input 
-                    type="number"
-                    value={frame.duration || 3}
-                    onChange={(e) => updateFrame(frame.id, { duration: parseInt(e.target.value) })}
-                    className="pl-9"
-                    min={1}
-                    max={10}
-                />
-              </div>
-           </div>
         </div>
 
         {/* Script Area */}

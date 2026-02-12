@@ -16,10 +16,10 @@ export function Header() {
         </Link>
         <div className="flex flex-1 items-center justify-between space-x-2 md:justify-end">
           <nav className="flex items-center gap-4">
-            <Link href="/script">
+            <Link href="/script-creation">
                 <Button variant="ghost" size="sm">
                     <PenTool className="mr-2 h-4 w-4" />
-                    Script Writer
+                    Script Creation
                 </Button>
             </Link>
             <ApiHealthDialog />

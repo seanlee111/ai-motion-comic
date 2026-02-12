@@ -55,7 +55,28 @@ export const useStoryStore = create<StoryState>()(
         return { frames: newFrames };
       }),
 
-      setFrames: (frames) => set({ frames }),
+      setFrames: (frames: StoryboardFrame[]) => set({ frames }),
+
+      script: '',
+      setScript: (script: string) => set({ script }),
+
+      generateStoryboardsFromScript: (script: string) => set((state) => {
+        // Simple mock logic: split by newlines and create a frame for each paragraph
+        // In real app, use LLM to parse scene/action
+        const segments = script.split('\n').filter((line: string) => line.trim().length > 0);
+        const newFrames: StoryboardFrame[] = segments.map((segment: string) => ({
+            id: crypto.randomUUID(),
+            storyScript: segment,
+            characterIds: [],
+            startImages: [],
+            endImages: []
+        }));
+        
+        // If script is empty or no segments, keep at least one frame
+        if (newFrames.length === 0) return state;
+
+        return { frames: newFrames };
+      }),
     }),
     {
       name: 'ai-motion-comic-data',

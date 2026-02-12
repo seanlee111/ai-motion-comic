@@ -35,6 +35,7 @@ export function AssetSelector({ type, value, onChange, multi = false }: AssetSel
   
   // Handle single select logic wrapper
   const handleSingleSelect = (currentValue: string) => {
+    // If the same value is selected, clear it (toggle off), otherwise set new value
     onChange(currentValue === value ? "" : currentValue)
     setOpen(false)
   }
