@@ -94,35 +94,80 @@ export class FalProvider {
     });
   }
 
-  public async checkStatus(taskId: string): Promise<GenerateResult> {
-      // Fal requires model-specific endpoint for status check if we use the queue endpoint format
-      // Pattern: https://queue.fal.run/{owner}/{model}/requests/{request_id}/status
-      // Since we don't have the model stored in this stateless check, we should ideally use the
-      // status_url returned during generation. 
-      // However, Fal also supports a global request status endpoint:
-      // https://queue.fal.run/fal-ai/flux/dev/requests/{request_id}/status (example)
-      //
-      // CRITICAL FIX: The global pattern `https://queue.fal.run/requests/{request_id}/status` is NOT reliable
-      // for all models. We must construct the URL based on the known model endpoints we use,
-      // OR update the interface to pass model ID.
+  public async checkStatus(taskId: string, endpoint?: string): Promise<GenerateResult> {
+      // If we have a specific endpoint or status URL passed, use it directly.
+      // The backend route should pass `endpoint` (which might be the full status_url or just model path)
+      // Since `checkStatus` in interface is (taskId: string), we might need to rely on the caller passing it
+      // via a slightly modified call or encoded in taskId. 
+      // BUT, in our `route.ts`, we see `checkStatus(body.taskId)`. 
+      // To fix this properly without breaking interface for other providers:
+      // We can overload or check if taskId is a JSON string containing more info? No, that's hacky.
       // 
-      // Given the stateless constraint, we will iterate known models to find the task 
-      // (inefficient but works for limited models) OR assume a default if not provided.
-      // Better approach: Update GenerateResult to include providerData with statusUrl, 
-      // and frontend/caller should pass it back. But `checkStatus` signature is `(taskId: string)`.
+      // Better: The caller (route.ts) has access to `providerData` if the client sends it back.
+      // Let's assume the client sends `endpoint` in the body for status check if available.
       
-      // Fallback Strategy: Try the most common model endpoint (flux/dev) first.
-      // Real fix should be architecture update to pass model/statusUrl.
-      // For now, let's try to construct a generic URL or use a known one.
-      
-      // Let's try the direct request status endpoint if available, otherwise default to flux-dev
-      // Note: This is a limitation of the current interface.
-      
+      let statusUrl = '';
+      let resultUrl = '';
+
+      if (endpoint && endpoint.startsWith('https')) {
+          statusUrl = endpoint; // Assume it's the full status_url
+          // If statusUrl is .../status, resultUrl is usually without /status
+          resultUrl = statusUrl.replace('/status', '');
+      } else if (endpoint) {
+          // Endpoint is model path like 'fal-ai/flux/dev'
+           statusUrl = `https://queue.fal.run/${endpoint}/requests/${taskId}/status`;
+           resultUrl = `https://queue.fal.run/${endpoint}/requests/${taskId}`;
+      } else {
+          // Fallback to iterating known models (inefficient legacy mode)
+          return this.checkStatusLegacy(taskId);
+      }
+
+      try {
+        const response = await this.client.request<any>(statusUrl, {
+            method: 'GET',
+            headers: { 'Authorization': `Key ${this.apiKey}` }
+        });
+
+        let status: GenerateResult['status'] = 'IN_PROGRESS';
+        let images: string[] = [];
+        let error: string | undefined;
+
+        if (response.status === 'COMPLETED') {
+            status = 'COMPLETED';
+            // Fetch result
+            const resultResponse = await this.client.request<any>(resultUrl, {
+                method: 'GET',
+                headers: { 'Authorization': `Key ${this.apiKey}` }
+            });
+            
+            if (resultResponse.images) {
+                images = resultResponse.images.map((img: any) => img.url);
+            }
+        } else if (response.status === 'FAILED') {
+            status = 'FAILED';
+            error = response.error || 'Fal Generation Failed';
+        }
+
+        return {
+            taskId,
+            status,
+            images,
+            error
+        };
+
+      } catch (e: any) {
+          // If 404, maybe try legacy check?
+          if (e.code === 404) return this.checkStatusLegacy(taskId);
+          throw e;
+      }
+  }
+
+  private async checkStatusLegacy(taskId: string): Promise<GenerateResult> {
       const knownEndpoints = [
           'fal-ai/flux/dev',
           'fal-ai/fast-sdxl'
       ];
-
+      
       let response;
       let usedEndpoint = '';
 
@@ -132,19 +177,19 @@ export class FalProvider {
               response = await this.client.request<any>(statusUrl, {
                   method: 'GET',
                   headers: { 'Authorization': `Key ${this.apiKey}` },
-                  skipErrorHandler: true // Don't throw immediately
+                  skipErrorHandler: true
               });
               if (response && response.status) {
                   usedEndpoint = modelPath;
                   break; 
               }
           } catch (e) {
-              // Continue to next model
+              // Continue
           }
       }
 
       if (!response) {
-           throw new APIError('Fal Status Check Failed: Task not found in known models', 404);
+           throw new APIError('Fal Status Check Failed: Task not found', 404);
       }
 
       let status: GenerateResult['status'] = 'IN_PROGRESS';
@@ -153,7 +198,6 @@ export class FalProvider {
 
       if (response.status === 'COMPLETED') {
           status = 'COMPLETED';
-          // Fetch result
           const resultUrl = `https://queue.fal.run/${usedEndpoint}/requests/${taskId}`;
           const resultResponse = await this.client.request<any>(resultUrl, {
                method: 'GET',

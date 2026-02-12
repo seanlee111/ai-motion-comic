@@ -19,7 +19,6 @@ export interface StoryboardFrame {
   
   // Script Data
   storyScript: string; // The core action description
-  duration?: number; // Estimated duration in seconds
   actionNotes?: string; // Camera movement, specific character acting details
   
   // Asset Links

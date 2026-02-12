@@ -19,19 +19,31 @@ export default function ScriptCreationPage() {
 
     setIsGenerating(true)
     try {
-      // Simulate AI generation for now (or call real LLM endpoint if available)
-      // In a real scenario, this would call an API to expand the idea
-      const simulatedScript = `Script based on idea: ${idea}\n\n[Scene 1] A quiet morning...\n[Scene 2] Suddenly, a loud noise...`
+      // Call DeepSeek API to generate script
+      const response = await fetch("/api/v1/script/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ idea })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Failed to generate script");
+      }
+
+      const { data } = await response.json();
+      const generatedScript = data.script;
       
-      setScript(simulatedScript)
+      setScript(generatedScript)
       
-      // Auto-generate storyboards (mock logic in store for now)
-      generateStoryboardsFromScript(simulatedScript)
+      // Auto-generate storyboards
+      generateStoryboardsFromScript(generatedScript)
 
       // Navigate to main editor
       router.push("/")
     } catch (error) {
       console.error("Failed to generate script:", error)
+      // TODO: Show error toast
     } finally {
       setIsGenerating(false)
     }

@@ -91,7 +91,7 @@ export class JimengProvider {
     };
   }
 
-  public async checkStatus(taskId: string): Promise<GenerateResult> {
+  public async checkStatus(taskId: string, endpoint?: string): Promise<GenerateResult> {
     const payload = {
         req_key: "jimeng_t2i_v40",
         task_id: taskId,

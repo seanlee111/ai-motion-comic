@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { JimengProvider } from "@/lib/api/providers/jimeng";
 import { KlingProvider } from "@/lib/api/providers/kling";
 import { FalProvider } from "@/lib/api/providers/fal";
+import { DeepSeekProvider } from "@/lib/api/providers/deepseek";
 
 export const runtime = "nodejs";
 
@@ -18,6 +19,23 @@ export async function GET(req: NextRequest) {
   const probe = searchParams.get("probe") === "1";
 
   const status: Record<string, ServiceStatus> = {};
+
+  // Check DeepSeek
+  if (!process.env.DEEPSEEK_API_KEY) {
+    status.deepseek = { ok: false, message: "missing DEEPSEEK_API_KEY" };
+  } else if (!probe) {
+    status.deepseek = { ok: true, message: "configured" };
+  } else {
+    try {
+      const provider = new DeepSeekProvider();
+      await provider.generateScript("health check");
+      status.deepseek = { ok: true, message: "generation ok", endpoint: "https://api.deepseek.com" };
+    } catch (e: any) {
+      const msg = e.message || "generation failed";
+      const detail = e.detail ? JSON.stringify(e.detail, null, 2) : undefined;
+      status.deepseek = { ok: false, message: msg, detail, endpoint: "https://api.deepseek.com" };
+    }
+  }
 
   const llmKey = process.env.LLM_KEY;
   status.llm = { ok: !!llmKey, message: llmKey ? "configured" : "missing LLM_KEY" };

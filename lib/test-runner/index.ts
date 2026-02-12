@@ -7,6 +7,7 @@ dotenv.config({ path: path.resolve(process.cwd(), '.env.local') });
 import { TestModule, TestResult } from './types';
 import { JimengTestModule } from './jimeng';
 import { KlingTestModule } from './kling';
+import { DeepSeekTestModule } from './deepseek';
 import * as fs from 'fs';
 
 export class TestRunner {
@@ -15,6 +16,7 @@ export class TestRunner {
   constructor() {
     this.modules.push(new JimengTestModule());
     this.modules.push(new KlingTestModule());
+    this.modules.push(new DeepSeekTestModule());
   }
 
   async runAll(): Promise<TestResult[]> {

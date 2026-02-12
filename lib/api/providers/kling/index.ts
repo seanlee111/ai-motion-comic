@@ -80,7 +80,7 @@ export class KlingProvider {
     };
   }
 
-  public async checkStatus(taskId: string): Promise<GenerateResult> {
+  public async checkStatus(taskId: string, endpoint?: string): Promise<GenerateResult> {
     const token = this.generateToken();
     const statusUrl = `/${taskId}`; // Relative to base URL
 

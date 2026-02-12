@@ -61,9 +61,41 @@ export const useStoryStore = create<StoryState>()(
       setScript: (script: string) => set({ script }),
 
       generateStoryboardsFromScript: (script: string) => set((state) => {
-        // Simple mock logic: split by newlines and create a frame for each paragraph
-        // In real app, use LLM to parse scene/action
-        const segments = script.split('\n').filter((line: string) => line.trim().length > 0);
+        // Parse the script to extract scenes based on [Scene X] or similar headers
+        // If no headers found, fallback to paragraph splitting
+        let segments: string[] = [];
+        
+        // Regex to match [Scene X] or Scene X: or similar headers
+        const sceneRegex = /\[?Scene\s+\d+\]?:?/i;
+        
+        if (sceneRegex.test(script)) {
+            // Split by the regex but keep the delimiters or reconstruct them
+            // Since JS split doesn't easily keep delimiters in a way that groups them with following text without complex lookahead,
+            // we'll split and then regroup.
+            const rawSegments = script.split(/(\[?Scene\s+\d+\]?:?)/i).filter(s => s.trim().length > 0);
+            
+            let currentSegment = "";
+            
+            for (const seg of rawSegments) {
+                if (sceneRegex.test(seg)) {
+                    // It's a header
+                    if (currentSegment) {
+                        segments.push(currentSegment.trim());
+                    }
+                    currentSegment = seg;
+                } else {
+                    // It's content
+                    currentSegment += " " + seg;
+                }
+            }
+            if (currentSegment) {
+                segments.push(currentSegment.trim());
+            }
+        } else {
+             // Fallback to double newline split for paragraphs, merging single newlines
+             segments = script.split(/\n\s*\n/).filter((line: string) => line.trim().length > 0);
+        }
+
         const newFrames: StoryboardFrame[] = segments.map((segment: string) => ({
             id: crypto.randomUUID(),
             storyScript: segment,
