@@ -26,8 +26,8 @@ interface StoryboardFrameProps {
   index: number
 }
 
-// Model Selection Options - Filter for text-to-image models
-const MODEL_OPTIONS = AI_MODELS.filter(m => m.type === 'text-to-image');
+// Model Selection Options - Filter for text-to-image and image-to-image models
+const MODEL_OPTIONS = AI_MODELS.filter(m => m.type === 'text-to-image' || m.type === 'image-to-image');
 
 export function StoryboardFrame({ frame, index }: StoryboardFrameProps) {
   const { updateFrame, deleteFrame, assets } = useStoryStore()
@@ -79,14 +79,33 @@ export function StoryboardFrame({ frame, index }: StoryboardFrameProps) {
       // Parallel requests for each selected model
       const requests = selectedModels.map(async (modelId) => {
           try {
+            // Check if model is image-to-image and add imageUrl
+            const modelConfig = MODEL_OPTIONS.find(m => m.id === modelId);
+            let imageUrl = undefined;
+            if (modelConfig?.type === 'image-to-image') {
+                // Determine source image: For 'start', we might use scene or character reference?
+                // Or maybe previous frame's end image?
+                // Requirement says: "参考的image是资产库里面的角色和环境"
+                // But typically img2img needs a single composite input or controlnet.
+                // For simple img2img, we might pick the Scene image as base.
+                if (selectedScene?.imageUrl) {
+                    imageUrl = selectedScene.imageUrl;
+                }
+                // If no scene image, maybe first character?
+                else if (selectedCharacters.length > 0 && selectedCharacters[0] && selectedCharacters[0].imageUrl) {
+                    imageUrl = selectedCharacters[0].imageUrl;
+                }
+            }
+
             const res = await fetch("/api/generate", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                     prompt: fullPrompt,
-                    mode: "text-to-image",
+                    mode: "text-to-image", // Backend ignores this mostly, uses modelId
                     aspect_ratio: "16:9",
-                    modelId // Pass model ID to backend
+                    modelId, // Pass model ID to backend
+                    imageUrl // Pass imageUrl if available
                 })
             })
             if (!res.ok) throw new Error("Failed")
