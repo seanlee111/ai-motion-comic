@@ -86,8 +86,8 @@ function LogItem({ log, onDelete }: { log: APILog; onDelete: (id: string) => voi
                                             <Copy className="h-3 w-3" />
                                         </Button>
                                     </div>
-                                    <div className="bg-muted p-2 rounded text-xs font-mono overflow-x-auto max-h-[200px]">
-                                        <pre>{JSON.stringify(log.requestPayload, null, 2)}</pre>
+                                    <div className="bg-muted p-2 rounded text-xs font-mono overflow-x-auto w-full max-w-[600px] whitespace-pre">
+                                        {JSON.stringify(log.requestPayload, null, 2)}
                                     </div>
                                 </div>
                             )}
@@ -100,8 +100,8 @@ function LogItem({ log, onDelete }: { log: APILog; onDelete: (id: string) => voi
                                             <Copy className="h-3 w-3" />
                                         </Button>
                                     </div>
-                                    <div className="bg-muted p-2 rounded text-xs font-mono overflow-x-auto max-h-[200px]">
-                                        <pre>{JSON.stringify(log.responseBody, null, 2)}</pre>
+                                    <div className="bg-muted p-2 rounded text-xs font-mono overflow-x-auto w-full max-w-[600px] whitespace-pre">
+                                        {JSON.stringify(log.responseBody, null, 2)}
                                     </div>
                                 </div>
                             )}
