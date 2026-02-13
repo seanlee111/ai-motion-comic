@@ -30,6 +30,14 @@ export const AI_MODELS: AIModelConfig[] = [
     endpoint: 'https://visual.volcengineapi.com', 
     type: 'text-to-image'
   },
+  {
+    id: 'jimeng-v4.5',
+    name: 'Jimeng 4.5 (Volcengine)',
+    provider: 'JIMENG',
+    envKey: 'JIMENG_AK',
+    endpoint: 'https://visual.volcengineapi.com',
+    type: 'text-to-image' // Also supports reference images
+  },
 
   // --- Fal AI Models ---
   {
