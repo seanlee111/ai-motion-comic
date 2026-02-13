@@ -30,6 +30,50 @@ interface StoryboardFrameProps {
 // Model Selection Options - Filter for text-to-image and image-to-image models
 const MODEL_OPTIONS = AI_MODELS.filter(m => m.type === 'text-to-image' || m.type === 'image-to-image');
 
+// Helper to compress base64 images
+const compressImage = (src: string, maxDim = 640, quality = 0.6): Promise<string> => {
+    return new Promise((resolve) => {
+        // If not base64, return as is (URL)
+        if (!src.startsWith("data:image")) {
+            resolve(src);
+            return;
+        }
+
+        const img = new Image();
+        img.src = src;
+        img.onload = () => {
+            const canvas = document.createElement("canvas");
+            let width = img.width;
+            let height = img.height;
+            
+            // Always resize if larger than maxDim
+            if (width > maxDim || height > maxDim) {
+                if (width > height) {
+                    height = Math.round((height * maxDim) / width);
+                    width = maxDim;
+                } else {
+                    width = Math.round((width * maxDim) / height);
+                    height = maxDim;
+                }
+            }
+            
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext("2d");
+            if (!ctx) {
+                resolve(src);
+                return;
+            }
+            ctx.drawImage(img, 0, 0, width, height);
+            
+            // Re-encode with lower quality
+            const dataUrl = canvas.toDataURL("image/jpeg", quality);
+            resolve(dataUrl);
+        };
+        img.onerror = () => resolve(src);
+    });
+};
+
 export function StoryboardFrame({ frame, index }: StoryboardFrameProps) {
   const { updateFrame, deleteFrame, assets, addApiLog } = useStoryStore()
   const [loading, setLoading] = useState<"start" | "end" | "all" | null>(null)
@@ -59,39 +103,13 @@ export function StoryboardFrame({ frame, index }: StoryboardFrameProps) {
     // Convert files to Base64/DataURL and RESIZE
     Array.from(files).forEach(file => {
         const reader = new FileReader();
-        reader.onload = (e) => {
+        reader.onload = async (e) => {
             const result = e.target?.result as string;
             if (result) {
-                // Resize image to max 1024x1024 to avoid payload limits
-                const img = new Image();
-                img.src = result;
-                img.onload = () => {
-                    const canvas = document.createElement("canvas");
-                    let width = img.width;
-                    let height = img.height;
-                    const maxDim = 1024;
-                    
-                    if (width > maxDim || height > maxDim) {
-                        if (width > height) {
-                            height = Math.round((height * maxDim) / width);
-                            width = maxDim;
-                        } else {
-                            width = Math.round((width * maxDim) / height);
-                            height = maxDim;
-                        }
-                    }
-                    
-                    canvas.width = width;
-                    canvas.height = height;
-                    const ctx = canvas.getContext("2d");
-                    ctx?.drawImage(img, 0, 0, width, height);
-                    
-                    // Compress to JPEG 0.8
-                    const resizedDataUrl = canvas.toDataURL("image/jpeg", 0.8);
-                    
-                    const currentUploads = frame.customUploads || [];
-                    updateFrame(frame.id, { customUploads: [...currentUploads, resizedDataUrl] });
-                };
+                // Compress immediately on upload
+                const compressed = await compressImage(result, 640, 0.6);
+                const currentUploads = useStoryStore.getState().frames.find(f => f.id === frame.id)?.customUploads || [];
+                updateFrame(frame.id, { customUploads: [...currentUploads, compressed] });
             }
         };
         reader.readAsDataURL(file);
@@ -147,6 +165,10 @@ export function StoryboardFrame({ frame, index }: StoryboardFrameProps) {
           referenceImages.push(...frame.customUploads);
       }
 
+      // Optimize payload: Compress all images before sending
+      // This ensures even older/larger images are compressed to fit Vercel limits
+      const optimizedImages = await Promise.all(referenceImages.map(img => compressImage(img, 640, 0.6)));
+
       // Parallel requests for each selected model
       const requests = selectedModels.map(async (modelId) => {
           const startTime = Date.now();
@@ -156,7 +178,7 @@ export function StoryboardFrame({ frame, index }: StoryboardFrameProps) {
             
             // Validation for Image-to-Image models
             if (modelConfig?.type === 'image-to-image') {
-                if (referenceImages.length === 0) {
+                if (optimizedImages.length === 0) {
                     throw new Error(`Model ${modelConfig.name} is an Image-to-Image model and requires a reference image. Please select a Scene, Character, or upload a custom image.`);
                 }
             }
@@ -169,8 +191,8 @@ export function StoryboardFrame({ frame, index }: StoryboardFrameProps) {
                     mode: "text-to-image", // Backend ignores this mostly, uses modelId
                     aspect_ratio: "16:9",
                     modelId, // Pass model ID to backend
-                    imageUrl: referenceImages[0], // Pass first image for backward compatibility / single-image models
-                    imageUrls: referenceImages // Pass all images for multi-reference models (e.g. Jimeng)
+                    imageUrl: optimizedImages[0], // Pass first image for backward compatibility / single-image models
+                    imageUrls: optimizedImages // Pass all images for multi-reference models (e.g. Jimeng)
                 })
             })
 
@@ -183,6 +205,12 @@ export function StoryboardFrame({ frame, index }: StoryboardFrameProps) {
                 } catch {
                     data = { error: text || res.statusText };
                 }
+                
+                // If 413, explicit message
+                if (res.status === 413) {
+                     throw new Error("Payload too large. Please reduce the number of images or use smaller files.");
+                }
+                
                 throw new Error(data.error || data.message || `API Error ${res.status}`);
             } else {
                 data = await res.json();
