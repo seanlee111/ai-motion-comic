@@ -5,7 +5,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { Button } from "@/components/ui/button"
 import { Settings, Trash2, AlertCircle, CheckCircle2, Clock, ChevronRight, ChevronDown, Copy } from "lucide-react"
 import { useStoryStore } from "@/lib/story-store"
-import { ScrollArea } from "@/components/ui/scroll-area"
+// import { ScrollArea } from "@/components/ui/scroll-area" 
 import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
 import { APILog } from "@/types"
@@ -143,26 +143,24 @@ export function GlobalSettingsDialog() {
           </DialogTitle>
         </DialogHeader>
         
-        <div className="flex-1 min-h-0 relative">
-            <ScrollArea className="h-full">
-                <div className="p-4">
-                    {logs.length === 0 ? (
-                        <div className="text-center text-muted-foreground py-12 flex flex-col items-center gap-2">
-                            <div className="h-12 w-12 rounded-full bg-muted flex items-center justify-center">
-                                <Settings className="h-6 w-6 text-muted-foreground/50" />
-                            </div>
-                            <p>No API requests logged yet.</p>
-                            <p className="text-xs text-muted-foreground/60">Generate some images to see logs here.</p>
+        <div className="flex-1 min-h-0 overflow-y-auto">
+            <div className="p-4">
+                {logs.length === 0 ? (
+                    <div className="text-center text-muted-foreground py-12 flex flex-col items-center gap-2">
+                        <div className="h-12 w-12 rounded-full bg-muted flex items-center justify-center">
+                            <Settings className="h-6 w-6 text-muted-foreground/50" />
                         </div>
-                    ) : (
-                        <div className="space-y-2 pb-4">
-                            {logs.map((log) => (
-                                <LogItem key={log.id} log={log} onDelete={deleteApiLog} />
-                            ))}
-                        </div>
-                    )}
-                </div>
-            </ScrollArea>
+                        <p>No API requests logged yet.</p>
+                        <p className="text-xs text-muted-foreground/60">Generate some images to see logs here.</p>
+                    </div>
+                ) : (
+                    <div className="space-y-2 pb-4">
+                        {logs.map((log) => (
+                            <LogItem key={log.id} log={log} onDelete={deleteApiLog} />
+                        ))}
+                    </div>
+                )}
+            </div>
         </div>
 
         <DialogFooter className="p-4 border-t bg-muted/5 flex-none">
