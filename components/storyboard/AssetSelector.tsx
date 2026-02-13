@@ -36,6 +36,13 @@ export function AssetSelector({ type, value, onChange, multi = false }: AssetSel
   // Handle single select logic wrapper
   const handleSingleSelect = (currentValue: string) => {
     // If the same value is selected, clear it (toggle off), otherwise set new value
+    // The value from CommandItem is "name-id". We need to extract the ID.
+    // Actually, `currentValue` passed from onSelect IS the ID because we extract it inside the render map below?
+    // Wait, onSelect in CommandItem passes the `value` prop of CommandItem by default if no arg is passed,
+    // BUT we are passing an arrow function `() => handleSingleSelect(asset.id)`.
+    // So `currentValue` IS `asset.id`.
+    
+    console.log("Selecting:", currentValue);
     onChange(currentValue === value ? "" : currentValue)
     setOpen(false)
   }
@@ -99,8 +106,15 @@ export function AssetSelector({ type, value, onChange, multi = false }: AssetSel
               {filteredAssets.map((asset) => (
                 <CommandItem
                   key={asset.id}
-                  value={`${asset.name}-${asset.id}`} // Use name-id combination for uniqueness and search
-                  onSelect={() => multi ? handleMultiSelect(asset.id) : handleSingleSelect(asset.id)}
+                  value={`${asset.name}-${asset.id}`} // Unique value for search
+                  onSelect={() => {
+                      // Explicitly pass asset.id to handler
+                      if (multi) {
+                          handleMultiSelect(asset.id);
+                      } else {
+                          handleSingleSelect(asset.id);
+                      }
+                  }}
                 >
                   <Check
                     className={cn(
