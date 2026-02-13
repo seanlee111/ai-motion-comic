@@ -31,7 +31,7 @@ interface StoryboardFrameProps {
 const MODEL_OPTIONS = AI_MODELS.filter(m => m.type === 'text-to-image' || m.type === 'image-to-image');
 
 export function StoryboardFrame({ frame, index }: StoryboardFrameProps) {
-  const { updateFrame, deleteFrame, assets } = useStoryStore()
+  const { updateFrame, deleteFrame, assets, addApiLog } = useStoryStore()
   const [loading, setLoading] = useState<"start" | "end" | "all" | null>(null)
   const [selectedModels, setSelectedModels] = useState<string[]>(MODEL_OPTIONS.map(m => m.id))
   const [editImage, setEditImage] = useState<{ url: string, type: "start" | "end" } | null>(null)
@@ -56,14 +56,42 @@ export function StoryboardFrame({ frame, index }: StoryboardFrameProps) {
     const files = e.target.files;
     if (!files || files.length === 0) return;
 
-    // Convert files to Base64/DataURL
+    // Convert files to Base64/DataURL and RESIZE
     Array.from(files).forEach(file => {
         const reader = new FileReader();
         reader.onload = (e) => {
             const result = e.target?.result as string;
             if (result) {
-                const currentUploads = frame.customUploads || [];
-                updateFrame(frame.id, { customUploads: [...currentUploads, result] });
+                // Resize image to max 1024x1024 to avoid payload limits
+                const img = new Image();
+                img.src = result;
+                img.onload = () => {
+                    const canvas = document.createElement("canvas");
+                    let width = img.width;
+                    let height = img.height;
+                    const maxDim = 1024;
+                    
+                    if (width > maxDim || height > maxDim) {
+                        if (width > height) {
+                            height = Math.round((height * maxDim) / width);
+                            width = maxDim;
+                        } else {
+                            width = Math.round((width * maxDim) / height);
+                            height = maxDim;
+                        }
+                    }
+                    
+                    canvas.width = width;
+                    canvas.height = height;
+                    const ctx = canvas.getContext("2d");
+                    ctx?.drawImage(img, 0, 0, width, height);
+                    
+                    // Compress to JPEG 0.8
+                    const resizedDataUrl = canvas.toDataURL("image/jpeg", 0.8);
+                    
+                    const currentUploads = frame.customUploads || [];
+                    updateFrame(frame.id, { customUploads: [...currentUploads, resizedDataUrl] });
+                };
             }
         };
         reader.readAsDataURL(file);
@@ -121,6 +149,7 @@ export function StoryboardFrame({ frame, index }: StoryboardFrameProps) {
 
       // Parallel requests for each selected model
       const requests = selectedModels.map(async (modelId) => {
+          const startTime = Date.now();
           try {
             // Check if model is image-to-image and add imageUrl
             const modelConfig = MODEL_OPTIONS.find(m => m.id === modelId);
@@ -144,14 +173,33 @@ export function StoryboardFrame({ frame, index }: StoryboardFrameProps) {
                     imageUrls: referenceImages // Pass all images for multi-reference models (e.g. Jimeng)
                 })
             })
+
+            let data;
             if (!res.ok) {
-                const errData = await res.json().catch(() => ({}));
-                throw new Error(errData.error || errData.message || "Generation Failed");
+                // Try to parse JSON error, fallback to text
+                const text = await res.text();
+                try {
+                    data = JSON.parse(text);
+                } catch {
+                    data = { error: text || res.statusText };
+                }
+                throw new Error(data.error || data.message || `API Error ${res.status}`);
+            } else {
+                data = await res.json();
             }
-            const data = await res.json()
-            return { ...data, modelId }
+            
+            return { ...data, modelId, startTime }
           } catch (e: any) {
               console.error(`Model ${modelId} failed`, e)
+              addApiLog({
+                  id: crypto.randomUUID(),
+                  timestamp: Date.now(),
+                  endpoint: `/api/generate`,
+                  modelId,
+                  status: 500, // Approximate
+                  duration: Date.now() - startTime,
+                  error: e.message
+              });
               return { error: e.message, modelId }
           }
       })
@@ -173,6 +221,16 @@ export function StoryboardFrame({ frame, index }: StoryboardFrameProps) {
                 
                 if (data.status === "COMPLETED") {
                     clearInterval(pollInterval)
+                    
+                    // Log success
+                    addApiLog({
+                        id: crypto.randomUUID(),
+                        timestamp: Date.now(),
+                        endpoint: `/api/generate`,
+                        modelId: result.modelId,
+                        status: 200,
+                        duration: Date.now() - result.startTime,
+                    });
                     
                     // Handle array of images or single image
                     const newImagesRaw = data.images || [];
@@ -205,13 +263,19 @@ export function StoryboardFrame({ frame, index }: StoryboardFrameProps) {
                         })
                     }
                     
-                    // If this was the last one, stop loading (simplified logic: stop loading when ANY finishes? No, when ALL finish?)
-                    // It's hard to track "all finished" inside async loop without a counter.
-                    // We'll just set loading to null when the *first* one succeeds so user sees something.
                     setLoading(null)
 
                 } else if (data.status === "FAILED") {
                     clearInterval(pollInterval)
+                    addApiLog({
+                        id: crypto.randomUUID(),
+                        timestamp: Date.now(),
+                        endpoint: `/api/generate`,
+                        modelId: result.modelId,
+                        status: 500,
+                        duration: Date.now() - result.startTime,
+                        error: data.error || "Async Generation Failed"
+                    });
                 }
             } catch (e) {
                 clearInterval(pollInterval)

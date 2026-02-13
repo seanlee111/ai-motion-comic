@@ -67,4 +67,19 @@ export interface StoryState {
   script?: string;
   setScript: (script: string) => void;
   generateStoryboardsFromScript: (script: string) => void;
+
+  // Logs
+  apiLogs?: APILog[];
+  addApiLog: (log: APILog) => void;
+  clearApiLogs: () => void;
+}
+
+export interface APILog {
+  id: string;
+  timestamp: number;
+  endpoint: string;
+  modelId: string;
+  status: number;
+  duration: number;
+  error?: string;
 }

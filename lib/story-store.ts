@@ -102,6 +102,7 @@ export const useStoryStore = create<StoryState>()(
             id: crypto.randomUUID(),
             storyScript: segment,
             characterIds: [],
+            customUploads: [],
             startImages: [],
             endImages: []
         }));
@@ -111,6 +112,10 @@ export const useStoryStore = create<StoryState>()(
 
         return { frames: newFrames };
       }),
+
+      apiLogs: [],
+      addApiLog: (log) => set((state) => ({ apiLogs: [log, ...(state.apiLogs || [])].slice(0, 100) })), // Keep last 100 logs
+      clearApiLogs: () => set({ apiLogs: [] }),
     }),
     {
       name: 'ai-motion-comic-data',

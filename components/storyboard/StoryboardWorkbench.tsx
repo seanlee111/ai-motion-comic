@@ -5,6 +5,7 @@ import { StoryboardFrame } from "./StoryboardFrame"
 import { Button } from "@/components/ui/button"
 import { Plus, Wand2 } from "lucide-react"
 import { useRouter } from "next/navigation"
+import { GlobalSettingsDialog } from "@/components/settings/GlobalSettingsDialog"
 
 export function StoryboardWorkbench() {
   const { frames, addFrame } = useStoryStore()
@@ -14,7 +15,8 @@ export function StoryboardWorkbench() {
     <div className="flex flex-col h-full overflow-hidden">
       <div className="flex-none p-4 border-b flex justify-between items-center bg-background z-10">
         <h2 className="text-lg font-semibold">Storyboard ({frames.length} frames)</h2>
-        <div className="flex gap-2">
+        <div className="flex gap-2 items-center">
+            <GlobalSettingsDialog />
             <Button variant="outline" onClick={() => router.push('/script-creation')}>
                 <Wand2 className="mr-2 h-4 w-4" /> AI Script
             </Button>
