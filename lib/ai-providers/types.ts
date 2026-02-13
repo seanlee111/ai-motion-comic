@@ -6,6 +6,7 @@ export interface GenerationRequest {
   aspect_ratio?: string;
   mode?: string;
   image_url?: string;
+  image_urls?: string[];
   mask_url?: string;
   strength?: number;
 }
