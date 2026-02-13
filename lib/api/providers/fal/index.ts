@@ -1,6 +1,6 @@
 import { HttpClient } from '../../core/client';
 import { APIError, GenerateRequest, GenerateResult } from '../../core/types';
-import { getModelConfig } from '@/lib/ai-models';
+import { getModelConfig } from '../../../ai-models';
 
 export class FalProvider {
   private client: HttpClient;
@@ -49,16 +49,16 @@ export class FalProvider {
         payload.image_url = req.imageUrl;
         payload.strength = 0.85;
         // Use general endpoint for flux img2img as per latest docs
-        if (req.model.includes('flux')) {
+        if (modelConfig.id.includes('flux')) {
             endpoint = "https://queue.fal.run/fal-ai/flux-general";
         }
     } else {
         // If NOT image-to-image mode (or no image_url), revert to standard dev/schnell endpoints for Flux
-        if (req.model === 'fal-flux-dev') {
+        if (modelConfig.id === 'fal-flux-dev') {
             endpoint = "https://queue.fal.run/fal-ai/flux/dev";
-        } else if (req.model === 'fal-flux-schnell') {
+        } else if (modelConfig.id === 'fal-flux-schnell') {
             endpoint = "https://queue.fal.run/fal-ai/flux/schnell";
-        } else if (req.model === 'fal-fast-sdxl') {
+        } else if (modelConfig.id === 'fal-fast-sdxl') {
             endpoint = "https://queue.fal.run/fal-ai/fast-sdxl";
         }
     }
@@ -90,7 +90,7 @@ export class FalProvider {
             taskId: response.request_id,
             status: 'SUBMITTED',
             providerData: { 
-                endpoint: modelConfig.endpoint,
+                endpoint: response.status_url, // Store the status_url as endpoint
                 status_url: response.status_url,
                 response_url: response.response_url
             }
@@ -113,24 +113,16 @@ export class FalProvider {
   public async checkStatus(taskId: string, endpoint?: string): Promise<GenerateResult> {
       // If we have a specific endpoint or status URL passed, use it directly.
       // The backend route should pass `endpoint` (which might be the full status_url or just model path)
-      // Since `checkStatus` in interface is (taskId: string), we might need to rely on the caller passing it
-      // via a slightly modified call or encoded in taskId. 
-      // BUT, in our `route.ts`, we see `checkStatus(body.taskId)`. 
-      // To fix this properly without breaking interface for other providers:
-      // We can overload or check if taskId is a JSON string containing more info? No, that's hacky.
-      // 
-      // Better: The caller (route.ts) has access to `providerData` if the client sends it back.
-      // Let's assume the client sends `endpoint` in the body for status check if available.
       
       let statusUrl = '';
       let resultUrl = '';
 
-      if (endpoint && endpoint.startsWith('https')) {
+      if (endpoint && endpoint.startsWith('http')) {
           statusUrl = endpoint; // Assume it's the full status_url
           // If statusUrl is .../status, resultUrl is usually without /status
           resultUrl = statusUrl.replace('/status', '');
       } else if (endpoint) {
-          // Endpoint is model path like 'fal-ai/flux/dev'
+          // Endpoint is model path like 'fal-ai/flux/dev' - Try to construct status URL (Risky, but fallback)
            statusUrl = `https://queue.fal.run/${endpoint}/requests/${taskId}/status`;
            resultUrl = `https://queue.fal.run/${endpoint}/requests/${taskId}`;
       } else {

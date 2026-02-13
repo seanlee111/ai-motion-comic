@@ -70,19 +70,16 @@ export const FalProvider: AIProviderAdapter = {
     return {
         request_id: data.request_id,
         status: 'QUEUED', // Fal returns request_id immediately for queue
-        endpoint // Pass back endpoint for polling
+        endpoint: data.status_url // Return status_url for polling
     };
   },
 
   async checkStatus(requestId: string, endpoint: string, apiKey: string): Promise<GenerationResponse> {
-      // Use endpoint-specific status URL for robustness
-      // e.g. https://queue.fal.run/fal-ai/flux-general/requests/{request_id}/status
+      // Use the provided endpoint (which is now status_url) directly
+      let statusUrl = endpoint;
       
-      let statusUrl = '';
-      if (endpoint) {
-           statusUrl = `${endpoint}/requests/${requestId}/status`;
-      } else {
-           // Fallback to generic request status
+      // Fallback if endpoint is missing or not a URL (backward compatibility)
+      if (!statusUrl || !statusUrl.startsWith('http')) {
            statusUrl = `https://queue.fal.run/requests/${requestId}/status`;
       }
       
