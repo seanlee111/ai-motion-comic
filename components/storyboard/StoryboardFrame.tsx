@@ -82,24 +82,25 @@ export function StoryboardFrame({ frame, index }: StoryboardFrameProps) {
             // Check if model is image-to-image and add imageUrl
             const modelConfig = MODEL_OPTIONS.find(m => m.id === modelId);
             let imageUrl = undefined;
-            if (modelConfig?.type === 'image-to-image') {
-                // Determine source image: For 'start', we might use scene or character reference?
-                // Or maybe previous frame's end image?
-                // Requirement says: "参考的image是资产库里面的角色和环境"
-                // But typically img2img needs a single composite input or controlnet.
-                // For simple img2img, we might pick the Scene image as base.
-                if (selectedScene?.imageUrl) {
-                    imageUrl = selectedScene.imageUrl;
-                }
-                // If no scene image, maybe first character?
-                else if (selectedCharacters.length > 0 && selectedCharacters[0] && selectedCharacters[0].imageUrl) {
-                    imageUrl = selectedCharacters[0].imageUrl;
-                }
+            
+            // Determine reference image based on logic:
+            // 1. Scene image (highest priority for background/setting consistency)
+            // 2. Character image (if no scene)
+            if (selectedScene?.imageUrl) {
+                imageUrl = selectedScene.imageUrl;
+            } else if (selectedCharacters.length > 0 && selectedCharacters[0] && selectedCharacters[0].imageUrl) {
+                imageUrl = selectedCharacters[0].imageUrl;
+            }
 
+            // Validation for Image-to-Image models
+            if (modelConfig?.type === 'image-to-image') {
                 if (!imageUrl) {
-                    throw new Error(`Model ${modelConfig.name} requires a reference image (Scene or Character with image)`);
+                    throw new Error(`Model ${modelConfig.name} is an Image-to-Image model and requires a reference image. Please select a Scene or Character with an image in the assets menu.`);
                 }
             }
+            // For Text-to-Image models, we can optionally pass imageUrl if they support it (like Jimeng 4.5), 
+            // but we don't enforce it unless it's strictly required.
+            // Current code passes `imageUrl` regardless if available.
 
             const res = await fetch("/api/generate", {
                 method: "POST",
