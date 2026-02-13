@@ -9,6 +9,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Input } from "@/components/ui/input"
 import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { cn } from "@/lib/utils"
 import {
   Carousel,
   CarouselContent,
@@ -151,26 +152,7 @@ export function StoryboardFrame({ frame, index }: StoryboardFrameProps) {
                         timestamp: Date.now()
                     }
 
-                    // Functional update to avoid closure staleness if multiple models finish
-                    // Note: In React state, we'd use setState(prev => ...). 
-                    // Zustand's updateFrame merges updates. We need to be careful about race conditions with multiple async updates.
-                    // For now, we just read the latest state from store inside the component via props? No, props update on render.
-                    // We rely on Zustand's `set` being synchronous-like in memory, but here we call `updateFrame`.
-                    // To be safe, we should probably read the fresh frame from store if possible, but we don't have direct access here.
-                    // A simple workaround: We append to the array. 
-                    // Actually, we need to pass a function to updateFrame if it supported it, but our store implementation takes partial state.
-                    
-                    // Let's assume low concurrency collision for MVP or just append.
-                    // To fix race condition properly, we'd need to change store to accept a callback.
-                    // For now, let's just push.
-                    
-                    // We fetch the latest frame state implicitly by using the closure? No that's stale.
-                    // We will use a functional update pattern if we change store. 
-                    // As is, `updateFrame` replaces state. This IS a race condition risk with multiple models.
-                    // Quick fix: We can't easily fix without changing store.
-                    // Let's just hope they don't finish EXACTLY at the same millisecond.
-                    
-                    // Better approach: We can use `useStoryStore.getState().frames` to get fresh data before writing.
+                    // We use getState to get fresh data
                     const freshFrame = useStoryStore.getState().frames.find(f => f.id === frame.id)
                     if (!freshFrame) return
 
@@ -190,9 +172,7 @@ export function StoryboardFrame({ frame, index }: StoryboardFrameProps) {
                     
                     // If this was the last one, stop loading (simplified logic: stop loading when ANY finishes? No, when ALL finish?)
                     // It's hard to track "all finished" inside async loop without a counter.
-                    // We'll just set loading to null after a timeout or when the main loop exits?
-                    // Actually, we can't easily know when *all* are done here.
-                    // Let's just set loading to null when the *first* one succeeds so user sees something.
+                    // We'll just set loading to null when the *first* one succeeds so user sees something.
                     setLoading(null)
 
                 } else if (data.status === "FAILED") {
@@ -246,74 +226,60 @@ export function StoryboardFrame({ frame, index }: StoryboardFrameProps) {
       }
   }
 
-  const ImageCarousel = ({ type }: { type: "start" | "end" }) => {
-      const images = type === "start" ? frame.startImages : frame.endImages
-      const selectedId = type === "start" ? frame.selectedStartImageId : frame.selectedEndImageId
-      
-      if (!images || images.length === 0) {
-          return (
-            <Card className="h-[160px] w-full bg-muted/20 flex items-center justify-center border-dashed">
-                <div className="text-xs text-muted-foreground text-center p-4">
-                    {loading === type || loading === "all" ? <Loader2 className="h-4 w-4 animate-spin mx-auto" /> : "No Images"}
-                </div>
-            </Card>
-          )
-      }
-
-      return (
-          <div className="w-full max-w-[280px]">
-             <Carousel className="w-full">
-                <CarouselContent>
-                    {images.map((img) => (
-                        <CarouselItem key={img.id}>
-                            <div className="p-1">
-                                <Card className={`relative overflow-hidden aspect-video group ${selectedId === img.id ? 'ring-2 ring-primary' : ''}`}>
-                                    <img src={img.url} alt="Generated" className="object-cover w-full h-full" />
-                                    <div className="absolute top-1 left-1">
-                                        <Badge variant="secondary" className="text-[10px] opacity-70">{img.modelId.replace('fal-', '')}</Badge>
-                                    </div>
-                                    <div className="absolute bottom-0 left-0 right-0 bg-black/60 p-1 flex justify-between items-center opacity-0 group-hover:opacity-100 transition-opacity">
-                                        <div className="flex gap-1">
-                                            <Button 
-                                                variant="ghost" 
-                                                size="icon" 
-                                                className="h-6 w-6 text-white hover:text-green-400"
-                                                onClick={() => updateFrame(frame.id, type === "start" ? { selectedStartImageId: img.id, startImageUrl: img.url } : { selectedEndImageId: img.id, endImageUrl: img.url })}
-                                            >
-                                                {selectedId === img.id ? <div className="h-2 w-2 rounded-full bg-green-500" /> : "Select"}
-                                            </Button>
-                                            {inpaintModelId && (
-                                              <Button
-                                                  variant="ghost" 
-                                                  size="icon"
-                                                  className="h-6 w-6 text-white hover:text-yellow-400"
-                                                  onClick={() => setEditImage({ url: img.url, type })}
-                                              >
-                                                  <Wand2 className="h-3 w-3" />
-                                              </Button>
-                                            )}
-                                        </div>
-                                        <a href={img.url} target="_blank" download className="text-white hover:text-blue-400">
-                                            <Download className="h-4 w-4" />
-                                        </a>
-                                    </div>
-                                </Card>
-                            </div>
-                        </CarouselItem>
-                    ))}
-                </CarouselContent>
-                <CarouselPrevious className="left-2" />
-                <CarouselNext className="right-2" />
-             </Carousel>
-             <div className="text-center mt-1 text-[10px] text-muted-foreground">
-                {images.length} version{images.length > 1 ? 's' : ''} • {type.toUpperCase()}
-             </div>
-          </div>
-      )
+  // --- Drag & Drop Logic ---
+  const handleDragStart = (e: React.DragEvent, image: GeneratedImage) => {
+      e.dataTransfer.setData("application/json", JSON.stringify(image));
+      e.dataTransfer.effectAllowed = "copy";
   }
 
+  const handleDrop = (e: React.DragEvent, targetType: "start" | "end") => {
+      e.preventDefault();
+      try {
+          const data = e.dataTransfer.getData("application/json");
+          if (!data) return;
+          const image = JSON.parse(data) as GeneratedImage;
+          
+          // Update the specific slot with this image
+          // We also ensure this image exists in the respective history array if dragged from the other side
+          // But for simplicity, we just update the selected ID and URL. 
+          // If we want to strictly keep history clean, we might add it to the target history array too.
+          
+          const updates: any = {};
+          if (targetType === "start") {
+              updates.selectedStartImageId = image.id;
+              updates.startImageUrl = image.url;
+              // Optional: Add to startImages if not present?
+              // Let's just update the selection for now.
+          } else {
+              updates.selectedEndImageId = image.id;
+              updates.endImageUrl = image.url;
+          }
+          updateFrame(frame.id, updates);
+      } catch (err) {
+          console.error("Drop failed", err);
+      }
+  }
+
+  const handleDragOver = (e: React.DragEvent) => {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = "copy";
+  }
+
+  // --- Group Images by Model ---
+  const allImages = [...(frame.startImages || []), ...(frame.endImages || [])];
+  // Deduplicate by ID
+  const uniqueImages = Array.from(new Map(allImages.map(item => [item.id, item])).values());
+  
+  // Group by Model ID
+  const imagesByModel: Record<string, GeneratedImage[]> = {};
+  uniqueImages.forEach(img => {
+      const modelId = img.modelId || 'unknown';
+      if (!imagesByModel[modelId]) imagesByModel[modelId] = [];
+      imagesByModel[modelId].push(img);
+  });
+
   return (
-    <div className="flex flex-col lg:flex-row gap-6 p-6 border-b hover:bg-muted/5 transition-colors">
+    <div className="flex flex-col xl:flex-row gap-6 p-6 border-b hover:bg-muted/5 transition-colors">
       {editImage && inpaintModelId && (
         <InpaintingEditor 
             open={!!editImage} 
@@ -323,15 +289,20 @@ export function StoryboardFrame({ frame, index }: StoryboardFrameProps) {
             modelId={inpaintModelId}
         />
       )}
-      <div className="flex-none w-8 pt-1 text-center font-bold text-muted-foreground/50 text-xl">
+      
+      {/* Index Number */}
+      <div className="flex-none w-8 pt-1 text-center font-bold text-muted-foreground/50 text-xl hidden xl:block">
         {index + 1}
       </div>
       
-      <div className="flex-1 space-y-4">
+      {/* Left Column: Controls & Script */}
+      <div className="flex-1 space-y-4 min-w-[300px]">
+        <div className="xl:hidden font-bold text-muted-foreground mb-2">Frame {index + 1}</div>
+        
         {/* Top Controls */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-           <div className="sm:col-span-1">
-              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 block">Characters</label>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+           <div className="space-y-1">
+              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block">Characters</label>
               <AssetSelector 
                 type="character" 
                 value={frame.characterIds} 
@@ -342,9 +313,9 @@ export function StoryboardFrame({ frame, index }: StoryboardFrameProps) {
                 {selectedCharacters.map((char: any) => (
                   <div key={char.id} className="flex items-center gap-2">
                     {char.imageUrl ? (
-                      <img src={char.imageUrl} alt={char.name} className="h-7 w-7 rounded-full object-cover border" />
+                      <img src={char.imageUrl} alt={char.name} className="h-6 w-6 rounded-full object-cover border" />
                     ) : (
-                      <div className="h-7 w-7 rounded-full bg-muted text-[10px] flex items-center justify-center border">
+                      <div className="h-6 w-6 rounded-full bg-muted text-[10px] flex items-center justify-center border">
                         {char.name?.slice(0, 1)}
                       </div>
                     )}
@@ -353,8 +324,8 @@ export function StoryboardFrame({ frame, index }: StoryboardFrameProps) {
                 ))}
               </div>
            </div>
-           <div className="sm:col-span-1">
-              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 block">Scene</label>
+           <div className="space-y-1">
+              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block">Scene</label>
               <AssetSelector 
                 type="scene" 
                 value={frame.sceneId} 
@@ -363,9 +334,9 @@ export function StoryboardFrame({ frame, index }: StoryboardFrameProps) {
               {selectedScene && (
                 <div className="mt-2 flex items-center gap-2">
                   {selectedScene.imageUrl ? (
-                    <img src={selectedScene.imageUrl} alt={selectedScene.name} className="h-7 w-7 rounded-full object-cover border" />
+                    <img src={selectedScene.imageUrl} alt={selectedScene.name} className="h-6 w-6 rounded-full object-cover border" />
                   ) : (
-                    <div className="h-7 w-7 rounded-full bg-muted text-[10px] flex items-center justify-center border">
+                    <div className="h-6 w-6 rounded-full bg-muted text-[10px] flex items-center justify-center border">
                       {selectedScene.name?.slice(0, 1)}
                     </div>
                   )}
@@ -376,14 +347,14 @@ export function StoryboardFrame({ frame, index }: StoryboardFrameProps) {
         </div>
 
         {/* Script Area */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 gap-4">
             <div className="space-y-1.5">
                 <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block">Story Script</label>
                 <Textarea 
                     value={frame.storyScript}
                     onChange={(e) => updateFrame(frame.id, { storyScript: e.target.value })}
-                    placeholder="Describe action... Use @CharacterName to reference."
-                    className="min-h-[100px] resize-none"
+                    placeholder="Describe action..."
+                    className="min-h-[80px] resize-none"
                 />
             </div>
             <div className="space-y-1.5">
@@ -394,64 +365,155 @@ export function StoryboardFrame({ frame, index }: StoryboardFrameProps) {
                     value={frame.actionNotes || ""}
                     onChange={(e) => updateFrame(frame.id, { actionNotes: e.target.value })}
                     placeholder="Pan left, zoom in..."
-                    className="min-h-[100px] resize-none bg-muted/30"
+                    className="min-h-[60px] resize-none bg-muted/30"
                 />
             </div>
         </div>
 
         {/* Model Selection & Generate */}
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-muted/10 p-3 rounded-lg border border-dashed">
-            <div className="flex items-center gap-2">
-                <Layers className="h-4 w-4 text-muted-foreground" />
-                <span className="text-xs font-medium text-muted-foreground">Models:</span>
-                <div className="flex flex-wrap gap-1">
-                    {MODEL_OPTIONS.map(model => (
-                        <Badge 
-                            key={model.id}
-                            variant={selectedModels.includes(model.id) ? "default" : "outline"}
-                            className="cursor-pointer hover:opacity-80"
-                            onClick={() => toggleModel(model.id)}
-                        >
-                            {model.name}
-                        </Badge>
-                    ))}
-                </div>
+        <div className="flex flex-col gap-3 bg-muted/10 p-3 rounded-lg border border-dashed">
+            <div className="flex flex-wrap gap-1 items-center">
+                <Layers className="h-4 w-4 text-muted-foreground mr-2" />
+                {MODEL_OPTIONS.map(model => (
+                    <Badge 
+                        key={model.id}
+                        variant={selectedModels.includes(model.id) ? "default" : "outline"}
+                        className="cursor-pointer hover:opacity-80"
+                        onClick={() => toggleModel(model.id)}
+                    >
+                        {model.name}
+                    </Badge>
+                ))}
             </div>
             
-            <div className="flex gap-2 w-full sm:w-auto">
+            <div className="flex gap-2 w-full">
                 <Button 
                     onClick={handleGenerateAll} 
                     disabled={!!loading}
                     size="sm"
-                    className="bg-primary/90 hover:bg-primary flex-1 sm:flex-none"
+                    className="bg-primary/90 hover:bg-primary flex-1"
                 >
                     {loading === "all" ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Wand2 className="mr-2 h-4 w-4" />}
-                    Generate Both
+                    Generate All
                 </Button>
-                <Button 
-                    variant="outline"
-                    size="sm"
-                    onClick={() => generateImage("start")}
-                    disabled={!!loading}
-                >
-                    Start
-                </Button>
-                <Button 
-                    variant="outline"
-                    size="sm"
-                    onClick={() => generateImage("end")}
-                    disabled={!!loading}
-                >
-                    End
-                </Button>
+                <Button variant="outline" size="sm" onClick={() => generateImage("start")} disabled={!!loading}>Start</Button>
+                <Button variant="outline" size="sm" onClick={() => generateImage("end")} disabled={!!loading}>End</Button>
             </div>
         </div>
       </div>
 
-      {/* Result Carousels */}
-      <div className="flex-none flex flex-col gap-4 justify-center min-w-[280px]">
-        <ImageCarousel type="start" />
-        <ImageCarousel type="end" />
+      {/* Right Column: Preview & History */}
+      <div className="flex-none w-full xl:w-[400px] flex flex-col gap-4">
+        
+        {/* Drop Zones (Final Preview) */}
+        <div className="grid grid-cols-2 gap-4">
+            {/* Start Frame Slot */}
+            <div 
+                className="space-y-1"
+                onDrop={(e) => handleDrop(e, "start")}
+                onDragOver={handleDragOver}
+            >
+                <div className="text-xs font-semibold text-muted-foreground text-center uppercase">Start Frame</div>
+                <div className={cn(
+                    "aspect-video rounded-md border-2 border-dashed flex items-center justify-center relative overflow-hidden bg-muted/20 transition-all",
+                    frame.startImageUrl ? "border-solid border-green-500/50" : "hover:border-primary/50"
+                )}>
+                    {frame.startImageUrl ? (
+                        <>
+                            <img src={frame.startImageUrl} alt="Start" className="w-full h-full object-cover" />
+                            <div className="absolute bottom-1 right-1 flex gap-1">
+                                <Button variant="secondary" size="icon" className="h-6 w-6 rounded-full opacity-80 hover:opacity-100" onClick={() => window.open(frame.startImageUrl, '_blank')}>
+                                    <Download className="h-3 w-3" />
+                                </Button>
+                            </div>
+                        </>
+                    ) : (
+                        <div className="text-center p-2 text-muted-foreground text-xs pointer-events-none">
+                            {loading === 'start' ? <Loader2 className="h-5 w-5 animate-spin mx-auto" /> : "Drag image here"}
+                        </div>
+                    )}
+                </div>
+            </div>
+
+            {/* End Frame Slot */}
+            <div 
+                className="space-y-1"
+                onDrop={(e) => handleDrop(e, "end")}
+                onDragOver={handleDragOver}
+            >
+                <div className="text-xs font-semibold text-muted-foreground text-center uppercase">End Frame</div>
+                <div className={cn(
+                    "aspect-video rounded-md border-2 border-dashed flex items-center justify-center relative overflow-hidden bg-muted/20 transition-all",
+                    frame.endImageUrl ? "border-solid border-green-500/50" : "hover:border-primary/50"
+                )}>
+                    {frame.endImageUrl ? (
+                        <>
+                            <img src={frame.endImageUrl} alt="End" className="w-full h-full object-cover" />
+                            <div className="absolute bottom-1 right-1 flex gap-1">
+                                <Button variant="secondary" size="icon" className="h-6 w-6 rounded-full opacity-80 hover:opacity-100" onClick={() => window.open(frame.endImageUrl, '_blank')}>
+                                    <Download className="h-3 w-3" />
+                                </Button>
+                            </div>
+                        </>
+                    ) : (
+                        <div className="text-center p-2 text-muted-foreground text-xs pointer-events-none">
+                            {loading === 'end' ? <Loader2 className="h-5 w-5 animate-spin mx-auto" /> : "Drag image here"}
+                        </div>
+                    )}
+                </div>
+            </div>
+        </div>
+
+        {/* Generation History (Draggable Source) */}
+        <div className="flex-1 bg-muted/10 rounded-lg p-3 border overflow-hidden flex flex-col min-h-[300px]">
+            <div className="text-xs font-semibold text-muted-foreground mb-3 flex justify-between items-center">
+                <span>Generation History</span>
+                <span className="text-[10px] bg-muted px-1.5 py-0.5 rounded">{uniqueImages.length} images</span>
+            </div>
+            
+            <div className="overflow-y-auto flex-1 pr-1 space-y-4 scrollbar-thin">
+                {uniqueImages.length === 0 ? (
+                    <div className="text-center py-8 text-xs text-muted-foreground/50">
+                        No images generated yet.
+                    </div>
+                ) : (
+                    Object.entries(imagesByModel).map(([modelId, images]) => (
+                        <div key={modelId} className="space-y-2">
+                            <div className="text-[10px] font-bold text-primary uppercase tracking-wider flex items-center gap-2">
+                                <div className="h-px bg-border flex-1" />
+                                {MODEL_OPTIONS.find(m => m.id === modelId)?.name || modelId}
+                                <div className="h-px bg-border flex-1" />
+                            </div>
+                            <div className="grid grid-cols-2 gap-2">
+                                {images.map(img => (
+                                    <div 
+                                        key={img.id} 
+                                        draggable
+                                        onDragStart={(e) => handleDragStart(e, img)}
+                                        className="relative aspect-video rounded-md overflow-hidden border bg-background cursor-grab active:cursor-grabbing hover:ring-2 hover:ring-primary/50 transition-all group"
+                                    >
+                                        <img src={img.url} className="w-full h-full object-cover" />
+                                        
+                                        {/* Overlay Actions */}
+                                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                                            {inpaintModelId && (
+                                                <Button size="icon" variant="secondary" className="h-6 w-6" onClick={() => setEditImage({ url: img.url, type: "start" })}>
+                                                    <Wand2 className="h-3 w-3" />
+                                                </Button>
+                                            )}
+                                            <Button size="icon" variant="secondary" className="h-6 w-6" onClick={() => window.open(img.url, '_blank')}>
+                                                <Download className="h-3 w-3" />
+                                            </Button>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    ))
+                )}
+            </div>
+        </div>
+
       </div>
     </div>
   )
