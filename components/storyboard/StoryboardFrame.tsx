@@ -112,20 +112,24 @@ export function StoryboardFrame({ frame, index }: StoryboardFrameProps) {
                     imageUrl // Pass imageUrl if available
                 })
             })
-            if (!res.ok) throw new Error("Failed")
+            if (!res.ok) {
+                const errData = await res.json().catch(() => ({}));
+                throw new Error(errData.error || errData.message || "Generation Failed");
+            }
             const data = await res.json()
             return { ...data, modelId }
-          } catch (e) {
+          } catch (e: any) {
               console.error(`Model ${modelId} failed`, e)
-              return null
+              return { error: e.message, modelId }
           }
       })
 
       const results = await Promise.all(requests)
-      const validResults = results.filter(Boolean)
+      const validResults = results.filter(r => r && !r.error)
+      const errors = results.filter(r => r && r.error).map(r => `${r.modelId}: ${r.error}`)
 
       if (validResults.length === 0) {
-          throw new Error("All model generations failed")
+          throw new Error(`All model generations failed.\n${errors.join('\n')}`)
       }
 
       // Poll for each request
