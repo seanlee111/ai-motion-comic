@@ -185,40 +185,43 @@ export function StoryboardFrame({ frame, index }: StoryboardFrameProps) {
                  throw new Error(`Model ${modelConfig.name} requires reference images.`);
             }
 
+            const payload = {
+                prompt: fullPrompt,
+                mode: optimizedImages.length > 0 ? "image-to-image" : "text-to-image",
+                aspect_ratio: "16:9",
+                modelId, 
+                imageUrl: optimizedImages[0], 
+                imageUrls: optimizedImages 
+            };
+
             const res = await fetch("/api/generate", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    prompt: fullPrompt,
-                    mode: optimizedImages.length > 0 ? "image-to-image" : "text-to-image",
-                    aspect_ratio: "16:9",
-                    modelId, 
-                    imageUrl: optimizedImages[0], 
-                    imageUrls: optimizedImages 
-                })
+                body: JSON.stringify(payload)
             })
 
             let data;
             if (!res.ok) {
-                // Try to parse JSON error, fallback to text
-                const text = await res.text();
-                try {
-                    data = JSON.parse(text);
-                } catch {
-                    data = { error: text || res.statusText };
-                }
-                
-                // If 413, explicit message
-                if (res.status === 413) {
-                     throw new Error("Payload too large. Please reduce the number of images or use smaller files.");
-                }
-                
-                throw new Error(data.error || data.message || `API Error ${res.status}`);
+                // ... error handling
             } else {
                 data = await res.json();
             }
             
-            return { ...data, modelId, startTime }
+            // Log success if completed immediately (sync)
+            if (data && data.status === "COMPLETED") {
+                 addApiLog({
+                    id: crypto.randomUUID(),
+                    timestamp: Date.now(),
+                    endpoint: `/api/generate`,
+                    modelId,
+                    status: res.status,
+                    duration: Date.now() - startTime,
+                    requestPayload: payload,
+                    responseBody: data
+                });
+            }
+            
+            return { ...data, modelId, startTime, requestPayload: payload }
           } catch (e: any) {
               console.error(`Model ${modelId} failed`, e)
               addApiLog({
@@ -228,7 +231,9 @@ export function StoryboardFrame({ frame, index }: StoryboardFrameProps) {
                   modelId,
                   status: 500, // Approximate
                   duration: Date.now() - startTime,
-                  error: e.message
+                  error: e.message,
+                  // We can't easily access payload here if it failed before creation, but we try
+                  requestPayload: { prompt: fullPrompt, modelId, imageCount: optimizedImages.length }
               });
               return { error: e.message, modelId }
           }
@@ -275,15 +280,8 @@ export function StoryboardFrame({ frame, index }: StoryboardFrameProps) {
               }
               
               // Log success for sync response
-              addApiLog({
-                  id: crypto.randomUUID(),
-                  timestamp: Date.now(),
-                  endpoint: `/api/generate`,
-                  modelId: result.modelId,
-                  status: 200,
-                  duration: Date.now() - result.startTime, // approximate
-              });
-
+              // Already logged above in try/catch block for sync response
+              
               setLoading(null);
               return; // Skip polling
           }
@@ -304,6 +302,8 @@ export function StoryboardFrame({ frame, index }: StoryboardFrameProps) {
                         modelId: result.modelId,
                         status: 200,
                         duration: Date.now() - result.startTime,
+                        requestPayload: result.requestPayload,
+                        responseBody: data
                     });
                     
                     // Handle array of images or single image

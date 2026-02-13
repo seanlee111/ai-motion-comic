@@ -82,4 +82,6 @@ export interface APILog {
   status: number;
   duration: number;
   error?: string;
+  requestPayload?: any; // Added for detailed view
+  responseBody?: any; // Added for detailed view
 }
