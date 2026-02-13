@@ -71,6 +71,7 @@ export interface StoryState {
   // Logs
   apiLogs?: APILog[];
   addApiLog: (log: APILog) => void;
+  deleteApiLog: (id: string) => void;
   clearApiLogs: () => void;
 }
 

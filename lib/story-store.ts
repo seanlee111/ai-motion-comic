@@ -115,6 +115,7 @@ export const useStoryStore = create<StoryState>()(
 
       apiLogs: [],
       addApiLog: (log) => set((state) => ({ apiLogs: [log, ...(state.apiLogs || [])].slice(0, 100) })), // Keep last 100 logs
+      deleteApiLog: (id) => set((state) => ({ apiLogs: (state.apiLogs || []).filter(l => l.id !== id) })),
       clearApiLogs: () => set({ apiLogs: [] }),
     }),
     {

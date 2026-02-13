@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@fal-ai/serverless-client": "^0.14.0",
+    "@radix-ui/react-context-menu": "^2.2.16",
     "@radix-ui/react-dialog": "^1.0.5",
     "@radix-ui/react-label": "^2.0.2",
     "@radix-ui/react-popover": "^1.1.15",
