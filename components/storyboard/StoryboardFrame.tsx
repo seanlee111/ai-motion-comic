@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { Wand2, Trash2, Download, Loader2, Clock, Move, ChevronLeft, ChevronRight, Layers } from "lucide-react"
+import { Wand2, Trash2, Download, Loader2, Clock, Move, ChevronLeft, ChevronRight, Layers, Upload, X } from "lucide-react"
 import { useStoryStore } from "@/lib/story-store"
 import { AssetSelector } from "./AssetSelector"
 import { Button } from "@/components/ui/button"
@@ -52,6 +52,30 @@ export function StoryboardFrame({ frame, index }: StoryboardFrameProps) {
       }
   }
 
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    // Convert files to Base64/DataURL
+    Array.from(files).forEach(file => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const result = e.target?.result as string;
+            if (result) {
+                const currentUploads = frame.customUploads || [];
+                updateFrame(frame.id, { customUploads: [...currentUploads, result] });
+            }
+        };
+        reader.readAsDataURL(file);
+    });
+  };
+
+  const removeCustomUpload = (indexToRemove: number) => {
+      const currentUploads = frame.customUploads || [];
+      const newUploads = currentUploads.filter((_, i) => i !== indexToRemove);
+      updateFrame(frame.id, { customUploads: newUploads });
+  };
+
   const generateImage = async (target: "start" | "end") => {
     if (!frame.storyScript) {
         alert("Please enter a story script")
@@ -77,31 +101,36 @@ export function StoryboardFrame({ frame, index }: StoryboardFrameProps) {
       const timeContext = target === "start" ? "Opening shot, start of action." : "Closing shot, end of action."
       fullPrompt += `Action: ${frame.storyScript}. ${frame.actionNotes || ""}. ${timeContext} Masterpiece, cinematic lighting, 8k.`
 
+      // Gather all reference images
+      const referenceImages: string[] = [];
+      
+      // 1. Scene Image
+      if (selectedScene?.imageUrl) {
+          referenceImages.push(selectedScene.imageUrl);
+      }
+      
+      // 2. Character Images
+      selectedCharacters.forEach(char => {
+          if (char?.imageUrl) referenceImages.push(char.imageUrl);
+      });
+
+      // 3. Custom Uploads
+      if (frame.customUploads && frame.customUploads.length > 0) {
+          referenceImages.push(...frame.customUploads);
+      }
+
       // Parallel requests for each selected model
       const requests = selectedModels.map(async (modelId) => {
           try {
             // Check if model is image-to-image and add imageUrl
             const modelConfig = MODEL_OPTIONS.find(m => m.id === modelId);
-            let imageUrl = undefined;
             
-            // Determine reference image based on logic:
-            // 1. Scene image (highest priority for background/setting consistency)
-            // 2. Character image (if no scene)
-            if (selectedScene?.imageUrl) {
-                imageUrl = selectedScene.imageUrl;
-            } else if (selectedCharacters.length > 0 && selectedCharacters[0] && selectedCharacters[0].imageUrl) {
-                imageUrl = selectedCharacters[0].imageUrl;
-            }
-
             // Validation for Image-to-Image models
             if (modelConfig?.type === 'image-to-image') {
-                if (!imageUrl) {
-                    throw new Error(`Model ${modelConfig.name} is an Image-to-Image model and requires a reference image. Please select a Scene or Character with an image in the assets menu.`);
+                if (referenceImages.length === 0) {
+                    throw new Error(`Model ${modelConfig.name} is an Image-to-Image model and requires a reference image. Please select a Scene, Character, or upload a custom image.`);
                 }
             }
-            // For Text-to-Image models, we can optionally pass imageUrl if they support it (like Jimeng 4.5), 
-            // but we don't enforce it unless it's strictly required.
-            // Current code passes `imageUrl` regardless if available.
 
             const res = await fetch("/api/generate", {
                 method: "POST",
@@ -111,7 +140,8 @@ export function StoryboardFrame({ frame, index }: StoryboardFrameProps) {
                     mode: "text-to-image", // Backend ignores this mostly, uses modelId
                     aspect_ratio: "16:9",
                     modelId, // Pass model ID to backend
-                    imageUrl // Pass imageUrl if available
+                    imageUrl: referenceImages[0], // Pass first image for backward compatibility / single-image models
+                    imageUrls: referenceImages // Pass all images for multi-reference models (e.g. Jimeng)
                 })
             })
             if (!res.ok) {
@@ -143,30 +173,35 @@ export function StoryboardFrame({ frame, index }: StoryboardFrameProps) {
                 
                 if (data.status === "COMPLETED") {
                     clearInterval(pollInterval)
-                    const imageUrl = data.images[0].url
                     
-                    const newImage: GeneratedImage = {
-                        id: crypto.randomUUID(),
-                        url: imageUrl,
-                        modelId: result.modelId,
-                        timestamp: Date.now()
-                    }
+                    // Handle array of images or single image
+                    const newImagesRaw = data.images || [];
+                    if (newImagesRaw.length === 0) return; // Should not happen if completed
 
                     // We use getState to get fresh data
                     const freshFrame = useStoryStore.getState().frames.find(f => f.id === frame.id)
                     if (!freshFrame) return
 
+                    const newGeneratedImages: GeneratedImage[] = newImagesRaw.map((img: any) => ({
+                        id: crypto.randomUUID(),
+                        url: img.url,
+                        modelId: result.modelId,
+                        timestamp: Date.now()
+                    }));
+
+                    const firstNewImage = newGeneratedImages[0];
+
                     if (target === "start") {
                         updateFrame(frame.id, { 
-                            startImages: [...(freshFrame.startImages || []), newImage],
-                            selectedStartImageId: newImage.id, // Auto select latest
-                            startImageUrl: imageUrl // Legacy
+                            startImages: [...(freshFrame.startImages || []), ...newGeneratedImages],
+                            selectedStartImageId: firstNewImage.id, // Auto select latest
+                            startImageUrl: firstNewImage.url // Legacy
                         })
                     } else {
                         updateFrame(frame.id, { 
-                            endImages: [...(freshFrame.endImages || []), newImage],
-                            selectedEndImageId: newImage.id, // Auto select latest
-                            endImageUrl: imageUrl // Legacy
+                            endImages: [...(freshFrame.endImages || []), ...newGeneratedImages],
+                            selectedEndImageId: firstNewImage.id, // Auto select latest
+                            endImageUrl: firstNewImage.url // Legacy
                         })
                     }
                     
@@ -344,6 +379,35 @@ export function StoryboardFrame({ frame, index }: StoryboardFrameProps) {
                 </div>
               )}
            </div>
+        </div>
+
+        {/* Custom Uploads */}
+        <div className="space-y-1">
+            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block flex items-center justify-between">
+                <span>Custom Reference Images</span>
+                <label className="cursor-pointer text-primary hover:underline text-[10px] flex items-center">
+                    <Upload className="h-3 w-3 mr-1" /> Upload
+                    <input type="file" className="hidden" accept="image/*" multiple onChange={handleFileUpload} />
+                </label>
+            </label>
+            <div className="flex flex-wrap gap-2 min-h-[40px] p-2 bg-muted/20 rounded-md border border-dashed">
+                {(!frame.customUploads || frame.customUploads.length === 0) && (
+                    <div className="text-muted-foreground text-[10px] flex items-center justify-center w-full">
+                        No custom images uploaded
+                    </div>
+                )}
+                {frame.customUploads?.map((url, i) => (
+                    <div key={i} className="relative group w-10 h-10 rounded overflow-hidden border">
+                        <img src={url} className="w-full h-full object-cover" />
+                        <button 
+                            onClick={() => removeCustomUpload(i)}
+                            className="absolute top-0 right-0 bg-black/50 text-white p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
+                        >
+                            <X className="h-3 w-3" />
+                        </button>
+                    </div>
+                ))}
+            </div>
         </div>
 
         {/* Script Area */}

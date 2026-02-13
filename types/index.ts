@@ -24,6 +24,7 @@ export interface StoryboardFrame {
   // Asset Links
   characterIds: string[]; // Changed from single ID to array
   sceneId?: string;
+  customUploads?: string[]; // Custom uploaded reference images (base64 or url)
   
   // Visuals
   // Deprecated single string URLs in favor of array of GeneratedImage

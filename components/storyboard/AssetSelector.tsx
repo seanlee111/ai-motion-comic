@@ -106,15 +106,15 @@ export function AssetSelector({ type, value, onChange, multi = false }: AssetSel
               {filteredAssets.map((asset) => (
                 <CommandItem
                   key={asset.id}
-                  value={`${asset.name}-${asset.id}`} // Unique value for search
+                  value={`${asset.name} ${asset.id}`} // Searchable value
                   onSelect={() => {
-                      // Explicitly pass asset.id to handler
                       if (multi) {
                           handleMultiSelect(asset.id);
                       } else {
                           handleSingleSelect(asset.id);
                       }
                   }}
+                  className="cursor-pointer"
                 >
                   <Check
                     className={cn(

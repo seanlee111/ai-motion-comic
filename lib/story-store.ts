@@ -11,6 +11,7 @@ export const useStoryStore = create<StoryState>()(
             id: 'frame-1', 
             storyScript: '',
             characterIds: [],
+            customUploads: [],
             startImages: [],
             endImages: []
         }
@@ -34,6 +35,7 @@ export const useStoryStore = create<StoryState>()(
             id: crypto.randomUUID(), 
             storyScript: '', 
             characterIds: [],
+            customUploads: [],
             startImages: [],
             endImages: [],
             ...frameData 

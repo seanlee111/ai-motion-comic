@@ -7,7 +7,7 @@ export const runtime = "nodejs";
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { prompt, modelId = "fal-flux-pro-v1.1", aspect_ratio, mode, image_url, mask_url, strength } = body;
+    const { prompt, modelId = "fal-flux-pro-v1.1", aspect_ratio, mode, image_url, image_urls, mask_url, strength } = body;
 
     // 1. Lookup Model Config
     const modelConfig = getModelConfig(modelId);
@@ -29,6 +29,7 @@ export async function POST(req: NextRequest) {
         aspect_ratio,
         mode,
         image_url,
+        image_urls, // New field
         mask_url,
         strength
     });
