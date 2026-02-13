@@ -33,27 +33,19 @@ export function AssetSelector({ type, value, onChange, multi = false }: AssetSel
   
   const filteredAssets = assets.filter(a => a.type === type)
   
-  // Handle single select logic wrapper
-  const handleSingleSelect = (currentValue: string) => {
-    // If the same value is selected, clear it (toggle off), otherwise set new value
-    // The value from CommandItem is "name-id". We need to extract the ID.
-    // Actually, `currentValue` passed from onSelect IS the ID because we extract it inside the render map below?
-    // Wait, onSelect in CommandItem passes the `value` prop of CommandItem by default if no arg is passed,
-    // BUT we are passing an arrow function `() => handleSingleSelect(asset.id)`.
-    // So `currentValue` IS `asset.id`.
-    
-    console.log("Selecting:", currentValue);
-    onChange(currentValue === value ? "" : currentValue)
-    setOpen(false)
-  }
-
-  // Handle multi select logic
-  const handleMultiSelect = (currentValue: string) => {
-    const currentValues = Array.isArray(value) ? value : []
-    if (currentValues.includes(currentValue)) {
-      onChange(currentValues.filter((id) => id !== currentValue))
+  const handleSelect = (assetId: string) => {
+    if (multi) {
+        const currentValues = Array.isArray(value) ? value : []
+        if (currentValues.includes(assetId)) {
+            onChange(currentValues.filter((id) => id !== assetId))
+        } else {
+            onChange([...currentValues, assetId])
+        }
+        // Don't close popover for multi-select
     } else {
-      onChange([...currentValues, currentValue])
+        // Toggle if same value
+        onChange(value === assetId ? "" : assetId)
+        setOpen(false)
     }
   }
 
@@ -97,36 +89,34 @@ export function AssetSelector({ type, value, onChange, multi = false }: AssetSel
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-full p-0">
+      <PopoverContent className="w-[300px] p-0" align="start">
         <Command>
           <CommandInput placeholder={`Search ${type}...`} />
           <CommandList>
             <CommandEmpty>No {type} found.</CommandEmpty>
             <CommandGroup>
-              {filteredAssets.map((asset) => (
-                <CommandItem
-                  key={asset.id}
-                  value={`${asset.name} ${asset.id}`} // Searchable value
-                  onSelect={() => {
-                      if (multi) {
-                          handleMultiSelect(asset.id);
-                      } else {
-                          handleSingleSelect(asset.id);
-                      }
-                  }}
-                  className="cursor-pointer"
-                >
-                  <Check
-                    className={cn(
-                      "mr-2 h-4 w-4",
-                      multi 
-                        ? (Array.isArray(value) && value.includes(asset.id) ? "opacity-100" : "opacity-0")
-                        : (value === asset.id ? "opacity-100" : "opacity-0")
-                    )}
-                  />
-                  {asset.name}
-                </CommandItem>
-              ))}
+              {filteredAssets.map((asset) => {
+                  const isSelected = multi 
+                    ? (Array.isArray(value) && value.includes(asset.id))
+                    : (value === asset.id);
+
+                  return (
+                    <CommandItem
+                      key={asset.id}
+                      value={`${asset.name}-${asset.id}`} // Use hyphen to avoid space splitting issues in some cmdk versions
+                      onSelect={() => handleSelect(asset.id)}
+                      className="cursor-pointer"
+                    >
+                      <Check
+                        className={cn(
+                          "mr-2 h-4 w-4",
+                          isSelected ? "opacity-100" : "opacity-0"
+                        )}
+                      />
+                      {asset.name}
+                    </CommandItem>
+                  )
+              })}
             </CommandGroup>
           </CommandList>
         </Command>

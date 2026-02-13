@@ -89,9 +89,8 @@ export function StoryboardFrame({ frame, index }: StoryboardFrameProps) {
 
   const toggleModel = (modelId: string) => {
       if (selectedModels.includes(modelId)) {
-          if (selectedModels.length > 1) {
-              setSelectedModels(selectedModels.filter(m => m !== modelId))
-          }
+          // Allow deselecting even the last one
+          setSelectedModels(selectedModels.filter(m => m !== modelId))
       } else {
           setSelectedModels([...selectedModels, modelId])
       }
@@ -128,6 +127,14 @@ export function StoryboardFrame({ frame, index }: StoryboardFrameProps) {
         toast.error("Story script is required", {
             description: "Please enter a description for this frame."
         })
+        return
+    }
+
+    if (selectedModels.length === 0) {
+        toast.error("No model selected", {
+            description: "Please select at least one AI model to generate images."
+        })
+        setLoading(null)
         return
     }
 
