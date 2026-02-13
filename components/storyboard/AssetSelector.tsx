@@ -5,20 +5,20 @@ import { Check, ChevronsUpDown } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-} from "@/components/ui/command"
-import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover"
 import { useStoryStore } from "@/lib/story-store"
 import { Badge } from "@/components/ui/badge"
+import { Checkbox } from "@/components/ui/checkbox"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 
 interface AssetSelectorProps {
   type: 'character' | 'scene'
@@ -33,19 +33,12 @@ export function AssetSelector({ type, value, onChange, multi = false }: AssetSel
   
   const filteredAssets = assets.filter(a => a.type === type)
   
-  const handleSelect = (assetId: string) => {
-    if (multi) {
-        const currentValues = Array.isArray(value) ? value : []
-        if (currentValues.includes(assetId)) {
-            onChange(currentValues.filter((id) => id !== assetId))
-        } else {
-            onChange([...currentValues, assetId])
-        }
-        // Don't close popover for multi-select
+  const handleMultiSelect = (assetId: string) => {
+    const currentValues = Array.isArray(value) ? value : []
+    if (currentValues.includes(assetId)) {
+        onChange(currentValues.filter((id) => id !== assetId))
     } else {
-        // Toggle if same value
-        onChange(value === assetId ? "" : assetId)
-        setOpen(false)
+        onChange([...currentValues, assetId])
     }
   }
 
@@ -58,6 +51,35 @@ export function AssetSelector({ type, value, onChange, multi = false }: AssetSel
     }
   }, [value, filteredAssets, multi])
 
+  // --- Single Select: Use native-like Select component ---
+  if (!multi) {
+      return (
+        <Select 
+            value={value as string} 
+            onValueChange={(v) => onChange(v === 'none' ? '' : v)}
+        >
+            <SelectTrigger className="w-full">
+                <SelectValue placeholder={`Select ${type}...`} />
+            </SelectTrigger>
+            <SelectContent>
+                {filteredAssets.length === 0 ? (
+                    <div className="p-2 text-sm text-muted-foreground text-center">No {type}s found</div>
+                ) : (
+                    <>
+                        <SelectItem value="none" className="text-muted-foreground italic">None</SelectItem>
+                        {filteredAssets.map((asset) => (
+                            <SelectItem key={asset.id} value={asset.id}>
+                                {asset.name}
+                            </SelectItem>
+                        ))}
+                    </>
+                )}
+            </SelectContent>
+        </Select>
+      )
+  }
+
+  // --- Multi Select: Use Popover with Checkbox list (No Command/cmdk to avoid issues) ---
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
@@ -68,59 +90,53 @@ export function AssetSelector({ type, value, onChange, multi = false }: AssetSel
           className="w-full justify-between h-auto min-h-[40px]"
         >
           <div className="flex flex-wrap gap-1 items-center text-left">
-            {multi ? (
-                (selectedLabels as string[])?.length > 0 ? (
-                    (selectedLabels as string[]).map((label, i) => (
-                        <Badge key={i} variant="secondary" className="mr-1">
-                            {label}
-                        </Badge>
-                    ))
-                ) : (
-                    <span className="text-muted-foreground font-normal">Select {type}s...</span>
-                )
+            {(selectedLabels as string[])?.length > 0 ? (
+                (selectedLabels as string[]).map((label, i) => (
+                    <Badge key={i} variant="secondary" className="mr-1">
+                        {label}
+                    </Badge>
+                ))
             ) : (
-                selectedLabels ? (
-                    <span>{selectedLabels}</span>
-                ) : (
-                    <span className="text-muted-foreground font-normal">Select {type}...</span>
-                )
+                <span className="text-muted-foreground font-normal">Select {type}s...</span>
             )}
           </div>
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-[300px] p-0" align="start">
-        <Command>
-          <CommandInput placeholder={`Search ${type}...`} />
-          <CommandList>
-            <CommandEmpty>No {type} found.</CommandEmpty>
-            <CommandGroup>
-              {filteredAssets.map((asset) => {
-                  const isSelected = multi 
-                    ? (Array.isArray(value) && value.includes(asset.id))
-                    : (value === asset.id);
-
-                  return (
-                    <CommandItem
-                      key={asset.id}
-                      value={`${asset.name}-${asset.id}`.toLowerCase()} // Force lowercase for cmdk compatibility
-                      onSelect={() => handleSelect(asset.id)}
-                      className="cursor-pointer"
-                      disabled={false} // Force enable
-                    >
-                      <Check
-                        className={cn(
-                          "mr-2 h-4 w-4",
-                          isSelected ? "opacity-100" : "opacity-0"
-                        )}
-                      />
-                      {asset.name}
-                    </CommandItem>
-                  )
-              })}
-            </CommandGroup>
-          </CommandList>
-        </Command>
+          <div className="max-h-[300px] overflow-y-auto p-1">
+            {filteredAssets.length === 0 ? (
+                <div className="p-4 text-sm text-muted-foreground text-center">No {type}s found.</div>
+            ) : (
+                <div className="flex flex-col gap-1">
+                    {filteredAssets.map((asset) => {
+                        const isSelected = Array.isArray(value) && value.includes(asset.id);
+                        return (
+                            <div 
+                                key={asset.id}
+                                className={cn(
+                                    "flex items-center space-x-2 p-2 rounded-md hover:bg-muted cursor-pointer transition-colors",
+                                    isSelected && "bg-muted/50"
+                                )}
+                                onClick={() => handleMultiSelect(asset.id)}
+                            >
+                                <Checkbox 
+                                    checked={isSelected} 
+                                    onCheckedChange={() => handleMultiSelect(asset.id)}
+                                    id={`asset-${asset.id}`}
+                                />
+                                <label 
+                                    htmlFor={`asset-${asset.id}`} 
+                                    className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer flex-1"
+                                >
+                                    {asset.name}
+                                </label>
+                            </div>
+                        )
+                    })}
+                </div>
+            )}
+          </div>
       </PopoverContent>
     </Popover>
   )
