@@ -242,6 +242,50 @@ export function StoryboardFrame({ frame, index }: StoryboardFrameProps) {
 
       // Poll for each request
       validResults.forEach(async (result) => {
+          // Check if already completed (Sync API like Jimeng Ark)
+          if (result.status === "COMPLETED" && result.images && result.images.length > 0) {
+              const newImagesRaw = result.images;
+              const newGeneratedImages: GeneratedImage[] = newImagesRaw.map((img: any) => ({
+                  id: crypto.randomUUID(),
+                  url: img.url,
+                  modelId: result.modelId,
+                  timestamp: Date.now()
+              }));
+
+              const firstNewImage = newGeneratedImages[0];
+              
+              // We use getState to get fresh data
+              const freshFrame = useStoryStore.getState().frames.find(f => f.id === frame.id)
+              if (!freshFrame) return
+
+              if (target === "start") {
+                  updateFrame(frame.id, { 
+                      startImages: [...(freshFrame.startImages || []), ...newGeneratedImages],
+                      selectedStartImageId: firstNewImage.id,
+                      startImageUrl: firstNewImage.url
+                  })
+              } else {
+                  updateFrame(frame.id, { 
+                      endImages: [...(freshFrame.endImages || []), ...newGeneratedImages],
+                      selectedEndImageId: firstNewImage.id,
+                      endImageUrl: firstNewImage.url
+                  })
+              }
+              
+              // Log success for sync response
+              addApiLog({
+                  id: crypto.randomUUID(),
+                  timestamp: Date.now(),
+                  endpoint: `/api/generate`,
+                  modelId: result.modelId,
+                  status: 200,
+                  duration: Date.now() - result.startTime, // approximate
+              });
+
+              setLoading(null);
+              return; // Skip polling
+          }
+
           const pollInterval = setInterval(async () => {
             try {
                 const statusRes = await fetch(`/api/generate?id=${result.request_id}&endpoint=${encodeURIComponent(result.endpoint)}&modelId=${result.modelId}`)
