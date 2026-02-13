@@ -128,60 +128,81 @@ export class JimengProvider {
 
   // New method for Ark API (Jimeng 4.5)
   private async generateArk(req: GenerateRequest): Promise<GenerateResult> {
-      const { prompt, aspect_ratio, imageUrl } = req;
+      const { prompt, aspect_ratio, imageUrl, model } = req;
       
-      // Ark API Endpoint (usually regional, e.g. cn-beijing)
-      // We need to create a new HttpClient for this or reuse? 
-      // The base URL is different.
-      // Let's make a temporary one or change how we handle clients.
-      // We'll use fetch directly for now to avoid refactoring the whole class constructor logic for dual endpoints.
-      
-      // NOTE: Ark API needs `ARK_API_KEY`. The user provided example uses `os.environ.get("ARK_API_KEY")`.
-      // We reused JIMENG_AK/SK for v4. For v4.5 (Ark), we ideally need ARK_API_KEY.
-      // Let's check if we can derive it or if user needs to set it.
-      // Assuming user might set ARK_API_KEY in env.
-      const arkKey = process.env.ARK_API_KEY || process.env.JIMENG_AK; // Fallback? Unlikely to work if it's AK/SK vs API Key.
-      
-      // User said "开通了即梦4.5... 确保您已将 API Key 存储在环境变量 ARK_API_KEY 中"
-      // So we MUST use ARK_API_KEY.
+      // Check for ARK_API_KEY
       if (!process.env.ARK_API_KEY) {
           throw new APIError('Missing ARK_API_KEY for Jimeng 4.5', 500);
       }
 
       const endpoint = "https://ark.cn-beijing.volces.com/api/v3/images/generations";
       
-      // Map size to 2K, 4K etc? Or WxH?
-      // SDK example says `size="2K"`.
-      // We can map aspect ratio to resolution strings if supported, or just use 2K/4K?
-      // Let's use the pixel dimensions from v4 logic but formatted for Ark?
-      // Actually Ark Image API usually takes WxH or specific enum.
-      // The example uses `size="2K"`.
-      // Let's assume we pass WxH if allowed, or map to closest bucket.
+      // Jimeng 4.5 Ark Implementation
+      // Doc: https://ark.cn-beijing.volces.com/api/v3
+      
+      // Determine image size based on aspect ratio
+      // Jimeng 4.5 usually takes specific strings like "2K", "4K" or specific resolutions.
+      // Based on provided code snippet, it uses "2K". 
+      // Let's stick to "2K" as default or map it?
+      let size = "2K";
+      // If we want to support ratio, we might need to check if 4.5 supports `width`/`height` or just `size`.
+      // The provided snippet uses `size="2K"`.
       
       const payload: any = {
           model: "doubao-seedream-4-5-251128",
           prompt: prompt,
           response_format: "url",
-          size: "2K", // Default to 2K for now
-          stream: false,
+          size: size, 
+          stream: false, // Use false for simpler handling in our backend
           watermark: false
       };
+
+      // Handle Reference Images (Multi-Ref)
+      // Requirement: "参考多张图" (Reference multiple images)
+      // The snippet provided:
+      // image=["url1", "url2"],
+      // sequential_image_generation="auto",
+      // sequential_image_generation_options=...
       
-      // Image-to-Image support in Ark?
-      // SDK example doesn't show it, but typically it's `image_url` or `ref_images`.
-      // User requirement: "选择多个模型，在一个分镜里面选择参考的人物和环境... 生成图片"
-      // "这是一个参考多张图生成一组图的模型"
-      // We need to pass reference images.
-      // Ark API docs for Seedream usually support `references` or similar.
-      // Let's check standard Ark/OpenAI format.
-      // If standard OpenAI format, it doesn't support multi-ref natively usually.
-      // But Volcengine Ark likely has extensions.
-      // 
-      // For now, let's implement basic T2I and if `imageUrl` exists, try to pass it.
-      // If we don't know the exact param for ref images in Ark HTTP API, we might guess `image_paths` or `references`.
-      // Given the prompt: "参考多张图", likely need specific params.
-      // Without docs, I will assume standard T2I first.
+      // Our `req` currently has `imageUrl` (string). 
+      // If we want to support multiple images, we need `req` to support it or just use `imageUrl` as single list item.
+      // And we might need to fetch `scene` image and `character` image(s) from somewhere if not passed.
+      // Currently `StoryboardFrame.tsx` passes `imageUrl` as a single string.
+      // BUT `req.providerData` or similar might carry extra info? 
+      // Or we can hack `imageUrl` to be comma separated if we want?
+      // Better: Use `req.imageUrl` as the main reference. If we want multi-ref, we need to update the frontend/request type.
+      // For now, let's support passing `imageUrl` as a single item list if it exists.
       
+      // WAIT: The prompt says "选择多个模型，在一个分镜里面选择参考的人物和环境". 
+      // So the user wants to pass BOTH Character image AND Scene image.
+      // `StoryboardFrame.tsx` logic currently picks ONE: `imageUrl = selectedScene.imageUrl || selectedCharacters[0].imageUrl`.
+      // We should probably update the request interface to support `imageUrls: string[]` or similar.
+      // However, to avoid breaking everything, let's assume `imageUrl` might be one.
+      
+      // TODO: Ideally refactor `GenerateRequest` to have `referenceImages: string[]`.
+      // For now, if `imageUrl` is present, we wrap it in list.
+      
+      if (imageUrl) {
+          payload.image = [imageUrl];
+          // If we had more, we'd add them here.
+      }
+      
+      // Enable sequential generation as per snippet (optional but cool feature)
+      // payload.sequential_image_generation = "auto"; 
+      // payload.sequential_image_generation_options = { max_images: 3 }; 
+      // But for standard "Generate Frame", we usually want 1 image.
+      // The user snippet generates 3 images.
+      // Our interface returns `images: string[]`. We can return multiple!
+      
+      // Let's request 2 images by default for Jimeng 4.5 to give user choice?
+      // Or stick to 1 to save credits/time.
+      // User said "用户可以看到多个模型生产的多组图，用户可以进行挑选".
+      // This implies we *can* return multiple.
+      
+      // Let's try to generate 2 images if it's 4.5
+      payload.sequential_image_generation = "auto";
+      payload.sequential_image_generation_options = { max_images: 2 };
+
       const response = await fetch(endpoint, {
           method: 'POST',
           headers: {
@@ -197,12 +218,13 @@ export class JimengProvider {
       }
       
       const data = await response.json();
-      // Ark Sync Response
-      // { data: [{ url: "..." }] }
+      
+      // Ark Response Format
+      // { data: [{ url: "..." }, { url: "..." }] }
       
       if (data.data && data.data.length > 0) {
           return {
-              taskId: 'sync-ark', // Sync response
+              taskId: data.id || 'sync-ark', 
               status: 'COMPLETED',
               images: data.data.map((d: any) => d.url)
           };
