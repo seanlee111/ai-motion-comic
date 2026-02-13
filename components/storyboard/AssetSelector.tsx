@@ -103,9 +103,10 @@ export function AssetSelector({ type, value, onChange, multi = false }: AssetSel
                   return (
                     <CommandItem
                       key={asset.id}
-                      value={`${asset.name}-${asset.id}`} // Use hyphen to avoid space splitting issues in some cmdk versions
+                      value={`${asset.name}-${asset.id}`.toLowerCase()} // Force lowercase for cmdk compatibility
                       onSelect={() => handleSelect(asset.id)}
                       className="cursor-pointer"
+                      disabled={false} // Force enable
                     >
                       <Check
                         className={cn(

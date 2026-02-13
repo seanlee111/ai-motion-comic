@@ -113,10 +113,28 @@ export const FalProvider: AIProviderAdapter = {
       }
 
       const data = await response.json();
+      
+      // Normalize output: Handle different Fal model response structures
+      let images = data.images || [];
+      
+      // Handle single 'image' field
+      if (!images.length && data.image) {
+          images = [data.image];
+      }
+      
+      // Handle 'output' field (sometimes used in custom workflows)
+      if (!images.length && data.output) {
+          if (Array.isArray(data.output)) {
+              images = data.output;
+          } else if (typeof data.output === 'object' && data.output.url) {
+              images = [data.output];
+          }
+      }
+
       return {
           request_id: requestId,
           status: data.status,
-          images: data.images,
+          images: images,
           error: data.error
       };
   }
