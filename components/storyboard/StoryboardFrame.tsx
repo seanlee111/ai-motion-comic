@@ -181,8 +181,20 @@ export function StoryboardFrame({ frame, index }: StoryboardFrameProps) {
             // If model is strictly image-to-image (like some Fal tools), validate
             // But Jimeng 4.5 supports both. We assume text-to-image is fallback if no images.
             if (modelConfig?.type === 'image-to-image' && optimizedImages.length === 0) {
-                 // Skip this model or throw? Throw to alert user.
-                 throw new Error(`Model ${modelConfig.name} requires reference images.`);
+                 // Skip validation if model supports both (e.g. Jimeng 4.5)
+                 // Currently our type definition is strict, but in reality Jimeng 4.5 is both.
+                 // If the model ID is specifically a T2I capable model, allow it.
+                 // We can check if modelId contains 'jimeng' or just rely on 'mode' switching.
+                 
+                 // If the model is REGISTERED as 'image-to-image' only, then we block.
+                 // But for Jimeng 4.5, it should be registered as 'text-to-image' OR we handle it gracefully.
+                 
+                 // Fix: Allow pass if we are falling back to text-to-image for this model
+                 if (modelId === 'jimeng-v4.5' || modelConfig.id.includes('jimeng')) {
+                     // Allow, will use text-to-image mode
+                 } else {
+                     throw new Error(`Model ${modelConfig.name} requires reference images.`);
+                 }
             }
 
             const payload = {
