@@ -128,7 +128,7 @@ export class JimengProvider {
 
   // New method for Ark API (Jimeng 4.5)
   private async generateArk(req: GenerateRequest): Promise<GenerateResult> {
-      const { prompt, aspect_ratio, imageUrl, model } = req;
+      const { prompt, imageUrl } = req;
       
       // Check for ARK_API_KEY
       if (!process.env.ARK_API_KEY) {
