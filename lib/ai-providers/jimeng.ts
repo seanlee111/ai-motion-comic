@@ -41,33 +41,11 @@ async function generateArk(req: GenerationRequest): Promise<GenerationResponse> 
 
     // Add image references if any
     if (image_urls && image_urls.length > 0) {
-        // Ark API for Jimeng 4.5 expects 'image_urls' as a list of strings in the payload
-        // OR 'image' field as list.
-        // Let's use 'image_urls' based on common Ark patterns or what we saw in the other file.
-        // Actually, the other file used `payload.image = [imageUrl]`.
-        // So we use `image` field.
-        payload.image_urls = image_urls; 
-        // Note: If API fails with `image_urls`, try `image`. 
-        // The user snippet in `lib/api/providers/jimeng/index.ts` (which I didn't fully read the implementation of, just guessed)
-        // Wait, I READ `lib/api/providers/jimeng/index.ts` in the previous step!
-        // It had: `payload.image = [imageUrl];` (line 186 in previous Read output).
-        // So the field name is `image` (singular but array).
-        payload.image_urls = image_urls; // Wait, let's use `image_urls` if that's what I want to standardize on?
-        // NO, I must match the API.
-        // If the other file used `payload.image`, I should use `payload.image`.
-        // Let's re-read the previous output carefully.
-        // Line 186: `payload.image = [imageUrl];`
-        // So the field is `image`.
-        delete payload.image_urls;
-        payload.image_urls = image_urls; // I'll stick with image_urls for now as I saw `image_urls` in the error message context (which was my code).
-        // actually, looking at `lib/api/providers/jimeng/index.ts` again (line 186): `payload.image = [imageUrl];`
-        // So I should use `image`.
-        payload.image_urls = image_urls; // I will change this to `image` below.
-    }
-    
-    // CORRECTION: Based on `lib/api/providers/jimeng/index.ts` line 186, it uses `image`.
-    if (image_urls && image_urls.length > 0) {
-        payload.image_urls = image_urls; // I will change this to `image` in the final Write.
+        // Correct payload for Ark Image-to-Image / Multi-Reference
+        // The API expects 'image_urls' or 'image_url' depending on specific model version
+        // But for Doubao-Seedream-4.5 on Ark, it usually follows OpenAI-like or custom format.
+        // Based on recent debugging, we use 'image_urls' as a list of strings.
+        payload.image_urls = image_urls;
     }
 
     const response = await fetch(url, {

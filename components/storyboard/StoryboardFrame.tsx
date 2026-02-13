@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input"
 import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
+import { toast } from "sonner"
 import {
   Carousel,
   CarouselContent,
@@ -124,7 +125,9 @@ export function StoryboardFrame({ frame, index }: StoryboardFrameProps) {
 
   const generateImage = async (target: "start" | "end") => {
     if (!frame.storyScript) {
-        alert("Please enter a story script")
+        toast.error("Story script is required", {
+            description: "Please enter a description for this frame."
+        })
         return
     }
 
@@ -166,21 +169,20 @@ export function StoryboardFrame({ frame, index }: StoryboardFrameProps) {
       }
 
       // Optimize payload: Compress all images before sending
-      // This ensures even older/larger images are compressed to fit Vercel limits
       const optimizedImages = await Promise.all(referenceImages.map(img => compressImage(img, 640, 0.6)));
 
       // Parallel requests for each selected model
       const requests = selectedModels.map(async (modelId) => {
           const startTime = Date.now();
           try {
-            // Check if model is image-to-image and add imageUrl
             const modelConfig = MODEL_OPTIONS.find(m => m.id === modelId);
             
             // Validation for Image-to-Image models
-            if (modelConfig?.type === 'image-to-image') {
-                if (optimizedImages.length === 0) {
-                    throw new Error(`Model ${modelConfig.name} is an Image-to-Image model and requires a reference image. Please select a Scene, Character, or upload a custom image.`);
-                }
+            // If model is strictly image-to-image (like some Fal tools), validate
+            // But Jimeng 4.5 supports both. We assume text-to-image is fallback if no images.
+            if (modelConfig?.type === 'image-to-image' && optimizedImages.length === 0) {
+                 // Skip this model or throw? Throw to alert user.
+                 throw new Error(`Model ${modelConfig.name} requires reference images.`);
             }
 
             const res = await fetch("/api/generate", {
@@ -188,11 +190,11 @@ export function StoryboardFrame({ frame, index }: StoryboardFrameProps) {
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                     prompt: fullPrompt,
-                    mode: "text-to-image", // Backend ignores this mostly, uses modelId
+                    mode: optimizedImages.length > 0 ? "image-to-image" : "text-to-image",
                     aspect_ratio: "16:9",
-                    modelId, // Pass model ID to backend
-                    imageUrl: optimizedImages[0], // Pass first image for backward compatibility / single-image models
-                    imageUrls: optimizedImages // Pass all images for multi-reference models (e.g. Jimeng)
+                    modelId, 
+                    imageUrl: optimizedImages[0], 
+                    imageUrls: optimizedImages 
                 })
             })
 

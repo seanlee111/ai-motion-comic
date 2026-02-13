@@ -11,6 +11,8 @@ export const metadata: Metadata = {
   description: "Generate keyframes for motion comics using AI",
 };
 
+import { Toaster } from "@/components/ui/sonner"
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -23,6 +25,7 @@ export default function RootLayout({
           <Header />
           <div className="flex-1">{children}</div>
         </div>
+        <Toaster />
       </body>
     </html>
   );
