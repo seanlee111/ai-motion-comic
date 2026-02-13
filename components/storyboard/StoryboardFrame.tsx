@@ -34,44 +34,66 @@ const MODEL_OPTIONS = AI_MODELS.filter(m => m.type === 'text-to-image' || m.type
 // Helper to compress base64 images
 const compressImage = (src: string, maxDim = 640, quality = 0.6): Promise<string> => {
     return new Promise((resolve) => {
-        // If not base64, return as is (URL)
-        if (!src.startsWith("data:image")) {
-            resolve(src);
+        // If not base64 and not http(s) url, return as is
+        if (!src) {
+            resolve("");
             return;
         }
 
         const img = new Image();
-        img.src = src;
+        // IMPORTANT: Allow cross-origin for Vercel Blob / external images
+        img.crossOrigin = "anonymous"; 
+        
+        // Timeout to prevent hanging
+        const timeoutId = setTimeout(() => {
+            console.warn("Image load timeout, using original src");
+            resolve(src);
+        }, 5000);
+
         img.onload = () => {
-            const canvas = document.createElement("canvas");
-            let width = img.width;
-            let height = img.height;
-            
-            // Always resize if larger than maxDim
-            if (width > maxDim || height > maxDim) {
-                if (width > height) {
-                    height = Math.round((height * maxDim) / width);
-                    width = maxDim;
-                } else {
-                    width = Math.round((width * maxDim) / height);
-                    height = maxDim;
+            clearTimeout(timeoutId);
+            try {
+                const canvas = document.createElement("canvas");
+                let width = img.width;
+                let height = img.height;
+                
+                // Always resize if larger than maxDim
+                if (width > maxDim || height > maxDim) {
+                    if (width > height) {
+                        height = Math.round((height * maxDim) / width);
+                        width = maxDim;
+                    } else {
+                        width = Math.round((width * maxDim) / height);
+                        height = maxDim;
+                    }
                 }
-            }
-            
-            canvas.width = width;
-            canvas.height = height;
-            const ctx = canvas.getContext("2d");
-            if (!ctx) {
+                
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext("2d");
+                if (!ctx) {
+                    resolve(src);
+                    return;
+                }
+                ctx.drawImage(img, 0, 0, width, height);
+                
+                // Re-encode with lower quality
+                const dataUrl = canvas.toDataURL("image/jpeg", quality);
+                resolve(dataUrl);
+            } catch (e) {
+                console.warn("Canvas compression failed (likely CORS), using original src", e);
+                // Fallback to original URL if canvas fails (e.g. strict CORS)
                 resolve(src);
-                return;
             }
-            ctx.drawImage(img, 0, 0, width, height);
-            
-            // Re-encode with lower quality
-            const dataUrl = canvas.toDataURL("image/jpeg", quality);
-            resolve(dataUrl);
         };
-        img.onerror = () => resolve(src);
+        
+        img.onerror = () => {
+            clearTimeout(timeoutId);
+            console.warn("Image load failed, using original src");
+            resolve(src);
+        };
+        
+        img.src = src;
     });
 };
 
@@ -177,6 +199,8 @@ export function StoryboardFrame({ frame, index }: StoryboardFrameProps) {
 
       // Optimize payload: Compress all images before sending
       const optimizedImages = await Promise.all(referenceImages.map(img => compressImage(img, 640, 0.6)));
+      
+      console.log(`[Generate] Collecting images: ${referenceImages.length} raw -> ${optimizedImages.length} optimized`);
 
       // Parallel requests for each selected model
       const requests = selectedModels.map(async (modelId) => {
