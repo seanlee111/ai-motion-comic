@@ -4,67 +4,80 @@
 
 @layer base {
   :root {
-    /* Hockney-inspired Studio Theme */
-    --background: 60 30% 98%; /* Creamy White / Light Yellow (#FFFFF0 like) */
-    --foreground: 220 50% 10%; /* Deep Blue-Black for contrast */
+    --background: 0 0% 100%;
+    --foreground: 20 14.3% 4.1%;
 
     --card: 0 0% 100%;
-    --card-foreground: 220 50% 10%;
+    --card-foreground: 20 14.3% 4.1%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 220 50% 10%;
+    --popover-foreground: 20 14.3% 4.1%;
 
-    --primary: 190 90% 50%; /* Bright Cyan (Swimming Pool) */
-    --primary-foreground: 0 0% 100%;
+    --primary: 24 9.8% 10%;
+    --primary-foreground: 60 9.1% 97.8%;
 
-    --secondary: 30 100% 60%; /* Vibrant Orange */
-    --secondary-foreground: 0 0% 100%;
+    --secondary: 60 4.8% 95.9%;
+    --secondary-foreground: 24 9.8% 10%;
 
-    --muted: 60 20% 90%;
-    --muted-foreground: 220 20% 40%;
+    --muted: 60 4.8% 95.9%;
+    --muted-foreground: 25 5.3% 44.7%;
 
-    --accent: 320 90% 65%; /* Neon Pink (Hot Pink) */
-    --accent-foreground: 0 0% 100%;
+    --accent: 60 4.8% 95.9%;
+    --accent-foreground: 24 9.8% 10%;
 
     --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 0 0% 98%;
+    --destructive-foreground: 60 9.1% 97.8%;
 
-    --border: 220 20% 85%;
-    --input: 220 20% 85%;
-    --ring: 190 90% 50%;
+    --border: 20 5.9% 90%;
+    --input: 20 5.9% 90%;
+    --ring: 20 14.3% 4.1%;
 
-    --radius: 0rem; /* Sharp edges for collage feel, or slightly rounded if user prefers, but user asked for "bold". Let's stick to user request "Bold and Overlapping", maybe sharp or slight radius? User didn't specify radius in this prompt, but previous was "rounded-full". Let's go with small radius for modern feel but sharp enough for collage. */
+    --radius: 0.5rem;
+
+    --chart-1: 12 76% 61%;
+
+    --chart-2: 173 58% 39%;
+
+    --chart-3: 197 37% 24%;
+
+    --chart-4: 43 74% 66%;
+
+    --chart-5: 27 87% 67%;
   }
 
   .dark {
-    /* Dark mode is less Hockney, but let's keep it vibrant */
-    --background: 220 50% 10%;
-    --foreground: 60 30% 98%;
+    --background: 20 14.3% 4.1%;
+    --foreground: 60 9.1% 97.8%;
 
-    --card: 220 40% 15%;
-    --card-foreground: 60 30% 98%;
+    --card: 20 14.3% 4.1%;
+    --card-foreground: 60 9.1% 97.8%;
 
-    --popover: 220 40% 15%;
-    --popover-foreground: 60 30% 98%;
+    --popover: 20 14.3% 4.1%;
+    --popover-foreground: 60 9.1% 97.8%;
 
-    --primary: 190 80% 60%;
-    --primary-foreground: 220 50% 10%;
+    --primary: 60 9.1% 97.8%;
+    --primary-foreground: 24 9.8% 10%;
 
-    --secondary: 30 90% 65%;
-    --secondary-foreground: 220 50% 10%;
+    --secondary: 12 6.5% 15.1%;
+    --secondary-foreground: 60 9.1% 97.8%;
 
-    --muted: 220 30% 20%;
-    --muted-foreground: 220 20% 60%;
+    --muted: 12 6.5% 15.1%;
+    --muted-foreground: 24 5.4% 63.9%;
 
-    --accent: 320 80% 65%;
-    --accent-foreground: 220 50% 10%;
+    --accent: 12 6.5% 15.1%;
+    --accent-foreground: 60 9.1% 97.8%;
 
     --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 60 30% 98%;
+    --destructive-foreground: 60 9.1% 97.8%;
 
-    --border: 220 30% 25%;
-    --input: 220 30% 25%;
-    --ring: 190 80% 60%;
+    --border: 12 6.5% 15.1%;
+    --input: 12 6.5% 15.1%;
+    --ring: 24 5.7% 82.9%;
+    --chart-1: 220 70% 50%;
+    --chart-2: 160 60% 45%;
+    --chart-3: 30 80% 55%;
+    --chart-4: 280 65% 60%;
+    --chart-5: 340 75% 55%;
   }
 }
 
@@ -74,46 +87,5 @@
   }
   body {
     @apply bg-background text-foreground;
-    background-image: 
-        radial-gradient(#e5e7eb 1px, transparent 1px), 
-        radial-gradient(#e5e7eb 1px, transparent 1px);
-    background-size: 20px 20px;
-    background-position: 0 0, 10px 10px;
   }
 }
-
-/* Halftone Texture Utility */
-.bg-halftone {
-  background-image: radial-gradient(circle, currentColor 1px, transparent 1.5px);
-  background-size: 8px 8px;
-}
-
-/* Confetti Animation */
-@keyframes pop {
-  0% { transform: scale(1); }
-  50% { transform: scale(1.1); }
-  100% { transform: scale(1); }
-}
-
-.animate-pop {
-  animation: pop 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-}
-
-/* Interactive Blob Animation */
-@keyframes blob-bounce {
-  0% { transform: translate(0, 0) scale(1); }
-  33% { transform: translate(30px, -50px) scale(1.1); }
-  66% { transform: translate(-20px, 20px) scale(0.9); }
-  100% { transform: translate(0, 0) scale(1); }
-}
-
-.animate-blob {
-  animation: blob-bounce 10s infinite ease-in-out;
-}
-
-/* Loading Palette Animation */
-@keyframes palette-spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
-}
-
