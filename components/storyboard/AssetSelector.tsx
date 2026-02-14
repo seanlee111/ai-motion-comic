@@ -33,12 +33,22 @@ export function AssetSelector({ type, value, onChange, multi = false }: AssetSel
   
   const filteredAssets = assets.filter(a => a.type === type)
   
-  const handleMultiSelect = (assetId: string) => {
-    const currentValues = Array.isArray(value) ? value : []
-    if (currentValues.includes(assetId)) {
-        onChange(currentValues.filter((id) => id !== assetId))
+  const handleSelect = (assetId: string) => {
+    if (multi) {
+        const currentValues = Array.isArray(value) ? value : []
+        if (currentValues.includes(assetId)) {
+            onChange(currentValues.filter((id) => id !== assetId))
+        } else {
+            onChange([...currentValues, assetId])
+        }
     } else {
-        onChange([...currentValues, assetId])
+        // Single select: Toggle off if same, otherwise set
+        if (value === assetId) {
+             onChange("")
+        } else {
+             onChange(assetId)
+        }
+        setOpen(false)
     }
   }
 
@@ -51,35 +61,6 @@ export function AssetSelector({ type, value, onChange, multi = false }: AssetSel
     }
   }, [value, filteredAssets, multi])
 
-  // --- Single Select: Use native-like Select component ---
-  if (!multi) {
-      return (
-        <Select 
-            value={value as string} 
-            onValueChange={(v) => onChange(v === 'none' ? '' : v)}
-        >
-            <SelectTrigger className="w-full">
-                <SelectValue placeholder={`Select ${type}...`} />
-            </SelectTrigger>
-            <SelectContent>
-                {filteredAssets.length === 0 ? (
-                    <div className="p-2 text-sm text-muted-foreground text-center">No {type}s found</div>
-                ) : (
-                    <>
-                        <SelectItem value="none" className="text-muted-foreground italic">None</SelectItem>
-                        {filteredAssets.map((asset) => (
-                            <SelectItem key={asset.id} value={asset.id}>
-                                {asset.name}
-                            </SelectItem>
-                        ))}
-                    </>
-                )}
-            </SelectContent>
-        </Select>
-      )
-  }
-
-  // --- Multi Select: Use Popover with Checkbox list (No Command/cmdk to avoid issues) ---
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
@@ -90,14 +71,22 @@ export function AssetSelector({ type, value, onChange, multi = false }: AssetSel
           className="w-full justify-between h-auto min-h-[40px]"
         >
           <div className="flex flex-wrap gap-1 items-center text-left">
-            {(selectedLabels as string[])?.length > 0 ? (
-                (selectedLabels as string[]).map((label, i) => (
-                    <Badge key={i} variant="secondary" className="mr-1">
-                        {label}
-                    </Badge>
-                ))
+            {multi ? (
+                (selectedLabels as string[])?.length > 0 ? (
+                    (selectedLabels as string[]).map((label, i) => (
+                        <Badge key={i} variant="secondary" className="mr-1">
+                            {label}
+                        </Badge>
+                    ))
+                ) : (
+                    <span className="text-muted-foreground font-normal">Select {type}s...</span>
+                )
             ) : (
-                <span className="text-muted-foreground font-normal">Select {type}s...</span>
+                selectedLabels ? (
+                    <span>{selectedLabels}</span>
+                ) : (
+                    <span className="text-muted-foreground font-normal">Select {type}...</span>
+                )
             )}
           </div>
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
@@ -109,8 +98,25 @@ export function AssetSelector({ type, value, onChange, multi = false }: AssetSel
                 <div className="p-4 text-sm text-muted-foreground text-center">No {type}s found.</div>
             ) : (
                 <div className="flex flex-col gap-1">
+                    {!multi && (
+                         <div 
+                            className={cn(
+                                "flex items-center space-x-2 p-2 rounded-md hover:bg-muted cursor-pointer transition-colors",
+                                !value && "bg-muted/50"
+                            )}
+                            onClick={() => { onChange(""); setOpen(false); }}
+                        >
+                            <div className="w-4 h-4 flex items-center justify-center">
+                                {!value && <Check className="h-4 w-4" />}
+                            </div>
+                            <span className="text-sm text-muted-foreground italic">None</span>
+                        </div>
+                    )}
                     {filteredAssets.map((asset) => {
-                        const isSelected = Array.isArray(value) && value.includes(asset.id);
+                        const isSelected = multi 
+                            ? (Array.isArray(value) && value.includes(asset.id))
+                            : (value === asset.id);
+                            
                         return (
                             <div 
                                 key={asset.id}
@@ -118,16 +124,24 @@ export function AssetSelector({ type, value, onChange, multi = false }: AssetSel
                                     "flex items-center space-x-2 p-2 rounded-md hover:bg-muted cursor-pointer transition-colors",
                                     isSelected && "bg-muted/50"
                                 )}
-                                onClick={() => handleMultiSelect(asset.id)}
+                                onClick={() => handleSelect(asset.id)}
                             >
-                                <Checkbox 
-                                    checked={isSelected} 
-                                    onCheckedChange={() => handleMultiSelect(asset.id)}
-                                    id={`asset-${asset.id}`}
-                                />
+                                {multi ? (
+                                    <Checkbox 
+                                        checked={isSelected} 
+                                        onCheckedChange={() => handleSelect(asset.id)}
+                                        id={`asset-${asset.id}`}
+                                    />
+                                ) : (
+                                    <div className="w-4 h-4 flex items-center justify-center">
+                                        {isSelected && <Check className="h-4 w-4" />}
+                                    </div>
+                                )}
+                                
                                 <label 
                                     htmlFor={`asset-${asset.id}`} 
                                     className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer flex-1"
+                                    onClick={(e) => e.preventDefault()} // Prevent double toggle if label wraps checkbox
                                 >
                                     {asset.name}
                                 </label>
