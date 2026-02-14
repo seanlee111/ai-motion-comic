@@ -12,6 +12,7 @@ export const metadata: Metadata = {
 };
 
 import { Toaster } from "@/components/ui/sonner"
+import { Analytics } from "@vercel/analytics/react"
 
 export default function RootLayout({
   children,
@@ -26,6 +27,7 @@ export default function RootLayout({
           <div className="flex-1">{children}</div>
         </div>
         <Toaster />
+        <Analytics />
       </body>
     </html>
   );
