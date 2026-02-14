@@ -430,8 +430,8 @@ export function StoryboardFrame({ frame, index }: StoryboardFrameProps) {
                 mode: optimizedImages.length > 0 ? "image-to-image" : "text-to-image",
                 aspect_ratio: "16:9",
                 modelId, 
-                imageUrl: optimizedImages[0], 
-                imageUrls: optimizedImages 
+                image_url: optimizedImages[0], 
+                image_urls: optimizedImages 
             };
 
             const res = await fetch("/api/generate", {
