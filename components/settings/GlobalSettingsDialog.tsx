@@ -19,6 +19,8 @@ import {
 
 function LogItem({ log, onDelete }: { log: APILog; onDelete: (id: string) => void }) {
     const [expanded, setExpanded] = useState(false);
+    const upstream = (log.responseBody as any)?.upstream;
+    const upstreamLabel = upstream?.model || upstream?.req_key;
 
     const copyToClipboard = (text: string) => {
         navigator.clipboard.writeText(text);
@@ -45,6 +47,9 @@ function LogItem({ log, onDelete }: { log: APILog; onDelete: (id: string) => voi
                             <div className="flex flex-col">
                                 <div className="flex items-center gap-2">
                                     <Badge variant="outline" className="text-[10px] h-5">{log.modelId}</Badge>
+                                    {upstreamLabel && (
+                                        <Badge variant="secondary" className="text-[10px] h-5">{upstreamLabel}</Badge>
+                                    )}
                                     <span className={cn(
                                         "text-xs font-bold",
                                         log.status >= 200 && log.status < 300 ? "text-green-600" : "text-red-600"
@@ -52,7 +57,9 @@ function LogItem({ log, onDelete }: { log: APILog; onDelete: (id: string) => voi
                                         {log.status}
                                     </span>
                                 </div>
-                                <span className="text-[10px] text-muted-foreground font-mono mt-0.5">{log.endpoint}</span>
+                                <span className="text-[10px] text-muted-foreground font-mono mt-0.5">
+                                    {upstream?.endpoint || log.endpoint}
+                                </span>
                             </div>
                         </div>
                         

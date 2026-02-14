@@ -1,44 +1,6 @@
 import { AIProviderAdapter, GenerationRequest, GenerationResponse } from './types';
 import aws4 from 'aws4';
 
-// #region debug-point: jimeng-ref
-async function __dbgReport(event: Record<string, any>) {
-  const url = process.env.TRAE_DEBUG_SERVER_URL;
-  if (!url) return;
-  try {
-    await fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        sessionId: process.env.TRAE_DEBUG_SESSION_ID || "jimeng-ref-20260214",
-        ...event,
-        ts: Date.now(),
-        scope: "provider/jimeng",
-      }),
-    });
-  } catch {
-    // ignore
-  }
-}
-
-function __dbgImgSummary(images: unknown) {
-  const arr = Array.isArray(images) ? images : images ? [images] : [];
-  return arr
-    .filter((v) => typeof v === "string")
-    .map((s) => {
-      const str = s as string;
-      const kind = str.startsWith("data:")
-        ? "data"
-        : str.startsWith("blob:")
-          ? "blob"
-          : /^https?:\/\//.test(str)
-            ? "http"
-            : "other";
-      return { kind, len: str.length, head: str.slice(0, 48) };
-    });
-}
-// #endregion debug-point: jimeng-ref
-
 function safeJsonParse(text: string): unknown {
   try {
     return JSON.parse(text);
@@ -91,18 +53,6 @@ async function generateArk(req: GenerationRequest): Promise<GenerationResponse> 
         payload.sequential_image_generation_options = { max_images: 1 };
     }
 
-    // #region debug-point: jimeng-ref
-    await __dbgReport({
-      point: "ark_request_preflight",
-      model: payload.model,
-      width,
-      height,
-      image_field: payload.image_urls ? "image_urls" : undefined,
-      image_urls_count: Array.isArray(payload.image_urls) ? payload.image_urls.length : 0,
-      image_urls_summary: __dbgImgSummary(payload.image_urls),
-    });
-    // #endregion debug-point: jimeng-ref
-
     const response = await fetch(url, {
         method: "POST",
         headers: {
@@ -114,32 +64,35 @@ async function generateArk(req: GenerationRequest): Promise<GenerationResponse> 
 
     if (!response.ok) {
         const text = await response.text();
-        // #region debug-point: jimeng-ref
-        await __dbgReport({
-          point: "ark_response_error",
-          httpStatus: response.status,
-          body_head: text.slice(0, 500),
-        });
-        // #endregion debug-point: jimeng-ref
         throw new Error(`Jimeng Ark Failed: ${text}`);
     }
 
     const data = await response.json();
 
-    // #region debug-point: jimeng-ref
-    await __dbgReport({
-      point: "ark_response_ok",
-      httpStatus: response.status,
-      has_id: !!data?.id,
-      images_count: Array.isArray(data?.data) ? data.data.length : 0,
-      response_keys: data ? Object.keys(data).slice(0, 20) : [],
-    });
-    // #endregion debug-point: jimeng-ref
-
     return {
         request_id: data.id || "unknown",
         status: 'COMPLETED',
-        images: data.data?.map((d: any) => ({ url: d.url })) || []
+        images: data.data?.map((d: any) => ({ url: d.url })) || [],
+        upstream: {
+          provider: "JIMENG",
+          endpoint: url,
+          model: data?.model || payload.model,
+          usage: data?.usage,
+          created: data?.created,
+          requestPayload: {
+            model: payload.model,
+            width,
+            height,
+            return_url: payload.return_url,
+            stream: payload.stream,
+            watermark: payload.watermark,
+            image_count: Array.isArray(image_urls) ? image_urls.length : 0,
+            has_image_urls: !!payload.image_urls,
+            has_image: !!payload.image,
+            sequential_image_generation: payload.sequential_image_generation,
+            sequential_image_generation_options: payload.sequential_image_generation_options,
+          }
+        }
     };
 }
 
@@ -212,19 +165,6 @@ export const JimengProvider: AIProviderAdapter = {
          };
     }
 
-     // #region debug-point: jimeng-ref
-     await __dbgReport({
-       point: "legacy_request_preflight",
-       modelId: modelConfig.id,
-       req_key: payload.req_key,
-       width,
-       height,
-       image_urls_count: Array.isArray(payload.image_urls) ? payload.image_urls.length : 0,
-       image_urls_summary: __dbgImgSummary(payload.image_urls),
-       has_strength: typeof payload.strength !== "undefined",
-     });
-     // #endregion debug-point: jimeng-ref
-
     // Prepare Signed Request
     const host = 'visual.volcengineapi.com';
     const path = '/?Action=CVSync2AsyncSubmitTask&Version=2022-08-31';
@@ -254,15 +194,6 @@ export const JimengProvider: AIProviderAdapter = {
     if (!response.ok) {
         const text = await response.text();
         const json = safeJsonParse(text);
-        // #region debug-point: jimeng-ref
-        await __dbgReport({
-          point: "legacy_submit_error",
-          httpStatus: response.status,
-          req_key: payload.req_key,
-          body_head: typeof text === "string" ? text.slice(0, 500) : undefined,
-          json_keys: json && typeof json === "object" ? Object.keys(json as any).slice(0, 20) : undefined,
-        });
-        // #endregion debug-point: jimeng-ref
         const debug = {
           provider: "jimeng",
           stage: "submit",
@@ -278,17 +209,6 @@ export const JimengProvider: AIProviderAdapter = {
     }
 
     const data = await response.json();
-    // #region debug-point: jimeng-ref
-    await __dbgReport({
-      point: "legacy_submit_ok",
-      httpStatus: response.status,
-      req_key: payload.req_key,
-      code: data?.code,
-      has_task_id: !!data?.data?.task_id,
-      status: data?.data?.status,
-      message: data?.message,
-    });
-    // #endregion debug-point: jimeng-ref
     if (data.code !== 10000) {
         // ... error handling
         const debug = {
@@ -313,7 +233,21 @@ export const JimengProvider: AIProviderAdapter = {
     return {
         request_id: data.data.task_id,
         status: 'QUEUED',
-        endpoint: `https://${host}` // Pass host back for status check
+        endpoint: `https://${host}`, // Pass host back for status check
+        upstream: {
+          provider: "JIMENG",
+          endpoint: `https://${host}${path}`,
+          req_key: payload.req_key,
+          code: data?.code,
+          message: data?.message,
+          requestPayload: {
+            req_key: payload.req_key,
+            width,
+            height,
+            strength: payload.strength,
+            image_count: Array.isArray(payload.image_urls) ? payload.image_urls.length : 0,
+          }
+        }
     };
   },
 
@@ -393,7 +327,15 @@ export const JimengProvider: AIProviderAdapter = {
         request_id: requestId,
         status,
         images,
-        error
+        error,
+        upstream: {
+          provider: "JIMENG",
+          endpoint: `https://${host}${path}`,
+          req_key: payload.req_key,
+          code: data?.code,
+          message: data?.message,
+          status: data?.data?.status,
+        }
     };
   }
 };

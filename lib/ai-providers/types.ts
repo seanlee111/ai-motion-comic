@@ -17,6 +17,7 @@ export interface GenerationResponse {
   images?: { url: string }[];
   endpoint?: string; // For polling
   error?: string;
+  upstream?: any;
 }
 
 export interface AIProviderAdapter {

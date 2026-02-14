@@ -334,6 +334,7 @@ export function StoryboardFrame({ frame, index }: StoryboardFrameProps) {
   const [loading, setLoading] = useState<"start" | "end" | "all" | null>(null)
   const [selectedModels, setSelectedModels] = useState<string[]>(MODEL_OPTIONS.map(m => m.id))
   const [editImage, setEditImage] = useState<{ url: string, type: "start" | "end" } | null>(null)
+  const [modelFilter, setModelFilter] = useState<string>("all")
   const inpaintModelId = AI_MODELS.find(m => m.type === "inpainting")?.id
 
   const toggleModel = (modelId: string) => {
@@ -369,6 +370,7 @@ export function StoryboardFrame({ frame, index }: StoryboardFrameProps) {
     }
 
     setLoading(target)
+    const batchId = crypto.randomUUID()
     
     try {
       // Resolve character references
@@ -458,12 +460,12 @@ export function StoryboardFrame({ frame, index }: StoryboardFrameProps) {
                     modelId,
                     status: res.status,
                     duration: Date.now() - startTime,
-                    requestPayload: payload,
+                    requestPayload: { ...payload, batchId, target },
                     responseBody: data
                 });
             }
             
-            return { ...data, modelId, startTime, requestPayload: payload }
+            return { ...data, modelId, startTime, requestPayload: payload, batchId, target }
           } catch (e: any) {
               console.error(`Model ${modelId} failed`, e)
               addApiLog({
@@ -474,7 +476,7 @@ export function StoryboardFrame({ frame, index }: StoryboardFrameProps) {
                   status: 500, // Approximate
                   duration: Date.now() - startTime,
                   error: e.message,
-                  requestPayload: { prompt: fullPrompt, modelId, imageCount: optimizedImages.length }
+                  requestPayload: { prompt: fullPrompt, modelId, imageCount: optimizedImages.length, batchId, target }
               });
               return { error: e.message, modelId }
           }
@@ -497,25 +499,21 @@ export function StoryboardFrame({ frame, index }: StoryboardFrameProps) {
                   id: crypto.randomUUID(),
                   url: img.url,
                   modelId: result.modelId,
-                  timestamp: Date.now()
+                  timestamp: Date.now(),
+                  batchId: result.batchId,
+                  shot: result.target
               }));
-
-              const firstNewImage = newGeneratedImages[0];
               
               const freshFrame = useStoryStore.getState().frames.find(f => f.id === frame.id)
               if (!freshFrame) return
 
               if (target === "start") {
                   updateFrame(frame.id, { 
-                      startImages: [...(freshFrame.startImages || []), ...newGeneratedImages],
-                      selectedStartImageId: firstNewImage.id,
-                      startImageUrl: firstNewImage.url
+                      startImages: [...(freshFrame.startImages || []), ...newGeneratedImages]
                   })
               } else {
                   updateFrame(frame.id, { 
-                      endImages: [...(freshFrame.endImages || []), ...newGeneratedImages],
-                      selectedEndImageId: firstNewImage.id,
-                      endImageUrl: firstNewImage.url
+                      endImages: [...(freshFrame.endImages || []), ...newGeneratedImages]
                   })
               }
               
@@ -538,7 +536,7 @@ export function StoryboardFrame({ frame, index }: StoryboardFrameProps) {
                         modelId: result.modelId,
                         status: 200,
                         duration: Date.now() - result.startTime,
-                        requestPayload: result.requestPayload,
+                        requestPayload: { ...result.requestPayload, batchId: result.batchId, target: result.target },
                         responseBody: data
                     });
                     
@@ -552,22 +550,18 @@ export function StoryboardFrame({ frame, index }: StoryboardFrameProps) {
                         id: crypto.randomUUID(),
                         url: img.url,
                         modelId: result.modelId,
-                        timestamp: Date.now()
+                        timestamp: Date.now(),
+                        batchId: result.batchId,
+                        shot: result.target
                     }));
-
-                    const firstNewImage = newGeneratedImages[0];
 
                     if (target === "start") {
                         updateFrame(frame.id, { 
-                            startImages: [...(freshFrame.startImages || []), ...newGeneratedImages],
-                            selectedStartImageId: firstNewImage.id, 
-                            startImageUrl: firstNewImage.url 
+                            startImages: [...(freshFrame.startImages || []), ...newGeneratedImages]
                         })
                     } else {
                         updateFrame(frame.id, { 
-                            endImages: [...(freshFrame.endImages || []), ...newGeneratedImages],
-                            selectedEndImageId: firstNewImage.id, 
-                            endImageUrl: firstNewImage.url 
+                            endImages: [...(freshFrame.endImages || []), ...newGeneratedImages]
                         })
                     }
                     
@@ -662,14 +656,23 @@ export function StoryboardFrame({ frame, index }: StoryboardFrameProps) {
   // --- Group Images by Model ---
   const allImages = [...(frame.startImages || []), ...(frame.endImages || [])];
   const uniqueImages = Array.from(new Map(allImages.map(item => [item.id, item])).values());
-  
-  const imagesByModel: Record<string, GeneratedImage[]> = {};
-  uniqueImages.forEach(img => {
-      const modelId = img.modelId || 'unknown';
-      if (!imagesByModel[modelId]) imagesByModel[modelId] = [];
-      imagesByModel[modelId].push(img);
-  });
 
+  const filteredImages = modelFilter === "all" ? uniqueImages : uniqueImages.filter(i => i.modelId === modelFilter)
+
+  const imagesByBatch: Record<string, GeneratedImage[]> = {}
+  filteredImages.forEach(img => {
+      const key = img.batchId || "legacy"
+      if (!imagesByBatch[key]) imagesByBatch[key] = []
+      imagesByBatch[key].push(img)
+  })
+  const batchKeys = Object.keys(imagesByBatch).sort((a, b) => {
+      if (a === "legacy") return 1
+      if (b === "legacy") return -1
+      const ta = Math.max(...imagesByBatch[a].map(i => i.timestamp))
+      const tb = Math.max(...imagesByBatch[b].map(i => i.timestamp))
+      return tb - ta
+  })
+  
   return (
     <div className="flex flex-col xl:flex-row gap-6 p-6 border-b hover:bg-muted/5 transition-colors">
       {editImage && inpaintModelId && (
@@ -727,6 +730,81 @@ export function StoryboardFrame({ frame, index }: StoryboardFrameProps) {
 
       {/* Right Column: Preview & History */}
       <div className="flex-none w-full xl:w-[400px] flex flex-col gap-4">
+
+        <div className="bg-muted/10 rounded-lg p-3 border overflow-hidden flex flex-col">
+            <div className="text-xs font-semibold text-muted-foreground mb-3 flex justify-between items-center">
+                <span>Preview</span>
+                <div className="flex items-center gap-2">
+                    <span className="text-[10px] text-muted-foreground">Filter</span>
+                    <select
+                        className="h-7 rounded-md border bg-background px-2 text-[10px]"
+                        value={modelFilter}
+                        onChange={(e) => setModelFilter(e.target.value)}
+                    >
+                        <option value="all">All</option>
+                        {MODEL_OPTIONS.map(m => (
+                            <option key={m.id} value={m.id}>{m.name}</option>
+                        ))}
+                    </select>
+                </div>
+            </div>
+            <div className="space-y-4 max-h-[420px] overflow-y-auto pr-1 scrollbar-thin">
+                {filteredImages.length === 0 ? (
+                    <div className="text-center py-6 text-xs text-muted-foreground/60">
+                        No generated images yet.
+                    </div>
+                ) : (
+                    batchKeys.map(batchId => {
+                        const batchImages = imagesByBatch[batchId] || []
+                        const modelGroups: Record<string, GeneratedImage[]> = {}
+                        batchImages.forEach(img => {
+                            if (!modelGroups[img.modelId]) modelGroups[img.modelId] = []
+                            modelGroups[img.modelId].push(img)
+                        })
+                        const modelKeys = Object.keys(modelGroups)
+                        return (
+                            <div key={batchId} className="space-y-2">
+                                <div className="flex items-center justify-between">
+                                    <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                                        {batchId === "legacy" ? "Legacy" : `Batch ${batchId.slice(0, 8)}`}
+                                    </span>
+                                    <span className="text-[10px] text-muted-foreground">{batchImages.length}</span>
+                                </div>
+                                {modelKeys.map(modelId => (
+                                    <div key={modelId} className="space-y-2">
+                                        <div className="text-[10px] font-bold text-primary uppercase tracking-wider flex items-center gap-2">
+                                            <div className="h-px bg-border flex-1" />
+                                            {MODEL_OPTIONS.find(m => m.id === modelId)?.name || modelId}
+                                            <div className="h-px bg-border flex-1" />
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-2">
+                                            {modelGroups[modelId].map(img => (
+                                                <div
+                                                    key={img.id}
+                                                    draggable
+                                                    onDragStart={(e) => handleDragStart(e, img)}
+                                                    className="relative aspect-video rounded-md overflow-hidden border bg-background cursor-grab active:cursor-grabbing hover:ring-2 hover:ring-primary/50 transition-all group"
+                                                >
+                                                    <img src={img.url} className="w-full h-full object-cover" />
+                                                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                                                        <Button size="sm" variant="secondary" className="h-7 px-2" onClick={() => updateFrame(frame.id, { selectedStartImageId: img.id, startImageUrl: img.url })}>
+                                                            Use Start
+                                                        </Button>
+                                                        <Button size="sm" variant="secondary" className="h-7 px-2" onClick={() => updateFrame(frame.id, { selectedEndImageId: img.id, endImageUrl: img.url })}>
+                                                            Use End
+                                                        </Button>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )
+                    })
+                )}
+            </div>
+        </div>
         
         {/* Drop Zones (Final Preview) */}
         <div className="grid grid-cols-2 gap-4">
@@ -784,56 +862,6 @@ export function StoryboardFrame({ frame, index }: StoryboardFrameProps) {
                         </div>
                     )}
                 </div>
-            </div>
-        </div>
-
-        {/* Generation History (Draggable Source) */}
-        <div className="flex-1 bg-muted/10 rounded-lg p-3 border overflow-hidden flex flex-col min-h-[300px]">
-            <div className="text-xs font-semibold text-muted-foreground mb-3 flex justify-between items-center">
-                <span>Generation History</span>
-                <span className="text-[10px] bg-muted px-1.5 py-0.5 rounded">{uniqueImages.length} images</span>
-            </div>
-            
-            <div className="overflow-y-auto flex-1 pr-1 space-y-4 scrollbar-thin">
-                {uniqueImages.length === 0 ? (
-                    <div className="text-center py-8 text-xs text-muted-foreground/50">
-                        No images generated yet.
-                    </div>
-                ) : (
-                    Object.entries(imagesByModel).map(([modelId, images]) => (
-                        <div key={modelId} className="space-y-2">
-                            <div className="text-[10px] font-bold text-primary uppercase tracking-wider flex items-center gap-2">
-                                <div className="h-px bg-border flex-1" />
-                                {MODEL_OPTIONS.find(m => m.id === modelId)?.name || modelId}
-                                <div className="h-px bg-border flex-1" />
-                            </div>
-                            <div className="grid grid-cols-2 gap-2">
-                                {images.map(img => (
-                                    <div 
-                                        key={img.id} 
-                                        draggable
-                                        onDragStart={(e) => handleDragStart(e, img)}
-                                        className="relative aspect-video rounded-md overflow-hidden border bg-background cursor-grab active:cursor-grabbing hover:ring-2 hover:ring-primary/50 transition-all group"
-                                    >
-                                        <img src={img.url} className="w-full h-full object-cover" />
-                                        
-                                        {/* Overlay Actions */}
-                                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
-                                            {inpaintModelId && (
-                                                <Button size="icon" variant="secondary" className="h-6 w-6" onClick={() => setEditImage({ url: img.url, type: "start" })}>
-                                                    <Wand2 className="h-3 w-3" />
-                                                </Button>
-                                            )}
-                                            <Button size="icon" variant="secondary" className="h-6 w-6" onClick={() => window.open(img.url, '_blank')}>
-                                                <Download className="h-3 w-3" />
-                                            </Button>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    ))
-                )}
             </div>
         </div>
 

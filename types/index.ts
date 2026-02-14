@@ -12,6 +12,8 @@ export interface GeneratedImage {
   url: string;
   modelId: string; // e.g. "fal-flux-pro-v1.1"
   timestamp: number;
+  batchId?: string;
+  shot?: 'start' | 'end';
 }
 
 export interface StoryboardFrame {
