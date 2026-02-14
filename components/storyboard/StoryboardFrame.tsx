@@ -671,7 +671,7 @@ export function StoryboardFrame({ frame, index }: StoryboardFrameProps) {
   });
 
   return (
-    <div className="flex flex-col xl:flex-row gap-6 p-6 card-canvas border-rough transition-all">
+    <div className="flex flex-col xl:flex-row gap-6 p-6 border-b hover:bg-muted/5 transition-colors">
       {editImage && inpaintModelId && (
         <InpaintingEditor 
             open={!!editImage} 
@@ -683,49 +683,45 @@ export function StoryboardFrame({ frame, index }: StoryboardFrameProps) {
       )}
       
       {/* Index Number */}
-      <div className="flex-none w-10 pt-1 text-center hidden xl:block">
-        <div className="w-8 h-8 rounded-full border-2 border-primary text-primary font-serif font-bold text-xl flex items-center justify-center bg-white shadow-sm">
-            {index + 1}
-        </div>
+      <div className="flex-none w-8 pt-1 text-center font-bold text-muted-foreground/50 text-xl hidden xl:block">
+        {index + 1}
       </div>
       
       {/* Left Column: Controls & Script */}
       <div className="flex-1 space-y-4 min-w-[300px]">
-        <div className="xl:hidden font-serif font-bold text-primary mb-2 text-lg">Frame {index + 1}</div>
+        <div className="xl:hidden font-bold text-muted-foreground mb-2">Frame {index + 1}</div>
         
         <Tabs defaultValue="start" className="w-full">
-          <TabsList className="grid w-full grid-cols-2 bg-transparent p-0 gap-2">
-            <TabsTrigger value="start" className="border-rough data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-impasto transition-all font-serif">Start Shot</TabsTrigger>
-            <TabsTrigger value="end" className="border-rough data-[state=active]:bg-secondary data-[state=active]:text-secondary-foreground data-[state=active]:shadow-impasto transition-all font-serif">End Shot</TabsTrigger>
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="start">Start Shot</TabsTrigger>
+            <TabsTrigger value="end">End Shot</TabsTrigger>
           </TabsList>
           
-          <div className="mt-4 p-4 border-rough bg-white/50 backdrop-blur-sm">
-            <TabsContent value="start" className="mt-0">
-                <ShotControls 
-                    type="start"
-                    frame={frame}
-                    updateFrame={updateFrame}
-                    assets={assets}
-                    loading={loading}
-                    onGenerate={generateImage}
-                    selectedModels={selectedModels}
-                    toggleModel={toggleModel}
-                />
-            </TabsContent>
-            
-            <TabsContent value="end" className="mt-0">
-                <ShotControls 
-                    type="end"
-                    frame={frame}
-                    updateFrame={updateFrame}
-                    assets={assets}
-                    loading={loading}
-                    onGenerate={generateImage}
-                    selectedModels={selectedModels}
-                    toggleModel={toggleModel}
-                />
-            </TabsContent>
-          </div>
+          <TabsContent value="start">
+            <ShotControls 
+                type="start"
+                frame={frame}
+                updateFrame={updateFrame}
+                assets={assets}
+                loading={loading}
+                onGenerate={generateImage}
+                selectedModels={selectedModels}
+                toggleModel={toggleModel}
+            />
+          </TabsContent>
+          
+          <TabsContent value="end">
+            <ShotControls 
+                type="end"
+                frame={frame}
+                updateFrame={updateFrame}
+                assets={assets}
+                loading={loading}
+                onGenerate={generateImage}
+                selectedModels={selectedModels}
+                toggleModel={toggleModel}
+            />
+          </TabsContent>
         </Tabs>
       </div>
 
@@ -740,23 +736,23 @@ export function StoryboardFrame({ frame, index }: StoryboardFrameProps) {
                 onDrop={(e) => handleDrop(e, "start")}
                 onDragOver={handleDragOver}
             >
-                <div className="text-xs font-serif font-bold text-primary text-center uppercase tracking-widest">Start Canvas</div>
+                <div className="text-xs font-semibold text-muted-foreground text-center uppercase">Start Frame</div>
                 <div className={cn(
-                    "aspect-video border-rough flex items-center justify-center relative overflow-hidden bg-white transition-all wet-paint-hover",
-                    frame.startImageUrl ? "border-primary shadow-md" : "border-dashed border-muted-foreground/30 hover:bg-primary/5"
+                    "aspect-video rounded-md border-2 border-dashed flex items-center justify-center relative overflow-hidden bg-muted/20 transition-all",
+                    frame.startImageUrl ? "border-solid border-green-500/50" : "hover:border-primary/50"
                 )}>
                     {frame.startImageUrl ? (
                         <>
                             <img src={frame.startImageUrl} alt="Start" className="w-full h-full object-cover" />
                             <div className="absolute bottom-1 right-1 flex gap-1">
-                                <Button variant="secondary" size="icon" className="h-6 w-6 rounded-sm opacity-80 hover:opacity-100 shadow-sm" onClick={() => window.open(frame.startImageUrl, '_blank')}>
+                                <Button variant="secondary" size="icon" className="h-6 w-6 rounded-full opacity-80 hover:opacity-100" onClick={() => window.open(frame.startImageUrl, '_blank')}>
                                     <Download className="h-3 w-3" />
                                 </Button>
                             </div>
                         </>
                     ) : (
-                        <div className="text-center p-2 text-muted-foreground text-xs pointer-events-none font-serif italic">
-                            {loading === 'start' ? <Loader2 className="h-5 w-5 animate-spin mx-auto text-primary" /> : "Drop Start Image"}
+                        <div className="text-center p-2 text-muted-foreground text-xs pointer-events-none">
+                            {loading === 'start' ? <Loader2 className="h-5 w-5 animate-spin mx-auto" /> : "Drag image here"}
                         </div>
                     )}
                 </div>
@@ -768,23 +764,23 @@ export function StoryboardFrame({ frame, index }: StoryboardFrameProps) {
                 onDrop={(e) => handleDrop(e, "end")}
                 onDragOver={handleDragOver}
             >
-                <div className="text-xs font-serif font-bold text-secondary-foreground text-center uppercase tracking-widest">End Canvas</div>
+                <div className="text-xs font-semibold text-muted-foreground text-center uppercase">End Frame</div>
                 <div className={cn(
-                    "aspect-video border-rough flex items-center justify-center relative overflow-hidden bg-white transition-all wet-paint-hover",
-                    frame.endImageUrl ? "border-secondary shadow-md" : "border-dashed border-muted-foreground/30 hover:bg-secondary/5"
+                    "aspect-video rounded-md border-2 border-dashed flex items-center justify-center relative overflow-hidden bg-muted/20 transition-all",
+                    frame.endImageUrl ? "border-solid border-green-500/50" : "hover:border-primary/50"
                 )}>
                     {frame.endImageUrl ? (
                         <>
                             <img src={frame.endImageUrl} alt="End" className="w-full h-full object-cover" />
                             <div className="absolute bottom-1 right-1 flex gap-1">
-                                <Button variant="secondary" size="icon" className="h-6 w-6 rounded-sm opacity-80 hover:opacity-100 shadow-sm" onClick={() => window.open(frame.endImageUrl, '_blank')}>
+                                <Button variant="secondary" size="icon" className="h-6 w-6 rounded-full opacity-80 hover:opacity-100" onClick={() => window.open(frame.endImageUrl, '_blank')}>
                                     <Download className="h-3 w-3" />
                                 </Button>
                             </div>
                         </>
                     ) : (
-                        <div className="text-center p-2 text-muted-foreground text-xs pointer-events-none font-serif italic">
-                            {loading === 'end' ? <Loader2 className="h-5 w-5 animate-spin mx-auto text-secondary" /> : "Drop End Image"}
+                        <div className="text-center p-2 text-muted-foreground text-xs pointer-events-none">
+                            {loading === 'end' ? <Loader2 className="h-5 w-5 animate-spin mx-auto" /> : "Drag image here"}
                         </div>
                     )}
                 </div>
@@ -792,24 +788,24 @@ export function StoryboardFrame({ frame, index }: StoryboardFrameProps) {
         </div>
 
         {/* Generation History (Draggable Source) */}
-        <div className="flex-1 card-canvas border-rough p-3 flex flex-col min-h-[300px]">
-            <div className="text-xs font-serif font-bold text-muted-foreground mb-3 flex justify-between items-center">
-                <span>Palette History</span>
-                <span className="text-[10px] bg-primary/10 text-primary px-2 py-0.5 rounded-full border border-primary/20">{uniqueImages.length} colors</span>
+        <div className="flex-1 bg-muted/10 rounded-lg p-3 border overflow-hidden flex flex-col min-h-[300px]">
+            <div className="text-xs font-semibold text-muted-foreground mb-3 flex justify-between items-center">
+                <span>Generation History</span>
+                <span className="text-[10px] bg-muted px-1.5 py-0.5 rounded">{uniqueImages.length} images</span>
             </div>
             
             <div className="overflow-y-auto flex-1 pr-1 space-y-4 scrollbar-thin">
                 {uniqueImages.length === 0 ? (
-                    <div className="text-center py-8 text-xs text-muted-foreground/50 font-serif italic">
-                        The palette is clean.
+                    <div className="text-center py-8 text-xs text-muted-foreground/50">
+                        No images generated yet.
                     </div>
                 ) : (
                     Object.entries(imagesByModel).map(([modelId, images]) => (
                         <div key={modelId} className="space-y-2">
-                            <div className="text-[10px] font-bold text-primary uppercase tracking-wider flex items-center gap-2 font-serif">
-                                <div className="h-px bg-primary/30 flex-1" />
+                            <div className="text-[10px] font-bold text-primary uppercase tracking-wider flex items-center gap-2">
+                                <div className="h-px bg-border flex-1" />
                                 {MODEL_OPTIONS.find(m => m.id === modelId)?.name || modelId}
-                                <div className="h-px bg-primary/30 flex-1" />
+                                <div className="h-px bg-border flex-1" />
                             </div>
                             <div className="grid grid-cols-2 gap-2">
                                 {images.map(img => (
@@ -817,18 +813,18 @@ export function StoryboardFrame({ frame, index }: StoryboardFrameProps) {
                                         key={img.id} 
                                         draggable
                                         onDragStart={(e) => handleDragStart(e, img)}
-                                        className="relative aspect-video border-rough overflow-hidden bg-background cursor-grab active:cursor-grabbing hover:scale-105 transition-all group wet-paint-hover"
+                                        className="relative aspect-video rounded-md overflow-hidden border bg-background cursor-grab active:cursor-grabbing hover:ring-2 hover:ring-primary/50 transition-all group"
                                     >
                                         <img src={img.url} className="w-full h-full object-cover" />
                                         
                                         {/* Overlay Actions */}
-                                        <div className="absolute inset-0 bg-primary/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2 backdrop-blur-[2px]">
+                                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
                                             {inpaintModelId && (
-                                                <Button size="icon" variant="secondary" className="h-7 w-7 rounded-full shadow-lg" onClick={() => setEditImage({ url: img.url, type: "start" })}>
+                                                <Button size="icon" variant="secondary" className="h-6 w-6" onClick={() => setEditImage({ url: img.url, type: "start" })}>
                                                     <Wand2 className="h-3 w-3" />
                                                 </Button>
                                             )}
-                                            <Button size="icon" variant="secondary" className="h-7 w-7 rounded-full shadow-lg" onClick={() => window.open(img.url, '_blank')}>
+                                            <Button size="icon" variant="secondary" className="h-6 w-6" onClick={() => window.open(img.url, '_blank')}>
                                                 <Download className="h-3 w-3" />
                                             </Button>
                                         </div>
