@@ -1,6 +1,44 @@
 import { AIProviderAdapter, GenerationRequest, GenerationResponse } from './types';
 import aws4 from 'aws4';
 
+// #region debug-point: jimeng-ref
+async function __dbgReport(event: Record<string, any>) {
+  const url = process.env.TRAE_DEBUG_SERVER_URL;
+  if (!url) return;
+  try {
+    await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        sessionId: process.env.TRAE_DEBUG_SESSION_ID || "jimeng-ref-20260214",
+        ...event,
+        ts: Date.now(),
+        scope: "provider/jimeng",
+      }),
+    });
+  } catch {
+    // ignore
+  }
+}
+
+function __dbgImgSummary(images: unknown) {
+  const arr = Array.isArray(images) ? images : images ? [images] : [];
+  return arr
+    .filter((v) => typeof v === "string")
+    .map((s) => {
+      const str = s as string;
+      const kind = str.startsWith("data:")
+        ? "data"
+        : str.startsWith("blob:")
+          ? "blob"
+          : /^https?:\/\//.test(str)
+            ? "http"
+            : "other";
+      return { kind, len: str.length, head: str.slice(0, 48) };
+    });
+}
+// #endregion debug-point: jimeng-ref
+
 function safeJsonParse(text: string): unknown {
   try {
     return JSON.parse(text);
@@ -37,6 +75,8 @@ async function generateArk(req: GenerationRequest): Promise<GenerationResponse> 
         width,
         height,
         return_url: true, 
+        stream: false,
+        watermark: false,
     };
 
     // Add image references if any
@@ -46,7 +86,22 @@ async function generateArk(req: GenerationRequest): Promise<GenerationResponse> 
         // But for Doubao-Seedream-4.5 on Ark, it usually follows OpenAI-like or custom format.
         // Based on recent debugging, we use 'image_urls' as a list of strings.
         payload.image_urls = image_urls;
+        payload.image = image_urls;
+        payload.sequential_image_generation = "auto";
+        payload.sequential_image_generation_options = { max_images: 1 };
     }
+
+    // #region debug-point: jimeng-ref
+    await __dbgReport({
+      point: "ark_request_preflight",
+      model: payload.model,
+      width,
+      height,
+      image_field: payload.image_urls ? "image_urls" : undefined,
+      image_urls_count: Array.isArray(payload.image_urls) ? payload.image_urls.length : 0,
+      image_urls_summary: __dbgImgSummary(payload.image_urls),
+    });
+    // #endregion debug-point: jimeng-ref
 
     const response = await fetch(url, {
         method: "POST",
@@ -58,10 +113,28 @@ async function generateArk(req: GenerationRequest): Promise<GenerationResponse> 
     });
 
     if (!response.ok) {
-        throw new Error(`Jimeng Ark Failed: ${await response.text()}`);
+        const text = await response.text();
+        // #region debug-point: jimeng-ref
+        await __dbgReport({
+          point: "ark_response_error",
+          httpStatus: response.status,
+          body_head: text.slice(0, 500),
+        });
+        // #endregion debug-point: jimeng-ref
+        throw new Error(`Jimeng Ark Failed: ${text}`);
     }
 
     const data = await response.json();
+
+    // #region debug-point: jimeng-ref
+    await __dbgReport({
+      point: "ark_response_ok",
+      httpStatus: response.status,
+      has_id: !!data?.id,
+      images_count: Array.isArray(data?.data) ? data.data.length : 0,
+      response_keys: data ? Object.keys(data).slice(0, 20) : [],
+    });
+    // #endregion debug-point: jimeng-ref
 
     return {
         request_id: data.id || "unknown",
@@ -139,6 +212,19 @@ export const JimengProvider: AIProviderAdapter = {
          };
     }
 
+     // #region debug-point: jimeng-ref
+     await __dbgReport({
+       point: "legacy_request_preflight",
+       modelId: modelConfig.id,
+       req_key: payload.req_key,
+       width,
+       height,
+       image_urls_count: Array.isArray(payload.image_urls) ? payload.image_urls.length : 0,
+       image_urls_summary: __dbgImgSummary(payload.image_urls),
+       has_strength: typeof payload.strength !== "undefined",
+     });
+     // #endregion debug-point: jimeng-ref
+
     // Prepare Signed Request
     const host = 'visual.volcengineapi.com';
     const path = '/?Action=CVSync2AsyncSubmitTask&Version=2022-08-31';
@@ -168,6 +254,15 @@ export const JimengProvider: AIProviderAdapter = {
     if (!response.ok) {
         const text = await response.text();
         const json = safeJsonParse(text);
+        // #region debug-point: jimeng-ref
+        await __dbgReport({
+          point: "legacy_submit_error",
+          httpStatus: response.status,
+          req_key: payload.req_key,
+          body_head: typeof text === "string" ? text.slice(0, 500) : undefined,
+          json_keys: json && typeof json === "object" ? Object.keys(json as any).slice(0, 20) : undefined,
+        });
+        // #endregion debug-point: jimeng-ref
         const debug = {
           provider: "jimeng",
           stage: "submit",
@@ -183,6 +278,17 @@ export const JimengProvider: AIProviderAdapter = {
     }
 
     const data = await response.json();
+    // #region debug-point: jimeng-ref
+    await __dbgReport({
+      point: "legacy_submit_ok",
+      httpStatus: response.status,
+      req_key: payload.req_key,
+      code: data?.code,
+      has_task_id: !!data?.data?.task_id,
+      status: data?.data?.status,
+      message: data?.message,
+    });
+    // #endregion debug-point: jimeng-ref
     if (data.code !== 10000) {
         // ... error handling
         const debug = {
