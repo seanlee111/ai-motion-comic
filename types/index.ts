@@ -25,6 +25,20 @@ export interface StoryboardFrame {
   characterIds: string[]; // Changed from single ID to array
   sceneId?: string;
   customUploads?: string[]; // Custom uploaded reference images (base64 or url)
+
+  // Start Shot Specifics (Overrides)
+  startScript?: string;
+  startActionNotes?: string;
+  startCharacterIds?: string[];
+  startSceneId?: string;
+  startCustomUploads?: string[];
+
+  // End Shot Specifics (Overrides)
+  endScript?: string;
+  endActionNotes?: string;
+  endCharacterIds?: string[];
+  endSceneId?: string;
+  endCustomUploads?: string[];
   
   // Visuals
   // Deprecated single string URLs in favor of array of GeneratedImage

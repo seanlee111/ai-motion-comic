@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Wand2, Trash2, Download, Loader2, Clock, Move, ChevronLeft, ChevronRight, Layers, Upload, X } from "lucide-react"
 import { useStoryStore } from "@/lib/story-store"
 import { AssetSelector } from "./AssetSelector"
@@ -11,14 +11,8 @@ import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
 import { toast } from "sonner"
-import {
-  Carousel,
-  CarouselContent,
-  CarouselItem,
-  CarouselNext,
-  CarouselPrevious,
-} from "@/components/ui/carousel"
-import { StoryboardFrame as IStoryboardFrame, GeneratedImage } from "@/types"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { StoryboardFrame as IStoryboardFrame, GeneratedImage, Asset } from "@/types"
 
 import { InpaintingEditor } from "./InpaintingEditor"
 import { AI_MODELS } from "@/lib/ai-models"
@@ -97,16 +91,249 @@ const compressImage = (src: string, maxDim = 640, quality = 0.6): Promise<string
     });
 };
 
+interface ShotControlsProps {
+    type: "start" | "end"
+    frame: IStoryboardFrame
+    updateFrame: (id: string, updates: Partial<IStoryboardFrame>) => void
+    assets: Asset[]
+    loading: string | null
+    onGenerate: (type: "start" | "end") => void
+    selectedModels: string[]
+    toggleModel: (id: string) => void
+}
+
+function ShotControls({ type, frame, updateFrame, assets, loading, onGenerate, selectedModels, toggleModel }: ShotControlsProps) {
+    // Determine current values based on type, falling back to shared fields if specific ones are empty
+    // But for editing, we always write to specific fields.
+    
+    // Helper to get value: Specific > Shared (Legacy)
+    // Note: Once we edit "Start", it becomes specific.
+    const script = type === 'start' ? (frame.startScript ?? frame.storyScript) : (frame.endScript ?? frame.storyScript)
+    const actionNotes = type === 'start' ? (frame.startActionNotes ?? frame.actionNotes) : (frame.endActionNotes ?? frame.actionNotes)
+    const characterIds = type === 'start' ? (frame.startCharacterIds ?? frame.characterIds) : (frame.endCharacterIds ?? frame.characterIds)
+    const sceneId = type === 'start' ? (frame.startSceneId ?? frame.sceneId) : (frame.endSceneId ?? frame.sceneId)
+    const customUploads = type === 'start' ? (frame.startCustomUploads ?? frame.customUploads) : (frame.endCustomUploads ?? frame.customUploads)
+
+    const selectedCharacters = (characterIds || []).map(id => assets.find(a => a.id === id)).filter(Boolean)
+    const selectedScene = assets.find(a => a.id === sceneId)
+
+    const handleScriptChange = (val: string) => {
+        const updates: any = {}
+        if (type === 'start') {
+            updates.startScript = val
+            // Sync logic: If endScript is empty/undefined, update it too?
+            // Or if endScript is same as old startScript?
+            // Simple approach: If endScript is falsy, sync it.
+            if (!frame.endScript) {
+                updates.endScript = val
+            }
+        } else {
+            updates.endScript = val
+        }
+        updateFrame(frame.id, updates)
+    }
+    
+    // Similar sync logic for other fields could be added here
+    
+    const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const files = e.target.files;
+        if (!files || files.length === 0) return;
+    
+        Array.from(files).forEach(file => {
+            const reader = new FileReader();
+            reader.onload = async (e) => {
+                const result = e.target?.result as string;
+                if (result) {
+                    const compressed = await compressImage(result, 640, 0.6);
+                    const current = customUploads || [];
+                    const updates: any = {};
+                    const newUploads = [...current, compressed];
+                    
+                    if (type === 'start') {
+                        updates.startCustomUploads = newUploads;
+                        if (!frame.endCustomUploads || frame.endCustomUploads.length === 0) {
+                             updates.endCustomUploads = newUploads;
+                        }
+                    } else {
+                        updates.endCustomUploads = newUploads;
+                    }
+                    updateFrame(frame.id, updates);
+                }
+            };
+            reader.readAsDataURL(file);
+        });
+    };
+
+    const removeCustomUpload = (indexToRemove: number) => {
+        const current = customUploads || [];
+        const newUploads = current.filter((_, i) => i !== indexToRemove);
+        if (type === 'start') updateFrame(frame.id, { startCustomUploads: newUploads });
+        else updateFrame(frame.id, { endCustomUploads: newUploads });
+    };
+
+    return (
+        <div className="space-y-4 py-2">
+             {/* Assets */}
+             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+               <div className="space-y-1">
+                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block">Characters</label>
+                  <AssetSelector 
+                    type="character" 
+                    value={characterIds} 
+                    onChange={(v) => {
+                        const val = Array.isArray(v) ? v : [v];
+                        if (type === 'start') {
+                            const updates: any = { startCharacterIds: val };
+                            if (!frame.endCharacterIds || frame.endCharacterIds.length === 0) updates.endCharacterIds = val;
+                            updateFrame(frame.id, updates);
+                        } else {
+                            updateFrame(frame.id, { endCharacterIds: val });
+                        }
+                    }} 
+                    multi
+                  />
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {selectedCharacters.map((char: any) => (
+                      <div key={char.id} className="flex items-center gap-2">
+                        {char.imageUrl ? (
+                          <img src={char.imageUrl} alt={char.name} className="h-6 w-6 rounded-full object-cover border" />
+                        ) : (
+                          <div className="h-6 w-6 rounded-full bg-muted text-[10px] flex items-center justify-center border">
+                            {char.name?.slice(0, 1)}
+                          </div>
+                        )}
+                        <span className="text-xs text-muted-foreground">{char.name}</span>
+                      </div>
+                    ))}
+                  </div>
+               </div>
+               <div className="space-y-1">
+                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block">Scene</label>
+                  <AssetSelector 
+                    type="scene" 
+                    value={sceneId} 
+                    onChange={(v) => {
+                        const val = v === 'none' ? undefined : v as string;
+                        if (type === 'start') {
+                            const updates: any = { startSceneId: val };
+                            if (!frame.endSceneId) updates.endSceneId = val;
+                            updateFrame(frame.id, updates);
+                        } else {
+                            updateFrame(frame.id, { endSceneId: val });
+                        }
+                    }} 
+                  />
+                  {selectedScene && (
+                    <div className="mt-2 flex items-center gap-2">
+                      {selectedScene.imageUrl ? (
+                        <img src={selectedScene.imageUrl} alt={selectedScene.name} className="h-6 w-6 rounded-full object-cover border" />
+                      ) : (
+                        <div className="h-6 w-6 rounded-full bg-muted text-[10px] flex items-center justify-center border">
+                          {selectedScene.name?.slice(0, 1)}
+                        </div>
+                      )}
+                      <span className="text-xs text-muted-foreground">{selectedScene.name}</span>
+                    </div>
+                  )}
+               </div>
+            </div>
+
+            {/* Custom Uploads */}
+            <div className="space-y-1">
+                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block flex items-center justify-between">
+                    <span>Custom Reference Images</span>
+                    <label className="cursor-pointer text-primary hover:underline text-[10px] flex items-center">
+                        <Upload className="h-3 w-3 mr-1" /> Upload
+                        <input type="file" className="hidden" accept="image/*" multiple onChange={handleFileUpload} />
+                    </label>
+                </label>
+                <div className="flex flex-wrap gap-2 min-h-[40px] p-2 bg-muted/20 rounded-md border border-dashed">
+                    {(!customUploads || customUploads.length === 0) && (
+                        <div className="text-muted-foreground text-[10px] flex items-center justify-center w-full">
+                            No custom images uploaded
+                        </div>
+                    )}
+                    {customUploads?.map((url, i) => (
+                        <div key={i} className="relative group w-10 h-10 rounded overflow-hidden border">
+                            <img src={url} className="w-full h-full object-cover" />
+                            <button 
+                                onClick={() => removeCustomUpload(i)}
+                                className="absolute top-0 right-0 bg-black/50 text-white p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
+                            >
+                                <X className="h-3 w-3" />
+                            </button>
+                        </div>
+                    ))}
+                </div>
+            </div>
+
+            {/* Script Area */}
+            <div className="grid grid-cols-1 gap-4">
+                <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block">Action Script</label>
+                    <Textarea 
+                        value={script || ""}
+                        onChange={(e) => handleScriptChange(e.target.value)}
+                        placeholder={`Describe action for ${type} shot...`}
+                        className="min-h-[80px] resize-none"
+                    />
+                </div>
+                <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block flex items-center">
+                        <Move className="h-3 w-3 mr-1" /> Camera & Movement
+                    </label>
+                    <Textarea 
+                        value={actionNotes || ""}
+                        onChange={(e) => {
+                            const val = e.target.value;
+                             if (type === 'start') {
+                                const updates: any = { startActionNotes: val };
+                                if (!frame.endActionNotes) updates.endActionNotes = val;
+                                updateFrame(frame.id, updates);
+                            } else {
+                                updateFrame(frame.id, { endActionNotes: val });
+                            }
+                        }}
+                        placeholder="Pan left, zoom in..."
+                        className="min-h-[60px] resize-none bg-muted/30"
+                    />
+                </div>
+            </div>
+
+            {/* Generate Button (Specific to this shot) */}
+             <div className="flex flex-col gap-3 bg-muted/10 p-3 rounded-lg border border-dashed">
+                <div className="flex flex-wrap gap-1 items-center">
+                    <Layers className="h-4 w-4 text-muted-foreground mr-2" />
+                    {MODEL_OPTIONS.map(model => (
+                        <Badge 
+                            key={model.id}
+                            variant={selectedModels.includes(model.id) ? "default" : "outline"}
+                            className="cursor-pointer hover:opacity-80"
+                            onClick={() => toggleModel(model.id)}
+                        >
+                            {model.name}
+                        </Badge>
+                    ))}
+                </div>
+                
+                <Button 
+                    onClick={() => onGenerate(type)} 
+                    disabled={!!loading}
+                    className="w-full"
+                >
+                    {loading === type ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Wand2 className="mr-2 h-4 w-4" />}
+                    Generate {type === 'start' ? 'Start' : 'End'} Shot
+                </Button>
+            </div>
+        </div>
+    )
+}
+
 export function StoryboardFrame({ frame, index }: StoryboardFrameProps) {
   const { updateFrame, deleteFrame, assets, addApiLog } = useStoryStore()
   const [loading, setLoading] = useState<"start" | "end" | "all" | null>(null)
   const [selectedModels, setSelectedModels] = useState<string[]>(MODEL_OPTIONS.map(m => m.id))
   const [editImage, setEditImage] = useState<{ url: string, type: "start" | "end" } | null>(null)
-
-  const selectedCharacters = (frame.characterIds || [])
-    .map(id => assets.find(a => a.id === id))
-    .filter(Boolean)
-  const selectedScene = assets.find(a => a.id === frame.sceneId)
   const inpaintModelId = AI_MODELS.find(m => m.type === "inpainting")?.id
 
   const toggleModel = (modelId: string) => {
@@ -118,36 +345,17 @@ export function StoryboardFrame({ frame, index }: StoryboardFrameProps) {
       }
   }
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (!files || files.length === 0) return;
-
-    // Convert files to Base64/DataURL and RESIZE
-    Array.from(files).forEach(file => {
-        const reader = new FileReader();
-        reader.onload = async (e) => {
-            const result = e.target?.result as string;
-            if (result) {
-                // Compress immediately on upload
-                const compressed = await compressImage(result, 640, 0.6);
-                const currentUploads = useStoryStore.getState().frames.find(f => f.id === frame.id)?.customUploads || [];
-                updateFrame(frame.id, { customUploads: [...currentUploads, compressed] });
-            }
-        };
-        reader.readAsDataURL(file);
-    });
-  };
-
-  const removeCustomUpload = (indexToRemove: number) => {
-      const currentUploads = frame.customUploads || [];
-      const newUploads = currentUploads.filter((_, i) => i !== indexToRemove);
-      updateFrame(frame.id, { customUploads: newUploads });
-  };
-
   const generateImage = async (target: "start" | "end") => {
-    if (!frame.storyScript) {
+    // Get specific config
+    const script = target === 'start' ? (frame.startScript ?? frame.storyScript) : (frame.endScript ?? frame.storyScript)
+    const actionNotes = target === 'start' ? (frame.startActionNotes ?? frame.actionNotes) : (frame.endActionNotes ?? frame.actionNotes)
+    const characterIds = target === 'start' ? (frame.startCharacterIds ?? frame.characterIds) : (frame.endCharacterIds ?? frame.characterIds)
+    const sceneId = target === 'start' ? (frame.startSceneId ?? frame.sceneId) : (frame.endSceneId ?? frame.sceneId)
+    const customUploads = target === 'start' ? (frame.startCustomUploads ?? frame.customUploads) : (frame.endCustomUploads ?? frame.customUploads)
+
+    if (!script) {
         toast.error("Story script is required", {
-            description: "Please enter a description for this frame."
+            description: `Please enter a description for the ${target} shot.`
         })
         return
     }
@@ -164,8 +372,8 @@ export function StoryboardFrame({ frame, index }: StoryboardFrameProps) {
     
     try {
       // Resolve character references
-      const characters = (frame.characterIds || []).map(id => assets.find(a => a.id === id)).filter(Boolean)
-      const scene = assets.find(a => a.id === frame.sceneId)
+      const characters = (characterIds || []).map(id => assets.find(a => a.id === id)).filter(Boolean)
+      const scene = assets.find(a => a.id === sceneId)
       
       let fullPrompt = ""
       if (scene) fullPrompt += `[Scene: ${scene.name}, ${scene.description}] `
@@ -177,7 +385,7 @@ export function StoryboardFrame({ frame, index }: StoryboardFrameProps) {
       }
       
       const timeContext = target === "start" ? "Opening shot, start of action." : "Closing shot, end of action."
-      fullPrompt += `Action: ${frame.storyScript}. ${frame.actionNotes || ""}. ${timeContext} Masterpiece, cinematic lighting, 8k.`
+      fullPrompt += `Action: ${script}. ${actionNotes || ""}. ${timeContext} Masterpiece, cinematic lighting, 8k.`
 
       // Gather all reference images
       const referenceImages: string[] = [];
@@ -188,19 +396,19 @@ export function StoryboardFrame({ frame, index }: StoryboardFrameProps) {
       }
       
       // 2. Character Images
-      selectedCharacters.forEach(char => {
+      characters.forEach(char => {
           if (char?.imageUrl) referenceImages.push(char.imageUrl);
       });
 
       // 3. Custom Uploads
-      if (frame.customUploads && frame.customUploads.length > 0) {
-          referenceImages.push(...frame.customUploads);
+      if (customUploads && customUploads.length > 0) {
+          referenceImages.push(...customUploads);
       }
 
       // Optimize payload: Compress all images before sending
       const optimizedImages = await Promise.all(referenceImages.map(img => compressImage(img, 640, 0.6)));
       
-      console.log(`[Generate] Collecting images: ${referenceImages.length} raw -> ${optimizedImages.length} optimized`);
+      console.log(`[Generate ${target}] Collecting images: ${referenceImages.length} raw -> ${optimizedImages.length} optimized`);
 
       // Parallel requests for each selected model
       const requests = selectedModels.map(async (modelId) => {
@@ -209,20 +417,9 @@ export function StoryboardFrame({ frame, index }: StoryboardFrameProps) {
             const modelConfig = MODEL_OPTIONS.find(m => m.id === modelId);
             
             // Validation for Image-to-Image models
-            // If model is strictly image-to-image (like some Fal tools), validate
-            // But Jimeng 4.5 supports both. We assume text-to-image is fallback if no images.
             if (modelConfig?.type === 'image-to-image' && optimizedImages.length === 0) {
-                 // Skip validation if model supports both (e.g. Jimeng 4.5)
-                 // Currently our type definition is strict, but in reality Jimeng 4.5 is both.
-                 // If the model ID is specifically a T2I capable model, allow it.
-                 // We can check if modelId contains 'jimeng' or just rely on 'mode' switching.
-                 
-                 // If the model is REGISTERED as 'image-to-image' only, then we block.
-                 // But for Jimeng 4.5, it should be registered as 'text-to-image' OR we handle it gracefully.
-                 
-                 // Fix: Allow pass if we are falling back to text-to-image for this model
                  if (modelId === 'jimeng-v4.5' || modelConfig.id.includes('jimeng')) {
-                     // Allow, will use text-to-image mode
+                     // Allow fallback
                  } else {
                      throw new Error(`Model ${modelConfig.name} requires reference images.`);
                  }
@@ -245,7 +442,9 @@ export function StoryboardFrame({ frame, index }: StoryboardFrameProps) {
 
             let data;
             if (!res.ok) {
-                // ... error handling
+                // ... error handling (simplified)
+                data = await res.json().catch(() => ({}));
+                throw new Error(data.error || `API Error ${res.status}`);
             } else {
                 data = await res.json();
             }
@@ -275,7 +474,6 @@ export function StoryboardFrame({ frame, index }: StoryboardFrameProps) {
                   status: 500, // Approximate
                   duration: Date.now() - startTime,
                   error: e.message,
-                  // We can't easily access payload here if it failed before creation, but we try
                   requestPayload: { prompt: fullPrompt, modelId, imageCount: optimizedImages.length }
               });
               return { error: e.message, modelId }
@@ -304,7 +502,6 @@ export function StoryboardFrame({ frame, index }: StoryboardFrameProps) {
 
               const firstNewImage = newGeneratedImages[0];
               
-              // We use getState to get fresh data
               const freshFrame = useStoryStore.getState().frames.find(f => f.id === frame.id)
               if (!freshFrame) return
 
@@ -322,11 +519,8 @@ export function StoryboardFrame({ frame, index }: StoryboardFrameProps) {
                   })
               }
               
-              // Log success for sync response
-              // Already logged above in try/catch block for sync response
-              
               setLoading(null);
-              return; // Skip polling
+              return; 
           }
 
           const pollInterval = setInterval(async () => {
@@ -337,7 +531,6 @@ export function StoryboardFrame({ frame, index }: StoryboardFrameProps) {
                 if (data.status === "COMPLETED") {
                     clearInterval(pollInterval)
                     
-                    // Log success
                     addApiLog({
                         id: crypto.randomUUID(),
                         timestamp: Date.now(),
@@ -349,11 +542,9 @@ export function StoryboardFrame({ frame, index }: StoryboardFrameProps) {
                         responseBody: data
                     });
                     
-                    // Handle array of images or single image
                     const newImagesRaw = data.images || [];
-                    if (newImagesRaw.length === 0) return; // Should not happen if completed
+                    if (newImagesRaw.length === 0) return; 
 
-                    // We use getState to get fresh data
                     const freshFrame = useStoryStore.getState().frames.find(f => f.id === frame.id)
                     if (!freshFrame) return
 
@@ -369,14 +560,14 @@ export function StoryboardFrame({ frame, index }: StoryboardFrameProps) {
                     if (target === "start") {
                         updateFrame(frame.id, { 
                             startImages: [...(freshFrame.startImages || []), ...newGeneratedImages],
-                            selectedStartImageId: firstNewImage.id, // Auto select latest
-                            startImageUrl: firstNewImage.url // Legacy
+                            selectedStartImageId: firstNewImage.id, 
+                            startImageUrl: firstNewImage.url 
                         })
                     } else {
                         updateFrame(frame.id, { 
                             endImages: [...(freshFrame.endImages || []), ...newGeneratedImages],
-                            selectedEndImageId: firstNewImage.id, // Auto select latest
-                            endImageUrl: firstNewImage.url // Legacy
+                            selectedEndImageId: firstNewImage.id, 
+                            endImageUrl: firstNewImage.url 
                         })
                     }
                     
@@ -393,6 +584,7 @@ export function StoryboardFrame({ frame, index }: StoryboardFrameProps) {
                         duration: Date.now() - result.startTime,
                         error: data.error || "Async Generation Failed"
                     });
+                    setLoading(null) // Ensure loading is cleared on error too
                 }
             } catch (e) {
                 clearInterval(pollInterval)
@@ -402,17 +594,10 @@ export function StoryboardFrame({ frame, index }: StoryboardFrameProps) {
 
     } catch (e: any) {
       setLoading(null)
-      alert(e.message || "Error starting generation")
+      toast.error("Generation failed", { description: e.message })
     }
   }
 
-  const handleGenerateAll = async () => {
-      setLoading("all")
-      await Promise.all([generateImage("start"), generateImage("end")])
-      // Loading state is handled inside generateImage mostly, but "all" might need coordination.
-      // We rely on the internal logic to clear loading.
-  }
-  
   const handleSaveEdit = (newUrl: string) => {
       if (!editImage) return
       
@@ -455,17 +640,10 @@ export function StoryboardFrame({ frame, index }: StoryboardFrameProps) {
           if (!data) return;
           const image = JSON.parse(data) as GeneratedImage;
           
-          // Update the specific slot with this image
-          // We also ensure this image exists in the respective history array if dragged from the other side
-          // But for simplicity, we just update the selected ID and URL. 
-          // If we want to strictly keep history clean, we might add it to the target history array too.
-          
           const updates: any = {};
           if (targetType === "start") {
               updates.selectedStartImageId = image.id;
               updates.startImageUrl = image.url;
-              // Optional: Add to startImages if not present?
-              // Let's just update the selection for now.
           } else {
               updates.selectedEndImageId = image.id;
               updates.endImageUrl = image.url;
@@ -483,10 +661,8 @@ export function StoryboardFrame({ frame, index }: StoryboardFrameProps) {
 
   // --- Group Images by Model ---
   const allImages = [...(frame.startImages || []), ...(frame.endImages || [])];
-  // Deduplicate by ID
   const uniqueImages = Array.from(new Map(allImages.map(item => [item.id, item])).values());
   
-  // Group by Model ID
   const imagesByModel: Record<string, GeneratedImage[]> = {};
   uniqueImages.forEach(img => {
       const modelId = img.modelId || 'unknown';
@@ -515,136 +691,38 @@ export function StoryboardFrame({ frame, index }: StoryboardFrameProps) {
       <div className="flex-1 space-y-4 min-w-[300px]">
         <div className="xl:hidden font-bold text-muted-foreground mb-2">Frame {index + 1}</div>
         
-        {/* Top Controls */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-           <div className="space-y-1">
-              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block">Characters</label>
-              <AssetSelector 
-                type="character" 
-                value={frame.characterIds} 
-                onChange={(v) => updateFrame(frame.id, { characterIds: Array.isArray(v) ? v : [v] })} 
-                multi
-              />
-              <div className="mt-2 flex flex-wrap gap-2">
-                {selectedCharacters.map((char: any) => (
-                  <div key={char.id} className="flex items-center gap-2">
-                    {char.imageUrl ? (
-                      <img src={char.imageUrl} alt={char.name} className="h-6 w-6 rounded-full object-cover border" />
-                    ) : (
-                      <div className="h-6 w-6 rounded-full bg-muted text-[10px] flex items-center justify-center border">
-                        {char.name?.slice(0, 1)}
-                      </div>
-                    )}
-                    <span className="text-xs text-muted-foreground">{char.name}</span>
-                  </div>
-                ))}
-              </div>
-           </div>
-           <div className="space-y-1">
-              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block">Scene</label>
-              <AssetSelector 
-                type="scene" 
-                value={frame.sceneId} 
-                onChange={(v) => updateFrame(frame.id, { sceneId: v === 'none' ? undefined : v as string })} 
-              />
-              {selectedScene && (
-                <div className="mt-2 flex items-center gap-2">
-                  {selectedScene.imageUrl ? (
-                    <img src={selectedScene.imageUrl} alt={selectedScene.name} className="h-6 w-6 rounded-full object-cover border" />
-                  ) : (
-                    <div className="h-6 w-6 rounded-full bg-muted text-[10px] flex items-center justify-center border">
-                      {selectedScene.name?.slice(0, 1)}
-                    </div>
-                  )}
-                  <span className="text-xs text-muted-foreground">{selectedScene.name}</span>
-                </div>
-              )}
-           </div>
-        </div>
-
-        {/* Custom Uploads */}
-        <div className="space-y-1">
-            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block flex items-center justify-between">
-                <span>Custom Reference Images</span>
-                <label className="cursor-pointer text-primary hover:underline text-[10px] flex items-center">
-                    <Upload className="h-3 w-3 mr-1" /> Upload
-                    <input type="file" className="hidden" accept="image/*" multiple onChange={handleFileUpload} />
-                </label>
-            </label>
-            <div className="flex flex-wrap gap-2 min-h-[40px] p-2 bg-muted/20 rounded-md border border-dashed">
-                {(!frame.customUploads || frame.customUploads.length === 0) && (
-                    <div className="text-muted-foreground text-[10px] flex items-center justify-center w-full">
-                        No custom images uploaded
-                    </div>
-                )}
-                {frame.customUploads?.map((url, i) => (
-                    <div key={i} className="relative group w-10 h-10 rounded overflow-hidden border">
-                        <img src={url} className="w-full h-full object-cover" />
-                        <button 
-                            onClick={() => removeCustomUpload(i)}
-                            className="absolute top-0 right-0 bg-black/50 text-white p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
-                        >
-                            <X className="h-3 w-3" />
-                        </button>
-                    </div>
-                ))}
-            </div>
-        </div>
-
-        {/* Script Area */}
-        <div className="grid grid-cols-1 gap-4">
-            <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block">Story Script</label>
-                <Textarea 
-                    value={frame.storyScript}
-                    onChange={(e) => updateFrame(frame.id, { storyScript: e.target.value })}
-                    placeholder="Describe action..."
-                    className="min-h-[80px] resize-none"
-                />
-            </div>
-            <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block flex items-center">
-                    <Move className="h-3 w-3 mr-1" /> Camera & Movement
-                </label>
-                <Textarea 
-                    value={frame.actionNotes || ""}
-                    onChange={(e) => updateFrame(frame.id, { actionNotes: e.target.value })}
-                    placeholder="Pan left, zoom in..."
-                    className="min-h-[60px] resize-none bg-muted/30"
-                />
-            </div>
-        </div>
-
-        {/* Model Selection & Generate */}
-        <div className="flex flex-col gap-3 bg-muted/10 p-3 rounded-lg border border-dashed">
-            <div className="flex flex-wrap gap-1 items-center">
-                <Layers className="h-4 w-4 text-muted-foreground mr-2" />
-                {MODEL_OPTIONS.map(model => (
-                    <Badge 
-                        key={model.id}
-                        variant={selectedModels.includes(model.id) ? "default" : "outline"}
-                        className="cursor-pointer hover:opacity-80"
-                        onClick={() => toggleModel(model.id)}
-                    >
-                        {model.name}
-                    </Badge>
-                ))}
-            </div>
-            
-            <div className="flex gap-2 w-full">
-                <Button 
-                    onClick={handleGenerateAll} 
-                    disabled={!!loading}
-                    size="sm"
-                    className="bg-primary/90 hover:bg-primary flex-1"
-                >
-                    {loading === "all" ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Wand2 className="mr-2 h-4 w-4" />}
-                    Generate All
-                </Button>
-                <Button variant="outline" size="sm" onClick={() => generateImage("start")} disabled={!!loading}>Start</Button>
-                <Button variant="outline" size="sm" onClick={() => generateImage("end")} disabled={!!loading}>End</Button>
-            </div>
-        </div>
+        <Tabs defaultValue="start" className="w-full">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="start">Start Shot</TabsTrigger>
+            <TabsTrigger value="end">End Shot</TabsTrigger>
+          </TabsList>
+          
+          <TabsContent value="start">
+            <ShotControls 
+                type="start"
+                frame={frame}
+                updateFrame={updateFrame}
+                assets={assets}
+                loading={loading}
+                onGenerate={generateImage}
+                selectedModels={selectedModels}
+                toggleModel={toggleModel}
+            />
+          </TabsContent>
+          
+          <TabsContent value="end">
+            <ShotControls 
+                type="end"
+                frame={frame}
+                updateFrame={updateFrame}
+                assets={assets}
+                loading={loading}
+                onGenerate={generateImage}
+                selectedModels={selectedModels}
+                toggleModel={toggleModel}
+            />
+          </TabsContent>
+        </Tabs>
       </div>
 
       {/* Right Column: Preview & History */}
