@@ -391,8 +391,8 @@ export function StoryboardFrame({ frame, index }: StoryboardFrameProps) {
       const referenceImages: string[] = [];
       
       // 1. Scene Image
-      if (selectedScene?.imageUrl) {
-          referenceImages.push(selectedScene.imageUrl);
+      if (scene?.imageUrl) {
+          referenceImages.push(scene.imageUrl);
       }
       
       // 2. Character Images
