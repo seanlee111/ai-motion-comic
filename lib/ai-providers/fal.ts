@@ -60,9 +60,10 @@ export const FalProvider: AIProviderAdapter = {
     if (mode === "image-to-image" && image_url) {
       payload.image_url = image_url;
       payload.strength = strength || 0.85;
-      // Use general endpoint for flux img2img as per latest docs
       if (modelConfig.id.includes('flux')) {
-         endpoint = "https://queue.fal.run/fal-ai/flux-general";
+         endpoint = "https://queue.fal.run/fal-ai/flux-general/image-to-image";
+      } else if (modelConfig.id.includes('sdxl')) {
+         endpoint = "https://queue.fal.run/fal-ai/fast-sdxl/image-to-image";
       }
     } else {
        // If NOT image-to-image mode (or no image_url), revert to standard dev/schnell endpoints for Flux
