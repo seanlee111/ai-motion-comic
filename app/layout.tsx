@@ -13,6 +13,8 @@ export const metadata: Metadata = {
 
 import { Toaster } from "@/components/ui/sonner"
 import { Analytics } from "@vercel/analytics/react"
+import { CursorBrush } from "@/components/ui/CursorBrush"
+import { SVGFilters } from "@/components/ui/SVGFilters"
 
 export default function RootLayout({
   children,
@@ -28,6 +30,8 @@ export default function RootLayout({
         </div>
         <Toaster />
         <Analytics />
+        <CursorBrush />
+        <SVGFilters />
       </body>
     </html>
   );
