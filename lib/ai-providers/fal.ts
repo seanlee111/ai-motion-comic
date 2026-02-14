@@ -1,5 +1,34 @@
 import { AIProviderAdapter, GenerationRequest, GenerationResponse } from './types';
 
+// #region debug-point: fal-ref
+async function __dbgReport(event: Record<string, any>) {
+  const url = process.env.TRAE_DEBUG_SERVER_URL;
+  if (!url) return;
+  try {
+    await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        sessionId: process.env.TRAE_DEBUG_SESSION_ID || "fal-ref-20260214",
+        ts: Date.now(),
+        scope: "provider/fal",
+        ...event,
+      }),
+    });
+  } catch {
+    // ignore
+  }
+}
+
+function __dbgKind(s?: unknown) {
+  if (typeof s !== "string" || s.length === 0) return undefined;
+  if (s.startsWith("data:")) return "data";
+  if (s.startsWith("blob:")) return "blob";
+  if (/^https?:\/\//.test(s)) return "http";
+  return "other";
+}
+// #endregion debug-point: fal-ref
+
 export const FalProvider: AIProviderAdapter = {
   async generate(req: GenerationRequest): Promise<GenerationResponse> {
     const { modelConfig, prompt, aspect_ratio, mode, image_url, mask_url, strength } = req;
@@ -52,6 +81,20 @@ export const FalProvider: AIProviderAdapter = {
         endpoint = "https://queue.fal.run/fal-ai/flux-pro/v1.1-inpainting"; // Keep as is for now if unused
     }
 
+    // #region debug-point: fal-ref
+    await __dbgReport({
+      point: "request_preflight",
+      modelId: modelConfig.id,
+      mode,
+      endpoint,
+      image_url_kind: __dbgKind(payload.image_url),
+      has_image_url: !!payload.image_url,
+      has_strength: typeof payload.strength !== "undefined",
+      strength: payload.strength,
+      payload_keys: Object.keys(payload).slice(0, 50),
+    });
+    // #endregion debug-point: fal-ref
+
     const response = await fetch(endpoint, {
       method: "POST",
       headers: {
@@ -63,14 +106,47 @@ export const FalProvider: AIProviderAdapter = {
 
     if (!response.ok) {
       const errorText = await response.text();
+      // #region debug-point: fal-ref
+      await __dbgReport({
+        point: "response_error",
+        modelId: modelConfig.id,
+        endpoint,
+        httpStatus: response.status,
+        body_head: typeof errorText === "string" ? errorText.slice(0, 500) : undefined,
+      });
+      // #endregion debug-point: fal-ref
       throw new Error(`Fal API Error: ${errorText}`);
     }
 
     const data = await response.json();
+
+    // #region debug-point: fal-ref
+    await __dbgReport({
+      point: "response_ok",
+      modelId: modelConfig.id,
+      endpoint,
+      has_request_id: !!data?.request_id,
+      has_status_url: !!data?.status_url,
+      keys: data ? Object.keys(data).slice(0, 30) : [],
+    });
+    // #endregion debug-point: fal-ref
     return {
         request_id: data.request_id,
         status: 'QUEUED', // Fal returns request_id immediately for queue
-        endpoint: data.status_url // Return status_url for polling
+        endpoint: data.status_url,
+        upstream: {
+          provider: "FAL",
+          endpoint,
+          request_id: data?.request_id,
+          status_url: data?.status_url,
+          requestPayload: {
+            mode,
+            has_image_url: !!payload.image_url,
+            image_url_kind: __dbgKind(payload.image_url),
+            strength: payload.strength,
+            image_size: payload.image_size,
+          }
+        }
     };
   },
 
@@ -113,21 +189,48 @@ export const FalProvider: AIProviderAdapter = {
       }
 
       const data = await response.json();
+
+      // #region debug-point: fal-ref
+      await __dbgReport({
+        point: "status_ok",
+        requestId,
+        statusUrl,
+        status: data?.status,
+        has_images: Array.isArray(data?.images) ? data.images.length : 0,
+        keys: data ? Object.keys(data).slice(0, 30) : [],
+      });
+      // #endregion debug-point: fal-ref
       
+      // Fal queue status endpoint does not always include images even when COMPLETED.
+      // When available, follow `response_url` to fetch the actual result payload.
+      let resultData: any = data;
+      if (data?.status === "COMPLETED" && typeof data?.response_url === "string" && data.response_url.startsWith("http")) {
+        const res2 = await fetch(data.response_url, {
+          method: "GET",
+          headers: {
+            "Authorization": `Key ${apiKey}`,
+            "Content-Type": "application/json",
+          },
+        });
+        if (res2.ok) {
+          resultData = await res2.json();
+        }
+      }
+
       // Normalize output: Handle different Fal model response structures
-      let images = data.images || [];
+      let images = resultData.images || [];
       
       // Handle single 'image' field
-      if (!images.length && data.image) {
-          images = [data.image];
+      if (!images.length && resultData.image) {
+          images = [resultData.image];
       }
       
       // Handle 'output' field (sometimes used in custom workflows)
-      if (!images.length && data.output) {
-          if (Array.isArray(data.output)) {
-              images = data.output;
-          } else if (typeof data.output === 'object' && data.output.url) {
-              images = [data.output];
+      if (!images.length && resultData.output) {
+          if (Array.isArray(resultData.output)) {
+              images = resultData.output;
+          } else if (typeof resultData.output === 'object' && resultData.output.url) {
+              images = [resultData.output];
           }
       }
 
@@ -135,7 +238,13 @@ export const FalProvider: AIProviderAdapter = {
           request_id: requestId,
           status: data.status,
           images: images,
-          error: data.error
+          error: data.error,
+          upstream: {
+            provider: "FAL",
+            status_url: statusUrl,
+            status: data?.status,
+            response_url: data?.response_url,
+          }
       };
   }
 };
