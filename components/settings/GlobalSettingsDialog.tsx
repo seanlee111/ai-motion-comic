@@ -3,7 +3,7 @@
 import { useState } from "react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
-import { Settings, Trash2, AlertCircle, CheckCircle2, Clock, ChevronRight, ChevronDown, Copy } from "lucide-react"
+import { Settings, Trash2, AlertCircle, CheckCircle2, Clock, ChevronRight, ChevronDown, Copy, History } from "lucide-react"
 import { useStoryStore } from "@/lib/story-store"
 // import { ScrollArea } from "@/components/ui/scroll-area" 
 import { Badge } from "@/components/ui/badge"
@@ -129,15 +129,15 @@ export function GlobalSettingsDialog() {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="ghost" size="icon">
-          <Settings className="h-5 w-5" />
+        <Button variant="ghost" size="icon" title="Activity Logs">
+          <History className="h-5 w-5" />
         </Button>
       </DialogTrigger>
       <DialogContent className="max-w-2xl max-h-[85vh] flex flex-col p-0 gap-0 overflow-hidden">
         <DialogHeader className="p-4 border-b flex-none">
           <DialogTitle className="flex items-center justify-between">
             <span className="flex items-center gap-2">
-                Settings & Logs 
+                Activity Logs 
                 <Badge variant="secondary" className="text-xs font-normal">{logs.length}</Badge>
             </span>
           </DialogTitle>
@@ -148,7 +148,7 @@ export function GlobalSettingsDialog() {
                 {logs.length === 0 ? (
                     <div className="text-center text-muted-foreground py-12 flex flex-col items-center gap-2">
                         <div className="h-12 w-12 rounded-full bg-muted flex items-center justify-center">
-                            <Settings className="h-6 w-6 text-muted-foreground/50" />
+                            <History className="h-6 w-6 text-muted-foreground/50" />
                         </div>
                         <p>No API requests logged yet.</p>
                         <p className="text-xs text-muted-foreground/60">Generate some images to see logs here.</p>
