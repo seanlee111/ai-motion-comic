@@ -35,7 +35,41 @@ export async function POST(req: NextRequest) {
       }
     ];
 
-    images.slice(0, 5).forEach((img: string) => {
+    // Helper to fetch URL and convert to base64
+    const urlToBase64 = async (url: string): Promise<string> => {
+        try {
+            const response = await fetch(url);
+            if (!response.ok) throw new Error(`Failed to fetch image: ${response.statusText}`);
+            const arrayBuffer = await response.arrayBuffer();
+            const buffer = Buffer.from(arrayBuffer);
+            const contentType = response.headers.get("content-type") || "image/jpeg";
+            return `data:${contentType};base64,${buffer.toString("base64")}`;
+        } catch (error) {
+            console.error("Error converting URL to base64:", error);
+            throw error;
+        }
+    };
+
+    // Process images for Analysis (Doubao needs Base64 to avoid timeout)
+    const processedImages: string[] = [];
+    for (const img of images.slice(0, 5)) {
+        if (typeof img === 'string' && img.startsWith('http')) {
+            try {
+                const base64 = await urlToBase64(img);
+                processedImages.push(base64);
+            } catch (e) {
+                console.warn(`Skipping image due to fetch error: ${img}`);
+            }
+        } else {
+            processedImages.push(img);
+        }
+    }
+
+    if (processedImages.length === 0) {
+         return NextResponse.json({ error: "No valid images could be processed" }, { status: 400 });
+    }
+
+    processedImages.forEach((img) => {
         analysisContent.push({
             type: "image_url",
             image_url: { url: img }
