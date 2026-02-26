@@ -16,10 +16,19 @@ export async function POST(req: NextRequest) {
     }
 
     // Construct messages for Vision API
-    const content: any[] = [
-      { 
-        type: "text", 
-        text: `请作为一名专业的 AI 绘画提示词专家，为图片中的角色生成简短、准确、易懂的中文描述。
+    const messages = [
+        {
+            role: "user",
+            content: [
+                ...images.slice(0, 5).map((img: string) => ({
+                    type: "image_url",
+                    image_url: {
+                        url: img
+                    }
+                })),
+                {
+                    type: "text",
+                    text: `请作为一名专业的 AI 绘画提示词专家，为图片中的角色生成简短、准确、易懂的中文描述。
 
 要求：
 1. 风格开门见山：例如“一个3D渲染的卡通风格女性角色”。
@@ -28,65 +37,20 @@ export async function POST(req: NextRequest) {
 4. 语言简洁：字数控制在 100 字左右，不要写成散文，要像一份清单。
 
 参考格式：
-“一个3D渲染的卡通风格女性角色，拥有棕色长卷发并用白色大蝴蝶结固定，身穿粉色V领针织衫、白色百褶短裙、白色长袜和白色厚底凉鞋，内搭白色衬衫并系有黑白图案领带，左手腕佩戴金色手链，呈现正面视角。”` 
-      }
+“一个3D渲染的卡通风格女性角色，拥有棕色长卷发并用白色大蝴蝶结固定，身穿粉色V领针织衫、白色百褶短裙、白色长袜和白色厚底凉鞋，内搭白色衬衫并系有黑白图案领带，左手腕佩戴金色手链，呈现正面视角。”`
+                }
+            ]
+        }
     ];
 
-    // Helper to fetch URL and convert to base64
-    const urlToBase64 = async (url: string): Promise<string> => {
-        try {
-            const response = await fetch(url);
-            if (!response.ok) throw new Error(`Failed to fetch image: ${response.statusText}`);
-            const arrayBuffer = await response.arrayBuffer();
-            const buffer = Buffer.from(arrayBuffer);
-            const contentType = response.headers.get("content-type") || "image/jpeg";
-            return `data:${contentType};base64,${buffer.toString("base64")}`;
-        } catch (error) {
-            console.error("Error converting URL to base64:", error);
-            throw error;
-        }
-    };
-
-    // Use Promise.all to fetch/convert images in parallel
-    const processImage = async (img: string) => {
-        if (typeof img === 'string' && img.startsWith('http')) {
-            try {
-                return await urlToBase64(img);
-            } catch (e) {
-                console.warn(`Skipping image due to fetch error: ${img}`);
-                return null;
-            }
-        }
-        return img;
-    };
-
-    const processedImages = await Promise.all(images.slice(0, 5).map(processImage));
-
-    processedImages.forEach(finalImg => {
-        if (finalImg) {
-            content.push({
-                type: "image_url",
-                image_url: {
-                    url: finalImg, // Now guaranteed to be base64 data URI if it was fetched successfully
-                    detail: "low" // Optimization: Use low detail mode for faster processing if high res isn't critical for general description
-                }
-            });
-        }
-    });
-
     const payload = {
-      model: "doubao-seed-2-0-lite-260215", // User specified model endpoint
-      messages: [
-        {
-          role: "user",
-          content: content
-        }
-      ],
+      model: "ep-20260226195828-rs455", // Updated model endpoint
+      messages: messages,
       stream: false
     };
 
     // Call Volcengine Ark API (Standard OpenAI-compatible endpoint for Ark)
-    const endpoint = "https://ark.cn-beijing.volces.com/api/v3/chat/completions";
+    const endpoint = "https://ark-cn-beijing.bytedance.net/api/v3/chat/completions";
 
     const res = await fetch(endpoint, {
       method: "POST",
