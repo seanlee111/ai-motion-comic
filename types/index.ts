@@ -6,6 +6,11 @@ export interface Asset {
   imageKeys: string[]; // Keys in IndexedDB
   imageUrl?: string;
   imageUrls?: string[]; // Multiple reference images
+  
+  // Character specific view mapping
+  views?: {
+      [key: string]: string; // "Front" | "Side" | "Back" | "Three-Quarter" | "Close-up" -> URL
+  };
 }
 
 export interface GeneratedImage {

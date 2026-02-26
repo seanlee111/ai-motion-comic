@@ -1,7 +1,7 @@
 "use client"
 
 import { useMemo, useRef, useState, useEffect } from "react"
-import { Pencil, Loader2, Upload, X, Sparkles, Wand2 } from "lucide-react"
+import { Pencil, Loader2, Upload, X, Sparkles, Wand2, Plus } from "lucide-react"
 import { Asset } from "@/types"
 import { useStoryStore } from "@/lib/story-store"
 import { Button } from "@/components/ui/button"
@@ -11,8 +11,12 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { toast } from "sonner"
+import { cn } from "@/lib/utils"
 
-const MAX_IMAGES = 5;
+const VIEW_CONFIGS = {
+    3: ["Front", "Side", "Back"],
+    5: ["Front", "Side", "Back", "Three-Quarter", "Close-up"]
+}
 
 const fileToBase64 = (file: File): Promise<string> => {
     return new Promise((resolve, reject) => {
@@ -34,12 +38,13 @@ export function EditAssetDialog({ asset, trigger }: { asset: Asset; trigger?: Re
   const [name, setName] = useState(asset.name)
   const [description, setDescription] = useState(asset.description || "")
   
-  // Image State
-  const [existingImageUrls, setExistingImageUrls] = useState<string[]>([])
-  const [newFiles, setNewFiles] = useState<File[]>([])
-  const [newPreviews, setNewPreviews] = useState<string[]>([])
+  // View State
+  const [viewMode, setViewMode] = useState<3 | 5>(5)
+  // Mapping from View Name -> URL (either existing or new preview)
+  const [viewImages, setViewImages] = useState<Record<string, string>>({})
+  const [newFilesMap, setNewFilesMap] = useState<Record<string, File>>({})
   
-  const fileInputRef = useRef<HTMLInputElement>(null)
+  const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({})
 
   // Initialize state when asset changes or dialog opens
   useEffect(() => {
@@ -48,80 +53,74 @@ export function EditAssetDialog({ asset, trigger }: { asset: Asset; trigger?: Re
           setName(asset.name)
           setDescription(asset.description || "")
           
-          const initialUrls = asset.imageUrls || (asset.imageUrl ? [asset.imageUrl] : [])
-          setExistingImageUrls(initialUrls)
-          setNewFiles([])
-          setNewPreviews([])
+          // Hydrate views from asset.views if exists, otherwise map urls roughly
+          const initialViews: Record<string, string> = {}
+          if (asset.views) {
+              Object.assign(initialViews, asset.views)
+          } else if (asset.imageUrls && asset.imageUrls.length > 0) {
+              // Legacy fallback: assign to slots in order
+              const views = VIEW_CONFIGS[5]
+              asset.imageUrls.slice(0, 5).forEach((url, i) => {
+                  if (views[i]) initialViews[views[i]] = url
+              })
+          } else if (asset.imageUrl) {
+              initialViews["Front"] = asset.imageUrl
+          }
+          setViewImages(initialViews)
+          setNewFilesMap({})
       }
   }, [asset, open])
 
-  const isDirty = useMemo(() => {
-    const originalUrls = asset.imageUrls || (asset.imageUrl ? [asset.imageUrl] : [])
-    const urlsChanged = 
-        existingImageUrls.length !== originalUrls.length ||
-        !existingImageUrls.every((url, i) => url === originalUrls[i]) ||
-        newFiles.length > 0;
-        
-    return type !== asset.type || name !== asset.name || description !== (asset.description || "") || urlsChanged
-  }, [asset, description, existingImageUrls, newFiles.length, name, type])
+  const currentViews = VIEW_CONFIGS[viewMode]
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const selectedFiles = e.target.files
-    if (!selectedFiles || selectedFiles.length === 0) return
+  const handleFileChange = (viewName: string, e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
 
-    const currentTotal = existingImageUrls.length + newFiles.length
-    const remainingSlots = MAX_IMAGES - currentTotal
+    const previewUrl = URL.createObjectURL(file)
     
-    if (remainingSlots <= 0) return
-
-    const filesToAdd: File[] = []
-    const previewsToAdd: string[] = []
-
-    for (let i = 0; i < Math.min(selectedFiles.length, remainingSlots); i++) {
-        const file = selectedFiles[i]
-        filesToAdd.push(file)
-        previewsToAdd.push(URL.createObjectURL(file))
+    setViewImages(prev => ({ ...prev, [viewName]: previewUrl }))
+    setNewFilesMap(prev => ({ ...prev, [viewName]: file }))
+    
+    // Clear input
+    if (fileInputRefs.current[viewName]) {
+        fileInputRefs.current[viewName]!.value = ''
     }
-
-    setNewFiles([...newFiles, ...filesToAdd])
-    setNewPreviews([...newPreviews, ...previewsToAdd])
-    
-    // Reset input
-    if (fileInputRef.current) fileInputRef.current.value = ''
   }
 
-  const removeExistingImage = (index: number) => {
-      setExistingImageUrls(prev => prev.filter((_, i) => i !== index))
-  }
-
-  const removeNewImage = (index: number) => {
-      const updatedFiles = [...newFiles]
-      const updatedPreviews = [...newPreviews]
+  const removeImage = (viewName: string) => {
+      // If it was a new file, revoke object url
+      if (newFilesMap[viewName]) {
+          URL.revokeObjectURL(viewImages[viewName])
+      }
       
-      URL.revokeObjectURL(updatedPreviews[index])
+      const newImages = { ...viewImages }
+      delete newImages[viewName]
+      setViewImages(newImages)
       
-      updatedFiles.splice(index, 1)
-      updatedPreviews.splice(index, 1)
-      
-      setNewFiles(updatedFiles)
-      setNewPreviews(updatedPreviews)
+      const newFiles = { ...newFilesMap }
+      delete newFiles[viewName]
+      setNewFilesMap(newFiles)
   }
 
   const handleSmartDescription = async () => {
-    if (existingImageUrls.length === 0 && newFiles.length === 0) {
+    const activeImages = Object.values(viewImages);
+    if (activeImages.length === 0) {
         toast.error("请先上传或保留参考图片");
         return;
     }
     
     setIsDescribing(true);
     try {
-        // Prepare images: existing URLs + base64 of new files
-        const imagesToSend = [...existingImageUrls];
-        
-        if (newFiles.length > 0) {
-            const base64New = await Promise.all(newFiles.map(fileToBase64));
-            imagesToSend.push(...base64New);
-        }
+        // Convert any new files to base64 for API
+        const imagesToSend = await Promise.all(activeImages.map(async (url) => {
+            // Find if this URL corresponds to a File
+            const viewEntry = Object.entries(viewImages).find(([_, u]) => u === url);
+            if (viewEntry && newFilesMap[viewEntry[0]]) {
+                return await fileToBase64(newFilesMap[viewEntry[0]]);
+            }
+            return url;
+        }));
         
         const res = await fetch("/api/ai/describe", {
             method: "POST",
@@ -136,7 +135,7 @@ export function EditAssetDialog({ asset, trigger }: { asset: Asset; trigger?: Re
         
         const data = await res.json();
         if (data.description) {
-            setDescription(prev => prev ? prev + "\n" + data.description : data.description);
+            setDescription(data.description); // Replace or append? Usually replace for fresh generation
             toast.success("智能描述生成成功");
         }
     } catch (e: any) {
@@ -147,32 +146,38 @@ export function EditAssetDialog({ asset, trigger }: { asset: Asset; trigger?: Re
   };
 
   const handleSmartDraw = async () => {
-      const totalImages = existingImageUrls.length + newFiles.length;
-      if (totalImages >= MAX_IMAGES) {
-          toast.error("已达到最大图片数量 (5张)");
+      const activeViews = Object.keys(viewImages);
+      if (activeViews.length === 0) {
+          toast.error("请先至少上传一张参考图片");
           return;
       }
-      if (totalImages === 0) {
-          toast.error("请先至少上传一张参考图片");
+      
+      const missingViews = currentViews.filter(v => !viewImages[v]);
+      if (missingViews.length === 0) {
+          toast.info("所有视图已存在，无需补全");
           return;
       }
 
       setIsDrawing(true);
       try {
-          // 1. Prepare images for API (Base64/URLs)
-          const imagesToSend = [...existingImageUrls];
-          if (newFiles.length > 0) {
-              const base64New = await Promise.all(newFiles.map(fileToBase64));
-              imagesToSend.push(...base64New);
-          }
+          // Prepare reference images map { "Front": "base64/url" }
+          const references: Record<string, string> = {};
+          
+          await Promise.all(Object.entries(viewImages).map(async ([v, url]) => {
+              if (newFilesMap[v]) {
+                  references[v] = await fileToBase64(newFilesMap[v]);
+              } else {
+                  references[v] = url;
+              }
+          }));
 
-          // 2. Call the smart draw API
           const res = await fetch("/api/ai/complete-views", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({ 
-                  images: imagesToSend,
-                  description: description, // Use current description if available as context
+                  references,
+                  missingViews,
+                  description: description,
                   assetType: type
               })
           });
@@ -183,12 +188,9 @@ export function EditAssetDialog({ asset, trigger }: { asset: Asset; trigger?: Re
           }
 
           const data = await res.json();
-          if (data.newImages && data.newImages.length > 0) {
-              // Append new images (URLs) to existingImageUrls list directly since they are URLs
-              setExistingImageUrls(prev => [...prev, ...data.newImages]);
-              toast.success(`成功生成 ${data.newImages.length} 张新视图`);
-          } else {
-              toast.info("未生成新视图，可能已有足够的视图或无法识别。");
+          if (data.generatedViews) {
+              setViewImages(prev => ({ ...prev, ...data.generatedViews }));
+              toast.success(`成功补全 ${Object.keys(data.generatedViews).length} 个视图`);
           }
 
       } catch (e: any) {
@@ -208,13 +210,30 @@ export function EditAssetDialog({ asset, trigger }: { asset: Asset; trigger?: Re
       formData.append("name", name)
       formData.append("description", description)
       
-      // Append existing URLs to keep
-      formData.append("existingImageUrls", JSON.stringify(existingImageUrls))
+      // Serialize the views map (keys only, values will be updated URLs)
+      // Actually we need to upload new files and get URLs back, then store the map.
+      // The API expects `files` and handles them.
+      // We need a way to tell API which file belongs to which view.
+      // Strategy: Send `viewsMetadata` JSON: { "Front": "existing_url", "Side": "file_index_0" }
       
-      // Append new files
-      newFiles.forEach(file => {
-          formData.append("files", file)
-      })
+      const viewsMetadata: Record<string, string> = {};
+      const filesToUpload: File[] = [];
+      
+      Object.entries(viewImages).forEach(([view, url]) => {
+          if (newFilesMap[view]) {
+              viewsMetadata[view] = `file:${filesToUpload.length}`;
+              filesToUpload.push(newFilesMap[view]);
+          } else {
+              viewsMetadata[view] = url;
+          }
+      });
+      
+      formData.append("viewsMetadata", JSON.stringify(viewsMetadata));
+      filesToUpload.forEach(f => formData.append("files", f));
+      
+      // Also maintain legacy arrays for compatibility
+      const legacyUrls = Object.values(viewImages).filter(url => !url.startsWith("blob:"));
+      formData.append("existingImageUrls", JSON.stringify(legacyUrls));
 
       const res = await fetch("/api/assets", { method: "PATCH", body: formData })
       if (!res.ok) {
@@ -232,8 +251,6 @@ export function EditAssetDialog({ asset, trigger }: { asset: Asset; trigger?: Re
     }
   }
 
-  const totalImages = existingImageUrls.length + newFiles.length
-
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
@@ -245,60 +262,77 @@ export function EditAssetDialog({ asset, trigger }: { asset: Asset; trigger?: Re
           </Button>
         )}
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[600px] p-0 overflow-hidden bg-[#1a1a1a] border-[#333] text-white">
+      <DialogContent className="sm:max-w-[800px] p-0 overflow-hidden bg-[#1a1a1a] border-[#333] text-white">
         <DialogHeader className="p-6 pb-2">
-          <DialogTitle className="text-xl font-bold">编辑主体</DialogTitle>
+          <div className="flex items-center justify-between">
+            <DialogTitle className="text-xl font-bold">编辑主体</DialogTitle>
+            {type === 'character' && (
+                <div className="flex items-center gap-2">
+                    <span className="text-xs text-gray-400">视图模式:</span>
+                    <Select value={viewMode.toString()} onValueChange={(v) => setViewMode(parseInt(v) as 3 | 5)}>
+                        <SelectTrigger className="h-7 w-[100px] bg-[#2a2a2a] border-0 text-xs">
+                            <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent className="bg-[#2a2a2a] border-[#444] text-white">
+                            <SelectItem value="3">三视图</SelectItem>
+                            <SelectItem value="5">五视图</SelectItem>
+                        </SelectContent>
+                    </Select>
+                </div>
+            )}
+          </div>
         </DialogHeader>
 
         <div className="p-6 pt-2 space-y-6">
-          {/* Image Preview Strip */}
-          <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-thin scrollbar-thumb-gray-700 scrollbar-track-transparent items-center">
-             {/* Existing Images */}
-             {existingImageUrls.map((url, idx) => (
-                 <div key={`exist-${idx}`} className="relative flex-none w-[120px] aspect-[3/4] rounded-lg overflow-hidden bg-[#2a2a2a] group border border-transparent hover:border-gray-500 transition-colors">
-                     <img src={url} className="w-full h-full object-cover" />
-                     <button 
-                        onClick={() => removeExistingImage(idx)}
-                        className="absolute top-1 right-1 bg-black/60 rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-500/80"
-                     >
-                         <X className="h-3 w-3 text-white" />
-                     </button>
-                 </div>
-             ))}
+          {/* View Slots Grid */}
+          <div className="grid grid-cols-5 gap-3">
+             {currentViews.map((viewName) => {
+                 const hasImage = !!viewImages[viewName];
+                 return (
+                     <div key={viewName} className="space-y-2 flex flex-col">
+                         <div className="text-[10px] text-center text-gray-400 uppercase tracking-wider font-semibold">{viewName}</div>
+                         <div className="relative aspect-[3/4] w-full rounded-lg overflow-hidden bg-[#2a2a2a] group border border-transparent hover:border-gray-500 transition-colors flex items-center justify-center">
+                             {hasImage ? (
+                                 <>
+                                    <img src={viewImages[viewName]} className="w-full h-full object-cover" />
+                                    <button 
+                                        onClick={() => removeImage(viewName)}
+                                        className="absolute top-1 right-1 bg-black/60 rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-500/80"
+                                    >
+                                        <X className="h-3 w-3 text-white" />
+                                    </button>
+                                 </>
+                             ) : (
+                                 <div 
+                                    onClick={() => fileInputRefs.current[viewName]?.click()}
+                                    className="flex flex-col items-center justify-center w-full h-full cursor-pointer hover:bg-[#333] transition-colors gap-2 text-gray-500 hover:text-gray-300"
+                                 >
+                                     <Plus className="h-6 w-6" />
+                                     <span className="text-[10px]">上传</span>
+                                 </div>
+                             )}
+                             
+                             <input
+                                type="file"
+                                ref={el => { fileInputRefs.current[viewName] = el }}
+                                className="hidden"
+                                accept="image/*"
+                                onChange={(e) => handleFileChange(viewName, e)}
+                             />
+                         </div>
+                     </div>
+                 )
+             })}
              
-             {/* New Images */}
-             {newPreviews.map((url, idx) => (
-                 <div key={`new-${idx}`} className="relative flex-none w-[120px] aspect-[3/4] rounded-lg overflow-hidden bg-[#2a2a2a] group border border-transparent hover:border-gray-500 transition-colors">
-                     <img src={url} className="w-full h-full object-cover" />
-                     <button 
-                        onClick={() => removeNewImage(idx)}
-                        className="absolute top-1 right-1 bg-black/60 rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-500/80"
-                     >
-                         <X className="h-3 w-3 text-white" />
-                     </button>
-                 </div>
-             ))}
-
-             {/* Add Button */}
-             {totalImages < MAX_IMAGES && (
-                 <div 
-                    onClick={() => fileInputRef.current?.click()}
-                    className="flex-none w-[120px] aspect-[3/4] rounded-lg bg-[#2a2a2a] border border-dashed border-gray-600 flex flex-col items-center justify-center cursor-pointer hover:bg-[#333] transition-colors text-gray-400 gap-2"
-                 >
-                     <Upload className="h-6 w-6" />
-                     <span className="text-xs">添加图片</span>
-                 </div>
-             )}
-             
-             {/* Smart Draw Button (Only visible if < 5 images) */}
-             {totalImages > 0 && totalImages < MAX_IMAGES && type === 'character' && (
-                 <div className="ml-2 flex flex-col justify-center h-full">
+             {/* Smart Draw Action (If missing views exist) */}
+             {type === 'character' && Object.keys(viewImages).length > 0 && Object.keys(viewImages).length < currentViews.length && (
+                 <div className="flex flex-col justify-end pb-1 items-center">
                      <Button 
                         variant="ghost" 
                         size="icon" 
                         onClick={handleSmartDraw}
                         disabled={isDrawing}
-                        className={`h-10 w-10 rounded-full border transition-all duration-1000 relative overflow-hidden ${
+                        className={`h-12 w-12 rounded-full border transition-all duration-1000 relative overflow-hidden ${
                             isDrawing 
                             ? "bg-transparent border-transparent text-white" 
                             : "bg-blue-600/20 text-blue-400 hover:bg-blue-600/30 hover:text-blue-300 border-blue-500/30"
@@ -309,26 +343,17 @@ export function EditAssetDialog({ asset, trigger }: { asset: Asset; trigger?: Re
                              <>
                                 <div className="absolute inset-0 bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 animate-[spin_3s_linear_infinite] opacity-50 blur-sm" />
                                 <div className="absolute inset-[2px] bg-[#1a1a1a] rounded-full z-10" />
-                                <Loader2 className="h-5 w-5 animate-[spin_3s_linear_infinite] relative z-20 text-blue-400" />
+                                <Loader2 className="h-6 w-6 animate-[spin_3s_linear_infinite] relative z-20 text-blue-400" />
                              </>
                          ) : (
-                             <Wand2 className="h-5 w-5" />
+                             <Wand2 className="h-6 w-6" />
                          )}
                      </Button>
-                     <span className={`text-[10px] mt-1 text-center font-medium transition-colors duration-1000 ${isDrawing ? "text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-400 animate-pulse" : "text-blue-400"}`}>
-                        {isDrawing ? "绘制中..." : "智能补全"}
+                     <span className={`text-[10px] mt-2 text-center font-medium transition-colors duration-1000 ${isDrawing ? "text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-400 animate-pulse" : "text-blue-400"}`}>
+                        {isDrawing ? "绘制中..." : "一键补全"}
                      </span>
                  </div>
              )}
-
-             <input
-              type="file"
-              ref={fileInputRef}
-              className="hidden"
-              accept="image/*"
-              multiple
-              onChange={handleFileChange}
-            />
           </div>
 
           <div className="grid grid-cols-1 gap-6">
@@ -370,7 +395,7 @@ export function EditAssetDialog({ asset, trigger }: { asset: Asset; trigger?: Re
                       <Button 
                         size="sm"
                         onClick={handleSmartDescription}
-                        disabled={isDescribing || totalImages === 0}
+                        disabled={isDescribing || Object.keys(viewImages).length === 0}
                         className={`absolute bottom-3 right-3 border-0 rounded-full h-8 px-3 text-xs gap-1.5 transition-all duration-500 z-20 overflow-hidden ${
                             isDescribing 
                             ? "bg-transparent text-white ring-1 ring-white/20" 

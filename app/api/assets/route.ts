@@ -13,6 +13,7 @@ type RemoteAsset = {
   imageKeys: string[];
   imageUrl?: string;
   imageUrls?: string[];
+  views?: Record<string, string>;
 };
 
 const META_PREFIX = "assets/meta/";
@@ -202,7 +203,26 @@ export async function PATCH(req: NextRequest) {
         await del(urlsToDelete);
     }
 
+    // Handle view mapping
+    const viewsMetadataRaw = formData.get("viewsMetadata") as string | null;
+    let views: Record<string, string> | undefined;
+    if (viewsMetadataRaw) {
+        try {
+            const rawMap = JSON.parse(viewsMetadataRaw) as Record<string, string>;
+            // Map file placeholders to new URLs
+            views = {};
+            let fileIndex = 0;
+            // Need to process new files first to get their URLs
+            // We can only map after we have finalImageUrls.
+            // Wait, we need to know WHICH file corresponds to WHICH view.
+            // The frontend sends `file:0` for the first file in `files` array.
+            
+            // Let's defer this mapping until after file upload.
+        } catch {}
+    }
+
     const finalImageUrls = [...existingImageUrls];
+    const newFileUrls: string[] = [];
 
     // Upload new files
     for (let i = 0; i < files.length; i++) {
@@ -216,6 +236,26 @@ export async function PATCH(req: NextRequest) {
             contentType: file.type || "application/octet-stream",
         });
         finalImageUrls.push(blob.url);
+        newFileUrls.push(blob.url);
+    }
+
+    // Now reconstruct the views map
+    if (viewsMetadataRaw) {
+        try {
+            const rawMap = JSON.parse(viewsMetadataRaw) as Record<string, string>;
+            views = {};
+            
+            Object.entries(rawMap).forEach(([viewName, val]) => {
+                if (val.startsWith("file:")) {
+                    const index = parseInt(val.split(":")[1]);
+                    if (newFileUrls[index]) {
+                        views![viewName] = newFileUrls[index];
+                    }
+                } else {
+                    views![viewName] = val;
+                }
+            });
+        } catch {}
     }
 
     const updated: RemoteAsset = {
@@ -227,6 +267,7 @@ export async function PATCH(req: NextRequest) {
       imageKeys: [],
       imageUrl: finalImageUrls.length > 0 ? finalImageUrls[0] : undefined,
       imageUrls: finalImageUrls,
+      views,
     };
 
     await put(`${META_PREFIX}${id}.json`, JSON.stringify(updated), {
