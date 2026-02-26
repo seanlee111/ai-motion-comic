@@ -291,7 +291,7 @@ export function EditAssetDialog({ asset, trigger }: { asset: Asset; trigger?: Re
              )}
              
              {/* Smart Draw Button (Only visible if < 5 images) */}
-             {totalImages > 0 && totalImages < MAX_IMAGES && (
+             {totalImages > 0 && totalImages < MAX_IMAGES && type === 'character' && (
                  <div className="ml-2 flex flex-col justify-center h-full">
                      <Button 
                         variant="ghost" 
