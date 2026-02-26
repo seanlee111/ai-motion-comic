@@ -44,10 +44,17 @@ export async function POST(req: NextRequest) {
         return await urlToBase64(img);
     };
 
-    // Prepare references: Jimeng supports multiple reference images in `image_urls`.
-    // We will use ALL available reference images to improve consistency.
-    const referenceUrls = Object.values(references) as string[];
-    const referenceBase64s = await Promise.all(referenceUrls.slice(0, 3).map(getBase64ForGen)); // Limit to 3 refs to avoid payload limits
+    // Prepare references: Jimeng I2I supports one reference image as base (usually).
+    // If we want consistency, we should use the "Front" view if available, or the first available.
+    // The `references` object keys are view names (Front, Side, etc).
+    
+    let primaryRefUrl = references["Front"];
+    if (!primaryRefUrl) {
+        // Fallback to first available
+        primaryRefUrl = Object.values(references)[0] as string;
+    }
+    
+    const referenceBase64s = [await getBase64ForGen(primaryRefUrl)]; // Only use one primary reference for I2I base
 
     const generatedViews: Record<string, string> = {};
 
@@ -70,11 +77,10 @@ export async function POST(req: NextRequest) {
         try {
             const viewNameCN = VIEW_MAP[view] || view;
             
-            // Prompt engineered for consistency in Chinese as requested
-            // Using "图生图" logic, so we need to emphasize reference.
-            const prompt = `(角色设定图). 请严格参考原图的角色形象，保持面部、发型、服装、体型完全一致。绘制该角色的 ${viewNameCN}。\n${userDescription}`;
+            // Prompt engineered: NO userDescription used to avoid conflict.
+            // Strictly follow the reference image.
+            const prompt = `参考该图片。严格保持角色形象、面部、发型、服装、配饰、体型与原图完全一致。生成该角色的${viewNameCN}。单人，白色背景，无多余人物。仅改变视角，不做其他修改。`;
             
-            // Construct payload matching lib/ai-providers/jimeng.ts generateArk()
             const payload = {
                 model: modelId,
                 prompt: prompt,
@@ -83,16 +89,14 @@ export async function POST(req: NextRequest) {
                 return_url: true,
                 stream: false,
                 watermark: false,
-                image_urls: referenceBase64s, // Pass multiple references!
-                // Critical parameters for I2I consistency:
-                strength: 0.65, // 0.65 means keep 35% of original structure, change 65%. 
-                                // Wait, in standard SD: 
-                                // Strength 1.0 = full destruction (ignore ref). 
-                                // Strength 0.0 = no change.
-                                // For view change, we need to change structure significantly (turn head), but keep identity.
-                                // 0.65-0.75 is usually good for pose change while keeping style.
-                                // If user says "completely different", maybe strength was default (1.0).
-                scale: 3.5,     // Guidance scale
+                image_urls: referenceBase64s, 
+                // Strength adjustment:
+                // If the user says "completely different", maybe strength 0.65 is still too high (too much change allowed).
+                // Or maybe too low (too much original structure kept).
+                // For changing view from Front to Side, we need structure change. 0.65 is standard.
+                // But Prompt is key. Removed userDescription.
+                strength: 0.65, 
+                scale: 3.5,     
                 steps: 25,
                 sequential_image_generation: "auto",
                 sequential_image_generation_options: { max_images: 1 }
