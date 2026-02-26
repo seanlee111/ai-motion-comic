@@ -12,6 +12,7 @@ type RemoteAsset = {
   description: string;
   imageKeys: string[];
   imageUrl?: string;
+  imageUrls?: string[];
 };
 
 const META_PREFIX = "assets/meta/";
@@ -46,7 +47,16 @@ export async function POST(req: NextRequest) {
     const type = formData.get("type") as AssetType | null;
     const name = formData.get("name") as string | null;
     const description = (formData.get("description") as string | null) || "";
-    const file = formData.get("file") as File | null;
+    
+    // Support multiple files
+    const files = formData.getAll("files") as File[];
+    // Backward compatibility for single file
+    const singleFile = formData.get("file") as File | null;
+    
+    const allFiles = [...files];
+    if (singleFile && !files.includes(singleFile)) {
+        allFiles.push(singleFile);
+    }
 
     if (!type || !name) {
       return NextResponse.json(
@@ -56,21 +66,22 @@ export async function POST(req: NextRequest) {
     }
 
     const id = crypto.randomUUID();
-    let imageUrl: string | undefined;
+    const imageUrls: string[] = [];
 
-    if (file) {
-      const ext =
-        file.type === "image/png"
-          ? "png"
-          : file.type === "image/jpeg"
-            ? "jpg"
-            : "bin";
+    // Upload all files
+    for (let i = 0; i < allFiles.length; i++) {
+        const file = allFiles[i];
+        if (!file.size) continue;
 
-      const blob = await put(`${IMAGE_PREFIX}${id}.${ext}`, file, {
-        access: "public",
-        contentType: file.type || "application/octet-stream",
-      });
-      imageUrl = blob.url;
+        const ext = file.type === "image/png" ? "png" : 
+                    file.type === "image/jpeg" ? "jpg" : "bin";
+        
+        // Unique name for each image
+        const blob = await put(`${IMAGE_PREFIX}${id}_${i}_${Date.now()}.${ext}`, file, {
+            access: "public",
+            contentType: file.type || "application/octet-stream",
+        });
+        imageUrls.push(blob.url);
     }
 
     const asset: RemoteAsset = {
@@ -79,7 +90,8 @@ export async function POST(req: NextRequest) {
       name,
       description,
       imageKeys: [],
-      imageUrl,
+      imageUrl: imageUrls.length > 0 ? imageUrls[0] : undefined,
+      imageUrls,
     };
 
     const metaBlob = await put(`${META_PREFIX}${id}.json`, JSON.stringify(asset), {
@@ -116,8 +128,13 @@ export async function DELETE(req: NextRequest) {
     const meta = metaRes.ok ? ((await metaRes.json()) as RemoteAsset) : undefined;
 
     await del(metaBlob.url);
-    if (meta?.imageUrl) {
-      await del(meta.imageUrl);
+    
+    // Delete all associated images
+    if (meta?.imageUrls && meta.imageUrls.length > 0) {
+        // Blobs delete accepts array of URLs? No, del accepts string or string[]
+        await del(meta.imageUrls);
+    } else if (meta?.imageUrl) {
+        await del(meta.imageUrl);
     }
 
     return NextResponse.json({ ok: true });
@@ -136,7 +153,28 @@ export async function PATCH(req: NextRequest) {
     const type = formData.get("type") as AssetType | null;
     const name = formData.get("name") as string | null;
     const description = (formData.get("description") as string | null) || "";
-    const file = formData.get("file") as File | null;
+    
+    // New files
+    const files = formData.getAll("files") as File[];
+    // Single file legacy
+    const singleFile = formData.get("file") as File | null;
+    if (singleFile && !files.includes(singleFile)) {
+        files.push(singleFile);
+    }
+
+    // Existing URLs to keep
+    const existingImageUrlsRaw = formData.getAll("existingImageUrls") as string[];
+    // Sometimes it might come as a JSON string if client stringifies it
+    let existingImageUrls: string[] = [];
+    existingImageUrlsRaw.forEach(val => {
+        try {
+            const parsed = JSON.parse(val);
+            if (Array.isArray(parsed)) existingImageUrls.push(...parsed);
+            else existingImageUrls.push(val);
+        } catch {
+            existingImageUrls.push(val);
+        }
+    });
 
     if (!id) {
       return NextResponse.json({ error: "Missing id" }, { status: 400 });
@@ -154,24 +192,29 @@ export async function PATCH(req: NextRequest) {
       return NextResponse.json({ error: "Asset not found" }, { status: 404 });
     }
 
-    let imageUrl = existing.imageUrl;
+    // Determine images to delete (those in existing.imageUrls but not in existingImageUrls)
+    // Note: This logic assumes existingImageUrls contains ONLY valid URLs that were already in the asset.
+    const oldUrls = existing.imageUrls || (existing.imageUrl ? [existing.imageUrl] : []);
+    const urlsToDelete = oldUrls.filter(url => !existingImageUrls.includes(url));
+    
+    if (urlsToDelete.length > 0) {
+        await del(urlsToDelete);
+    }
 
-    if (file) {
-      if (imageUrl) {
-        await del(imageUrl);
-      }
-      const ext =
-        file.type === "image/png"
-          ? "png"
-          : file.type === "image/jpeg"
-            ? "jpg"
-            : "bin";
+    const finalImageUrls = [...existingImageUrls];
 
-      const blob = await put(`${IMAGE_PREFIX}${id}.${ext}`, file, {
-        access: "public",
-        contentType: file.type || "application/octet-stream",
-      });
-      imageUrl = blob.url;
+    // Upload new files
+    for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        if (!file.size) continue;
+        const ext = file.type === "image/png" ? "png" : 
+                    file.type === "image/jpeg" ? "jpg" : "bin";
+        
+        const blob = await put(`${IMAGE_PREFIX}${id}_new_${i}_${Date.now()}.${ext}`, file, {
+            access: "public",
+            contentType: file.type || "application/octet-stream",
+        });
+        finalImageUrls.push(blob.url);
     }
 
     const updated: RemoteAsset = {
@@ -180,7 +223,9 @@ export async function PATCH(req: NextRequest) {
       type: type || existing.type,
       name: name || existing.name,
       description,
-      imageUrl,
+      imageKeys: [],
+      imageUrl: finalImageUrls.length > 0 ? finalImageUrls[0] : undefined,
+      imageUrls: finalImageUrls,
     };
 
     await put(`${META_PREFIX}${id}.json`, JSON.stringify(updated), {

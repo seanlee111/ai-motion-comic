@@ -11,26 +11,35 @@ import { EditAssetDialog } from "./EditAssetDialog"
 function AssetCard({ asset }: { asset: any }) {
   const { deleteAsset } = useStoryStore()
 
+  const coverImage = asset.imageUrls?.[0] || asset.imageUrl;
+  const count = asset.imageUrls?.length || (asset.imageUrl ? 1 : 0);
+
   return (
-    <Card className="relative overflow-hidden group">
+    <Card className="relative overflow-hidden group border-0 bg-transparent shadow-none hover:bg-muted/50 transition-colors rounded-lg">
       <EditAssetDialog
         asset={asset}
         trigger={
-          <div className="aspect-square w-full bg-muted cursor-pointer">
-            {asset.imageUrl ? (
-              <img src={asset.imageUrl} alt={asset.name} className="h-full w-full object-cover" />
+          <div className="aspect-[3/4] w-full bg-muted rounded-md overflow-hidden relative cursor-pointer border border-border/50 hover:border-primary/50 transition-colors">
+            {coverImage ? (
+              <img src={coverImage} alt={asset.name} className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" />
             ) : (
-              <div className="flex h-full w-full items-center justify-center text-xs text-muted-foreground">
+              <div className="flex h-full w-full items-center justify-center text-xs text-muted-foreground bg-muted/30">
                 无图片
               </div>
             )}
+            {count > 1 && (
+                <div className="absolute bottom-1 right-1 bg-black/60 text-white text-[10px] px-1.5 py-0.5 rounded-sm backdrop-blur-sm">
+                    +{count - 1}
+                </div>
+            )}
+            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors" />
           </div>
         }
       />
-      <CardContent className="p-2">
-        <h3 className="truncate text-sm font-semibold">{asset.name}</h3>
-        <p className="truncate text-xs text-muted-foreground">{asset.type}</p>
-      </CardContent>
+      <div className="pt-2 px-0.5">
+        <h3 className="truncate text-xs font-medium leading-none mb-1">{asset.name}</h3>
+        <p className="truncate text-[10px] text-muted-foreground">{asset.type === 'character' ? '角色' : '场景'}</p>
+      </div>
       <div className="absolute top-1 right-1 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
         <EditAssetDialog asset={asset} />
         <Button 
@@ -83,24 +92,24 @@ export function AssetLibrary({ className }: { className?: string }) {
       <div className="flex-1 overflow-y-auto p-4">
         <div className="mb-6">
           <h3 className="mb-2 text-sm font-medium text-muted-foreground">角色 ({characters.length})</h3>
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
             {characters.map(asset => (
               <AssetCard key={asset.id} asset={asset} />
             ))}
             {loading && (
-              <div className="text-xs text-muted-foreground">加载中...</div>
+              <div className="text-xs text-muted-foreground col-span-full text-center py-4">加载中...</div>
             )}
           </div>
         </div>
 
         <div>
           <h3 className="mb-2 text-sm font-medium text-muted-foreground">场景 ({scenes.length})</h3>
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
             {scenes.map(asset => (
               <AssetCard key={asset.id} asset={asset} />
             ))}
             {loading && (
-              <div className="text-xs text-muted-foreground">加载中...</div>
+              <div className="text-xs text-muted-foreground col-span-full text-center py-4">加载中...</div>
             )}
           </div>
         </div>

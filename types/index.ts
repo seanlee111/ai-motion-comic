@@ -5,6 +5,7 @@ export interface Asset {
   description: string;
   imageKeys: string[]; // Keys in IndexedDB
   imageUrl?: string;
+  imageUrls?: string[]; // Multiple reference images
 }
 
 export interface GeneratedImage {
