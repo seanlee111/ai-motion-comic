@@ -47,25 +47,32 @@ export async function POST(req: NextRequest) {
         }
     };
 
-    // Add up to 5 images, converting URLs to Base64 if needed
-    for (const img of images.slice(0, 5)) {
-        let finalImg = img;
+    // Use Promise.all to fetch/convert images in parallel
+    const processImage = async (img: string) => {
         if (typeof img === 'string' && img.startsWith('http')) {
             try {
-                finalImg = await urlToBase64(img);
+                return await urlToBase64(img);
             } catch (e) {
                 console.warn(`Skipping image due to fetch error: ${img}`);
-                continue;
+                return null;
             }
         }
+        return img;
+    };
 
-        content.push({
-            type: "image_url",
-            image_url: {
-                url: finalImg // Now guaranteed to be base64 data URI if it was fetched successfully
-            }
-        });
-    }
+    const processedImages = await Promise.all(images.slice(0, 5).map(processImage));
+
+    processedImages.forEach(finalImg => {
+        if (finalImg) {
+            content.push({
+                type: "image_url",
+                image_url: {
+                    url: finalImg, // Now guaranteed to be base64 data URI if it was fetched successfully
+                    detail: "low" // Optimization: Use low detail mode for faster processing if high res isn't critical for general description
+                }
+            });
+        }
+    });
 
     const payload = {
       model: "doubao-seed-2-0-lite-260215", // User specified model endpoint
