@@ -144,12 +144,16 @@ export async function POST(req: NextRequest) {
     const modelId = "doubao-seedream-4-5-251128";
 
     // Run sequentially
+    let lastError = "";
+    
     for (const view of viewsToGenerate) {
         try {
             // Prompt engineered as requested
             const prompt = `参考该图片，补充完整五视图的意思。绘制该角色的 ${view} 视图 (View)。\n${finalDescription}`;
             
             // Construct payload matching lib/ai-providers/jimeng.ts generateArk()
+            // Optimized: Remove redundant 'image' field to save payload size (Base64 is large)
+            // Ark standard uses 'image_urls'
             const payload = {
                 model: modelId,
                 prompt: prompt,
@@ -158,9 +162,8 @@ export async function POST(req: NextRequest) {
                 return_url: true,
                 stream: false,
                 watermark: false,
-                // Image reference fields
                 image_urls: [refBase64],
-                image: [refBase64], // Fallback/Compat field used in provider
+                // image: [refBase64], // Removed to avoid payload duplication
                 sequential_image_generation: "auto",
                 sequential_image_generation_options: { max_images: 1 }
             };
@@ -177,10 +180,12 @@ export async function POST(req: NextRequest) {
             if (!genRes.ok) {
                 const errText = await genRes.text();
                 console.error(`Jimeng Generation failed for ${view}: ${errText}`);
+                lastError = errText;
                 // Try to parse error for better message
                 try {
                     const errJson = JSON.parse(errText);
                     if (errJson.error?.message) {
+                        lastError = errJson.error.message;
                         console.error(`Jimeng Error Message: ${errJson.error.message}`);
                     }
                 } catch {}
@@ -194,9 +199,14 @@ export async function POST(req: NextRequest) {
                 generatedUrls.push(genData.data[0].url);
             }
 
-        } catch (e) {
+        } catch (e: any) {
             console.error(`Failed to generate view ${view}`, e);
+            lastError = e.message;
         }
+    }
+    
+    if (generatedUrls.length === 0 && lastError) {
+         return NextResponse.json({ error: `Failed to generate views: ${lastError}` }, { status: 500 });
     }
     
     // ...
