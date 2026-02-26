@@ -18,6 +18,14 @@ const VIEW_CONFIGS = {
     5: ["Front", "Side", "Back", "Three-Quarter", "Close-up"]
 }
 
+const VIEW_LABELS: Record<string, string> = {
+    "Front": "正视图",
+    "Side": "侧视图",
+    "Back": "后视图",
+    "Three-Quarter": "3/4侧视图",
+    "Close-up": "特写"
+}
+
 const fileToBase64 = (file: File): Promise<string> => {
     return new Promise((resolve, reject) => {
         const reader = new FileReader();
@@ -290,7 +298,7 @@ export function EditAssetDialog({ asset, trigger }: { asset: Asset; trigger?: Re
                  const hasImage = !!viewImages[viewName];
                  return (
                      <div key={viewName} className="space-y-2 flex flex-col">
-                         <div className="text-[10px] text-center text-gray-400 uppercase tracking-wider font-semibold">{viewName}</div>
+                         <div className="text-[10px] text-center text-gray-400 uppercase tracking-wider font-semibold">{VIEW_LABELS[viewName] || viewName}</div>
                          <div className="relative aspect-[3/4] w-full rounded-lg overflow-hidden bg-[#2a2a2a] group border border-transparent hover:border-gray-500 transition-colors flex items-center justify-center">
                              {hasImage ? (
                                  <>
