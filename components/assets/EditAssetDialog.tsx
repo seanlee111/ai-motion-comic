@@ -1,7 +1,7 @@
 "use client"
 
 import { useMemo, useRef, useState, useEffect } from "react"
-import { Pencil, Loader2, Upload, X, Sparkles } from "lucide-react"
+import { Pencil, Loader2, Upload, X, Sparkles, Wand2 } from "lucide-react"
 import { Asset } from "@/types"
 import { useStoryStore } from "@/lib/story-store"
 import { Button } from "@/components/ui/button"
@@ -28,6 +28,7 @@ export function EditAssetDialog({ asset, trigger }: { asset: Asset; trigger?: Re
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
   const [isDescribing, setIsDescribing] = useState(false)
+  const [isDrawing, setIsDrawing] = useState(false)
   
   const [type, setType] = useState<"character" | "scene">(asset.type)
   const [name, setName] = useState(asset.name)
@@ -145,6 +146,58 @@ export function EditAssetDialog({ asset, trigger }: { asset: Asset; trigger?: Re
     }
   };
 
+  const handleSmartDraw = async () => {
+      const totalImages = existingImageUrls.length + newFiles.length;
+      if (totalImages >= MAX_IMAGES) {
+          toast.error("已达到最大图片数量 (5张)");
+          return;
+      }
+      if (totalImages === 0) {
+          toast.error("请先至少上传一张参考图片");
+          return;
+      }
+
+      setIsDrawing(true);
+      try {
+          // 1. Prepare images for API (Base64/URLs)
+          const imagesToSend = [...existingImageUrls];
+          if (newFiles.length > 0) {
+              const base64New = await Promise.all(newFiles.map(fileToBase64));
+              imagesToSend.push(...base64New);
+          }
+
+          // 2. Call the smart draw API
+          const res = await fetch("/api/ai/complete-views", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ 
+                  images: imagesToSend,
+                  description: description, // Use current description if available as context
+                  assetType: type
+              })
+          });
+
+          if (!res.ok) {
+              const err = await res.json();
+              throw new Error(err.error || "智能绘图失败");
+          }
+
+          const data = await res.json();
+          if (data.newImages && data.newImages.length > 0) {
+              // Append new images (URLs) to existingImageUrls list directly since they are URLs
+              setExistingImageUrls(prev => [...prev, ...data.newImages]);
+              toast.success(`成功生成 ${data.newImages.length} 张新视图`);
+          } else {
+              toast.info("未生成新视图，可能已有足够的视图或无法识别。");
+          }
+
+      } catch (e: any) {
+          toast.error(e.message);
+      } finally {
+          setIsDrawing(false);
+      }
+  };
+
   const handleSubmit = async () => {
     if (!name) return
     setLoading(true)
@@ -199,7 +252,7 @@ export function EditAssetDialog({ asset, trigger }: { asset: Asset; trigger?: Re
 
         <div className="p-6 pt-2 space-y-6">
           {/* Image Preview Strip */}
-          <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-thin scrollbar-thumb-gray-700 scrollbar-track-transparent">
+          <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-thin scrollbar-thumb-gray-700 scrollbar-track-transparent items-center">
              {/* Existing Images */}
              {existingImageUrls.map((url, idx) => (
                  <div key={`exist-${idx}`} className="relative flex-none w-[120px] aspect-[3/4] rounded-lg overflow-hidden bg-[#2a2a2a] group border border-transparent hover:border-gray-500 transition-colors">
@@ -236,6 +289,24 @@ export function EditAssetDialog({ asset, trigger }: { asset: Asset; trigger?: Re
                      <span className="text-xs">添加图片</span>
                  </div>
              )}
+             
+             {/* Smart Draw Button (Only visible if < 5 images) */}
+             {totalImages > 0 && totalImages < MAX_IMAGES && (
+                 <div className="ml-2 flex flex-col justify-center h-full">
+                     <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        onClick={handleSmartDraw}
+                        disabled={isDrawing}
+                        className="h-10 w-10 rounded-full bg-blue-600/20 text-blue-400 hover:bg-blue-600/30 hover:text-blue-300 border border-blue-500/30"
+                        title="智能补全剩余视角"
+                     >
+                         {isDrawing ? <Loader2 className="h-5 w-5 animate-spin" /> : <Wand2 className="h-5 w-5" />}
+                     </Button>
+                     <span className="text-[10px] text-blue-400 mt-1 text-center font-medium">智能补全</span>
+                 </div>
+             )}
+
              <input
               type="file"
               ref={fileInputRef}
@@ -250,7 +321,6 @@ export function EditAssetDialog({ asset, trigger }: { asset: Asset; trigger?: Re
               <div className="flex items-center gap-4">
                   <div className="flex-1 space-y-2">
                      <div className="text-2xl font-bold">{name}</div>
-                     {/* Name input is hidden or replaced by display name? The image shows name as text, but usually we edit it. Let's keep it editable but styled minimally or just keep it standard. Image shows "小女孩" as text, not input. But title is "Edit Subject". Let's provide an input but styled cleanly. */}
                      <Input 
                         value={name} 
                         onChange={e => setName(e.target.value)} 
