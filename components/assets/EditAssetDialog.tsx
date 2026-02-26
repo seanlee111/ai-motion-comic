@@ -298,12 +298,26 @@ export function EditAssetDialog({ asset, trigger }: { asset: Asset; trigger?: Re
                         size="icon" 
                         onClick={handleSmartDraw}
                         disabled={isDrawing}
-                        className="h-10 w-10 rounded-full bg-blue-600/20 text-blue-400 hover:bg-blue-600/30 hover:text-blue-300 border border-blue-500/30"
+                        className={`h-10 w-10 rounded-full border transition-all duration-300 relative overflow-hidden ${
+                            isDrawing 
+                            ? "bg-transparent border-transparent text-white" 
+                            : "bg-blue-600/20 text-blue-400 hover:bg-blue-600/30 hover:text-blue-300 border-blue-500/30"
+                        }`}
                         title="智能补全剩余视角"
                      >
-                         {isDrawing ? <Loader2 className="h-5 w-5 animate-spin" /> : <Wand2 className="h-5 w-5" />}
+                         {isDrawing ? (
+                             <>
+                                <div className="absolute inset-0 bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 animate-spin opacity-50 blur-sm" />
+                                <div className="absolute inset-[2px] bg-[#1a1a1a] rounded-full z-10" />
+                                <Loader2 className="h-5 w-5 animate-spin relative z-20 text-blue-400" />
+                             </>
+                         ) : (
+                             <Wand2 className="h-5 w-5" />
+                         )}
                      </Button>
-                     <span className="text-[10px] text-blue-400 mt-1 text-center font-medium">智能补全</span>
+                     <span className={`text-[10px] mt-1 text-center font-medium transition-colors ${isDrawing ? "text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-400 animate-pulse" : "text-blue-400"}`}>
+                        {isDrawing ? "绘制中..." : "智能补全"}
+                     </span>
                  </div>
              )}
 
@@ -345,21 +359,31 @@ export function EditAssetDialog({ asset, trigger }: { asset: Asset; trigger?: Re
                  <div className="flex justify-between items-end">
                      <Label className="text-gray-400">描述</Label>
                  </div>
-                 <div className="relative">
+                 <div className="relative group/desc">
+                     <div className={`absolute -inset-[1px] rounded-xl bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 opacity-0 transition-opacity duration-500 ${isDescribing ? "opacity-100 animate-pulse" : ""}`} />
                      <Textarea
                         value={description}
                         onChange={(e) => setDescription(e.target.value)}
-                        className="min-h-[140px] bg-[#111] border-0 rounded-xl resize-none text-gray-300 p-4 leading-relaxed focus-visible:ring-1 focus-visible:ring-gray-700"
+                        className={`min-h-[140px] bg-[#111] border-0 rounded-xl resize-none text-gray-300 p-4 leading-relaxed focus-visible:ring-1 focus-visible:ring-gray-700 relative z-10 ${isDescribing ? "bg-[#111]/90" : ""}`}
                         placeholder="输入详细描述..."
                       />
                       <Button 
                         size="sm"
                         onClick={handleSmartDescription}
                         disabled={isDescribing || totalImages === 0}
-                        className="absolute bottom-3 right-3 bg-[#333] hover:bg-[#444] text-white border-0 rounded-full h-8 px-3 text-xs gap-1.5 transition-colors"
+                        className={`absolute bottom-3 right-3 border-0 rounded-full h-8 px-3 text-xs gap-1.5 transition-all duration-300 z-20 overflow-hidden ${
+                            isDescribing 
+                            ? "bg-transparent text-white ring-1 ring-white/20" 
+                            : "bg-[#333] hover:bg-[#444] text-white"
+                        }`}
                       >
-                         {isDescribing ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
-                         智能描述
+                         {isDescribing && (
+                             <div className="absolute inset-0 bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 animate-[shimmer_2s_infinite] opacity-50" />
+                         )}
+                         <span className="relative flex items-center gap-1.5">
+                            {isDescribing ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
+                            {isDescribing ? "生成中..." : "智能描述"}
+                         </span>
                       </Button>
                  </div>
               </div>
