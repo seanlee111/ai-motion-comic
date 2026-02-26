@@ -197,8 +197,15 @@ export async function PATCH(req: NextRequest) {
     // Determine images to delete (those in existing.imageUrls but not in existingImageUrls)
     // Note: This logic assumes existingImageUrls contains ONLY valid URLs that were already in the asset.
     const oldUrls = existing.imageUrls || (existing.imageUrl ? [existing.imageUrl] : []);
-    const urlsToDelete = oldUrls.filter(url => !existingImageUrls.includes(url));
     
+    // Filter out invalid or non-blob URLs before passing to del()
+    const urlsToDelete = oldUrls.filter(url => 
+        url && 
+        typeof url === 'string' && 
+        url.includes('.public.blob.vercel-storage.com') && // Ensure it's a Vercel Blob URL
+        !existingImageUrls.includes(url)
+    );
+
     if (urlsToDelete.length > 0) {
         await del(urlsToDelete);
     }
