@@ -124,80 +124,68 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ newImages: [], message: "No new views needed or slots full." });
     }
 
-    // --- Step 3: Generate Missing Views using Fal Flux ---
-    // We use the first image as the reference for consistency
+    // --- Step 3: Generate Missing Views using Jimeng AI ---
     const referenceImage = images[0];
-    const generateEndpoint = "https://queue.fal.run/fal-ai/flux-general/image-to-image";
+    const generateEndpoint = "https://ark.cn-beijing.volces.com/api/v3/images/generations";
+    
+    // Ark requires Base64 for image_urls if not using OSS
+    const getBase64ForGen = async (img: string) => {
+        if (img.startsWith('data:')) return img;
+        return await urlToBase64(img);
+    };
 
+    const refBase64 = await getBase64ForGen(referenceImage);
     const generatedUrls: string[] = [];
 
-    // Run sequentially to avoid rate limits or manage flow better, or parallel
-    await Promise.all(viewsToGenerate.map(async (view) => {
+    // Use environment variable for model endpoint ID, or fallback
+    const modelEndpointId = process.env.JIMENG_ENDPOINT_ID || "ep-20250214152358-q42t7";
+
+    // Run sequentially
+    for (const view of viewsToGenerate) {
         try {
-            const prompt = `${finalDescription}. View from ${view} angle. White background, character sheet style, consistent character design. Masterpiece, best quality.`;
+            // Prompt engineered as requested: "参考该图片，补充完整五视图的意思" + specific view + description
+            const prompt = `参考该图片，补充完整五视图的意思。绘制该角色的 ${view} 视图 (View)。\n${finalDescription}`;
             
             const payload = {
+                model: modelEndpointId,
                 prompt: prompt,
-                image_url: referenceImage,
-                strength: 0.75, // Good balance for consistency vs angle change
-                image_size: "portrait_4_3", // Standard for character cards
-                num_inference_steps: 28,
-                guidance_scale: 3.5,
-                enable_safety_checker: false
+                image_urls: [refBase64],
+                strength: 0.75, // Balance
+                scale: 3.5,
+                height: 1024,
+                width: 1024
             };
 
             const genRes = await fetch(generateEndpoint, {
                 method: "POST",
                 headers: {
-                    "Authorization": `Key ${falKey}`,
-                    "Content-Type": "application/json"
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${arkKey}`
                 },
                 body: JSON.stringify(payload)
             });
 
-            if (!genRes.ok) throw new Error(`Generation failed for ${view}`);
-
-            const genData = await genRes.json();
-            // Poll for result if queued
-            let imageUrl = "";
-            
-            if (genData.status === "COMPLETED" && genData.images?.[0]?.url) {
-                imageUrl = genData.images[0].url;
-            } else if (genData.status_url) {
-                // Simple poll
-                let attempts = 0;
-                while (attempts < 20) {
-                    await new Promise(r => setTimeout(r, 1000));
-                    const checkRes = await fetch(genData.status_url, {
-                        headers: { "Authorization": `Key ${falKey}` }
-                    });
-                    const checkData = await checkRes.json();
-                    if (checkData.status === "COMPLETED") {
-                        // Sometimes images are in checkData, sometimes we need response_url
-                        if (checkData.images?.[0]?.url) {
-                            imageUrl = checkData.images[0].url;
-                        } else if (checkData.response_url) {
-                             const finalRes = await fetch(checkData.response_url, {
-                                 headers: { "Authorization": `Key ${falKey}` }
-                             });
-                             const finalData = await finalRes.json();
-                             imageUrl = finalData.images?.[0]?.url;
-                        }
-                        break;
-                    }
-                    if (checkData.status === "FAILED") break;
-                    attempts++;
-                }
+            if (!genRes.ok) {
+                const errText = await genRes.text();
+                console.error(`Jimeng Generation failed for ${view}: ${errText}`);
+                continue;
             }
 
-            if (imageUrl) {
-                generatedUrls.push(imageUrl);
+            const genData = await genRes.json();
+            // Ark returns images directly in `data` array usually
+            // Structure: { data: [ { url: "..." } ] }
+            
+            if (genData.data && genData.data.length > 0 && genData.data[0].url) {
+                generatedUrls.push(genData.data[0].url);
             }
 
         } catch (e) {
             console.error(`Failed to generate view ${view}`, e);
         }
-    }));
+    }
+    
+    // ...
+
 
     return NextResponse.json({ 
         newImages: generatedUrls,
