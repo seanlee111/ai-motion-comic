@@ -228,12 +228,15 @@ export async function PATCH(req: NextRequest) {
     for (let i = 0; i < files.length; i++) {
         const file = files[i];
         if (!file.size) continue;
+        
+        // Fix for "Some urls are malformed" - Ensure content type and clean path
         const ext = file.type === "image/png" ? "png" : 
                     file.type === "image/jpeg" ? "jpg" : "bin";
         
         const blob = await put(`${IMAGE_PREFIX}${id}_new_${i}_${Date.now()}.${ext}`, file, {
             access: "public",
             contentType: file.type || "application/octet-stream",
+            addRandomSuffix: false // We already have timestamp
         });
         finalImageUrls.push(blob.url);
         newFileUrls.push(blob.url);

@@ -41,6 +41,7 @@ export function EditAssetDialog({ asset, trigger }: { asset: Asset; trigger?: Re
   const [loading, setLoading] = useState(false)
   const [isDescribing, setIsDescribing] = useState(false)
   const [isDrawing, setIsDrawing] = useState(false)
+  const [apiLogs, setApiLogs] = useState<string[]>([])
   
   const [type, setType] = useState<"character" | "scene">(asset.type)
   const [name, setName] = useState(asset.name)
@@ -111,6 +112,8 @@ export function EditAssetDialog({ asset, trigger }: { asset: Asset; trigger?: Re
       setNewFilesMap(newFiles)
   }
 
+  const addLog = (msg: string) => setApiLogs(prev => [msg, ...prev].slice(0, 5))
+
   const handleSmartDescription = async () => {
     const activeImages = Object.values(viewImages);
     if (activeImages.length === 0) {
@@ -119,6 +122,7 @@ export function EditAssetDialog({ asset, trigger }: { asset: Asset; trigger?: Re
     }
     
     setIsDescribing(true);
+    addLog(`[Describe] Requesting for ${activeImages.length} images...`)
     try {
         // Convert any new files to base64 for API
         const imagesToSend = await Promise.all(activeImages.map(async (url) => {
@@ -138,15 +142,18 @@ export function EditAssetDialog({ asset, trigger }: { asset: Asset; trigger?: Re
         
         if (!res.ok) {
             const err = await res.json();
+            addLog(`[Describe] Error: ${err.error || res.statusText}`)
             throw new Error(err.error || "描述生成失败");
         }
         
         const data = await res.json();
+        addLog(`[Describe] Success. Length: ${data.description?.length}`)
         if (data.description) {
             setDescription(data.description); // Replace or append? Usually replace for fresh generation
             toast.success("智能描述生成成功");
         }
     } catch (e: any) {
+        addLog(`[Describe] Exception: ${e.message}`)
         toast.error(e.message);
     } finally {
         setIsDescribing(false);
@@ -167,6 +174,7 @@ export function EditAssetDialog({ asset, trigger }: { asset: Asset; trigger?: Re
       }
 
       setIsDrawing(true);
+      addLog(`[Draw] Requesting views: ${missingViews.join(', ')}`)
       try {
           // Prepare reference images map { "Front": "base64/url" }
           const references: Record<string, string> = {};
@@ -192,16 +200,19 @@ export function EditAssetDialog({ asset, trigger }: { asset: Asset; trigger?: Re
 
           if (!res.ok) {
               const err = await res.json();
+              addLog(`[Draw] Error: ${err.error || res.statusText}`)
               throw new Error(err.error || "智能绘图失败");
           }
 
           const data = await res.json();
+          addLog(`[Draw] Success. Generated: ${Object.keys(data.generatedViews || {}).join(', ')}`)
           if (data.generatedViews) {
               setViewImages(prev => ({ ...prev, ...data.generatedViews }));
               toast.success(`成功补全 ${Object.keys(data.generatedViews).length} 个视图`);
           }
 
       } catch (e: any) {
+          addLog(`[Draw] Exception: ${e.message}`)
           toast.error(e.message);
       } finally {
           setIsDrawing(false);
@@ -391,6 +402,12 @@ export function EditAssetDialog({ asset, trigger }: { asset: Asset; trigger?: Re
               <div className="space-y-3 relative">
                  <div className="flex justify-between items-end">
                      <Label className="text-gray-400">描述</Label>
+                 </div>
+                 {/* API Log Viewer - Helpful for debugging */}
+                 <div className="text-[10px] text-gray-500 font-mono mb-1 select-all h-[60px] overflow-y-auto bg-black/20 p-2 rounded border border-white/5">
+                    {apiLogs.length === 0 ? "Ready." : apiLogs.map((log, i) => (
+                        <div key={i} className="whitespace-nowrap">{log}</div>
+                    ))}
                  </div>
                  <div className="relative group/desc">
                      <div className={`absolute -inset-[1px] rounded-xl bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 opacity-0 transition-opacity duration-1000 ${isDescribing ? "opacity-100 animate-[pulse_3s_cubic-bezier(0.4,0,0.6,1)_infinite]" : ""}`} />
