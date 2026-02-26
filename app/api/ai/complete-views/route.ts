@@ -87,12 +87,14 @@ export async function POST(req: NextRequest) {
       body: JSON.stringify({
         model: "doubao-seed-2-0-lite-260215",
         messages: [{ role: "user", content: analysisContent }],
-        response_format: { type: "json_object" } // Force JSON if supported, otherwise rely on prompt
+        // response_format: { type: "json_object" } // Removing this as it might not be supported by lite model
       })
     });
 
     if (!analysisRes.ok) {
-        throw new Error(`Analysis API Error: ${analysisRes.status}`);
+        const errorText = await analysisRes.text();
+        console.error(`Analysis API Error Body: ${errorText}`);
+        throw new Error(`Analysis API Error: ${analysisRes.status} - ${errorText}`);
     }
 
     const analysisData = await analysisRes.json();
