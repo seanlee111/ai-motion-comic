@@ -49,7 +49,9 @@ function AssetCard({ asset }: { asset: any }) {
   )
 }
 
-export function AssetLibrary() {
+import { cn } from "@/lib/utils"
+
+export function AssetLibrary({ className }: { className?: string }) {
   const { assets, setAssets } = useStoryStore()
   const [loading, setLoading] = useState(false)
 
@@ -72,7 +74,7 @@ export function AssetLibrary() {
   const scenes = assets.filter(a => a.type === 'scene')
 
   return (
-    <div className="flex h-full w-64 flex-col border-r bg-muted/10">
+    <div className={cn("flex h-full w-64 flex-col border-r bg-muted/10", className)}>
       <div className="p-4 border-b">
         <h2 className="mb-2 font-semibold">素材库</h2>
         <CreateAssetDialog />

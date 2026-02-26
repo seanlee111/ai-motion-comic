@@ -14,6 +14,8 @@ export const metadata: Metadata = {
 import { Toaster } from "@/components/ui/sonner"
 import { Analytics } from "@vercel/analytics/react"
 
+import { Sidebar } from "@/components/layout/Sidebar";
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -21,10 +23,15 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className="dark">
-      <body className={cn(inter.className, "min-h-screen bg-background font-sans antialiased")}>
-        <div className="relative flex min-h-screen flex-col">
+      <body className={cn(inter.className, "min-h-screen bg-background font-sans antialiased overflow-hidden")}>
+        <div className="flex h-screen w-full flex-col overflow-hidden">
           <Header />
-          <div className="flex-1">{children}</div>
+          <div className="flex flex-1 overflow-hidden">
+            <Sidebar />
+            <main className="flex-1 overflow-y-auto bg-background relative">
+                {children}
+            </main>
+          </div>
         </div>
         <Toaster />
         <Analytics />

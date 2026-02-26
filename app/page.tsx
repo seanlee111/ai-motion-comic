@@ -5,14 +5,11 @@ import { StoryboardWorkbench } from "@/components/storyboard/StoryboardWorkbench
 
 export default function Home() {
   return (
-    <main className="flex h-[calc(100vh-3.5rem)] overflow-hidden bg-background">
-      {/* Left Sidebar: Assets */}
-      <AssetLibrary />
-      
+    <div className="flex h-full overflow-hidden bg-background">
       {/* Main Content: Storyboard */}
-      <div className="flex-1 h-full overflow-hidden border-l">
+      <div className="flex-1 h-full overflow-hidden">
         <StoryboardWorkbench />
       </div>
-    </main>
+    </div>
   )
 }
