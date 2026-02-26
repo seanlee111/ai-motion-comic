@@ -11,10 +11,9 @@ export async function POST(req: NextRequest) {
     }
 
     const arkKey = process.env.DOUBAO_API_KEY || process.env.ARK_API_KEY;
-    const falKey = process.env.FAL_KEY;
-
-    if (!arkKey || !falKey) {
-      return NextResponse.json({ error: "Server missing API Keys (DOUBAO_API_KEY or FAL_KEY)" }, { status: 500 });
+    
+    if (!arkKey) {
+      return NextResponse.json({ error: "Server missing ARK_API_KEY" }, { status: 500 });
     }
 
     if (!missingViews || !Array.isArray(missingViews) || missingViews.length === 0) {
@@ -58,11 +57,22 @@ export async function POST(req: NextRequest) {
     // Run sequentially
     let lastError = "";
     
+    // View name mapping to Chinese
+    const VIEW_MAP: Record<string, string> = {
+        "Front": "正视图 (Front View)",
+        "Side": "侧视图 (Side View)",
+        "Back": "后视图 (Back View)",
+        "Three-Quarter": "四分之三侧视图 (3/4 View)",
+        "Close-up": "特写视图 (Close-up)"
+    };
+
     for (const view of missingViews) {
         try {
-            // Prompt engineered for consistency
-            // Explicitly mentioning "Character Reference Sheet" and "Consistency"
-            const prompt = `(Character Reference Sheet). Keep strict character consistency with the reference images. Same face, same clothes, same body type. Draw the ${view} view of this character.\n${userDescription}`;
+            const viewNameCN = VIEW_MAP[view] || view;
+            
+            // Prompt engineered for consistency in Chinese as requested
+            // Using "图生图" logic, so we need to emphasize reference.
+            const prompt = `(角色设定图). 请严格参考原图的角色形象，保持面部、发型、服装、体型完全一致。绘制该角色的 ${viewNameCN}。\n${userDescription}`;
             
             // Construct payload matching lib/ai-providers/jimeng.ts generateArk()
             const payload = {
@@ -74,7 +84,16 @@ export async function POST(req: NextRequest) {
                 stream: false,
                 watermark: false,
                 image_urls: referenceBase64s, // Pass multiple references!
-                // image: [refBase64], // Removed
+                // Critical parameters for I2I consistency:
+                strength: 0.65, // 0.65 means keep 35% of original structure, change 65%. 
+                                // Wait, in standard SD: 
+                                // Strength 1.0 = full destruction (ignore ref). 
+                                // Strength 0.0 = no change.
+                                // For view change, we need to change structure significantly (turn head), but keep identity.
+                                // 0.65-0.75 is usually good for pose change while keeping style.
+                                // If user says "completely different", maybe strength was default (1.0).
+                scale: 3.5,     // Guidance scale
+                steps: 25,
                 sequential_image_generation: "auto",
                 sequential_image_generation_options: { max_images: 1 }
             };
