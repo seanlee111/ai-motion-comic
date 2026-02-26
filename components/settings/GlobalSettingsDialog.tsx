@@ -24,7 +24,7 @@ function LogItem({ log, onDelete }: { log: APILog; onDelete: (id: string) => voi
 
     const copyToClipboard = (text: string) => {
         navigator.clipboard.writeText(text);
-        toast.success("Copied to clipboard");
+        toast.success("已复制到剪贴板");
     };
 
     return (
@@ -78,7 +78,7 @@ function LogItem({ log, onDelete }: { log: APILog; onDelete: (id: string) => voi
                         <div className="border-t bg-muted/10 p-3 space-y-3 animate-in slide-in-from-top-2 duration-200">
                             {log.error && (
                                 <div className="space-y-1">
-                                     <div className="text-[10px] font-semibold uppercase text-red-500 tracking-wider">Error</div>
+                                     <div className="text-[10px] font-semibold uppercase text-red-500 tracking-wider">错误</div>
                                      <div className="bg-red-50 dark:bg-red-950/20 text-red-600 dark:text-red-400 p-2 rounded text-xs font-mono break-all border border-red-200 dark:border-red-900">
                                         {log.error}
                                     </div>
@@ -88,7 +88,7 @@ function LogItem({ log, onDelete }: { log: APILog; onDelete: (id: string) => voi
                             {log.requestPayload && (
                                 <div className="space-y-1">
                                     <div className="flex items-center justify-between">
-                                        <div className="text-[10px] font-semibold uppercase text-muted-foreground tracking-wider">Request Payload</div>
+                                        <div className="text-[10px] font-semibold uppercase text-muted-foreground tracking-wider">请求载荷</div>
                                         <Button variant="ghost" size="icon" className="h-4 w-4" onClick={(e) => { e.stopPropagation(); copyToClipboard(JSON.stringify(log.requestPayload, null, 2)); }}>
                                             <Copy className="h-3 w-3" />
                                         </Button>
@@ -102,7 +102,7 @@ function LogItem({ log, onDelete }: { log: APILog; onDelete: (id: string) => voi
                             {log.responseBody && (
                                 <div className="space-y-1">
                                      <div className="flex items-center justify-between">
-                                        <div className="text-[10px] font-semibold uppercase text-muted-foreground tracking-wider">Response Body</div>
+                                        <div className="text-[10px] font-semibold uppercase text-muted-foreground tracking-wider">响应体</div>
                                         <Button variant="ghost" size="icon" className="h-4 w-4" onClick={(e) => { e.stopPropagation(); copyToClipboard(JSON.stringify(log.responseBody, null, 2)); }}>
                                             <Copy className="h-3 w-3" />
                                         </Button>
@@ -119,7 +119,7 @@ function LogItem({ log, onDelete }: { log: APILog; onDelete: (id: string) => voi
             <ContextMenuContent>
                 <ContextMenuItem onClick={() => onDelete(log.id)} className="text-red-600">
                     <Trash2 className="h-4 w-4 mr-2" />
-                    Delete Log
+                    删除日志
                 </ContextMenuItem>
             </ContextMenuContent>
         </ContextMenu>
@@ -144,7 +144,7 @@ export function GlobalSettingsDialog() {
         <DialogHeader className="p-4 border-b flex-none">
           <DialogTitle className="flex items-center justify-between">
             <span className="flex items-center gap-2">
-                Activity Logs 
+                活动日志 
                 <Badge variant="secondary" className="text-xs font-normal">{logs.length}</Badge>
             </span>
           </DialogTitle>
@@ -157,8 +157,8 @@ export function GlobalSettingsDialog() {
                         <div className="h-12 w-12 rounded-full bg-muted flex items-center justify-center">
                             <History className="h-6 w-6 text-muted-foreground/50" />
                         </div>
-                        <p>No API requests logged yet.</p>
-                        <p className="text-xs text-muted-foreground/60">Generate some images to see logs here.</p>
+                        <p>暂无 API 请求记录。</p>
+                        <p className="text-xs text-muted-foreground/60">生成一些图片后在此查看日志。</p>
                     </div>
                 ) : (
                     <div className="space-y-2 pb-4">
@@ -172,7 +172,7 @@ export function GlobalSettingsDialog() {
 
         <DialogFooter className="p-4 border-t bg-muted/5 flex-none">
              <Button variant="destructive" size="sm" onClick={clearApiLogs} disabled={logs.length === 0} className="w-full sm:w-auto">
-                <Trash2 className="h-4 w-4 mr-2" /> Clear All History
+                <Trash2 className="h-4 w-4 mr-2" /> 清除所有历史
             </Button>
         </DialogFooter>
       </DialogContent>

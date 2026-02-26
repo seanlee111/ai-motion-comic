@@ -92,9 +92,9 @@ export default function ScriptCreationPage() {
     <div className="container max-w-2xl mx-auto py-12 px-4">
       <div className="space-y-6">
         <div className="text-center space-y-2 relative">
-          <h1 className="text-3xl font-bold tracking-tight">Create Your Story</h1>
+          <h1 className="text-3xl font-bold tracking-tight">创作你的故事</h1>
           <p className="text-muted-foreground">
-            Start with a simple idea, and let AI flesh it out into a full script and storyboard.
+            从一个简单的想法开始，让 AI 把它充实成完整的剧本和分镜。
           </p>
           
           <div className="absolute right-0 top-0">
@@ -106,14 +106,14 @@ export default function ScriptCreationPage() {
                 </DialogTrigger>
                 <DialogContent className="max-w-2xl">
                     <DialogHeader>
-                        <DialogTitle>Customize AI Persona</DialogTitle>
+                        <DialogTitle>自定义 AI 人设</DialogTitle>
                         <DialogDescription>
-                            Adjust the system prompt to change how the AI generates your script.
+                            调整系统提示词以改变 AI 生成剧本的方式。
                         </DialogDescription>
                     </DialogHeader>
                     <div className="space-y-4 py-4">
                         <div className="space-y-2">
-                            <Label>System Prompt</Label>
+                            <Label>系统提示词</Label>
                             <Textarea 
                                 value={systemPrompt}
                                 onChange={(e) => setSystemPrompt(e.target.value)}
@@ -121,7 +121,7 @@ export default function ScriptCreationPage() {
                             />
                         </div>
                         <Button variant="outline" onClick={() => setSystemPrompt(DEFAULT_SYSTEM_PROMPT)}>
-                            Reset to Default
+                            恢复默认
                         </Button>
                     </div>
                 </DialogContent>
@@ -131,14 +131,14 @@ export default function ScriptCreationPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle>What's your story idea?</CardTitle>
+            <CardTitle>你的故事想法是什么？</CardTitle>
             <CardDescription>
-              Describe the plot, characters, or mood. The more details, the better.
+              描述情节、角色或氛围。细节越多越好。
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <Textarea
-              placeholder="e.g. A cyberpunk detective searching for a lost android in a neon-lit city..."
+              placeholder="例如：一个赛博朋克侦探在霓虹灯闪烁的城市中寻找丢失的机器人..."
               className="min-h-[200px] text-lg resize-none"
               value={idea}
               onChange={(e) => setIdea(e.target.value)}
@@ -152,12 +152,12 @@ export default function ScriptCreationPage() {
               {isGenerating ? (
                 <>
                   <Loader2 className="h-5 w-5 animate-spin" />
-                  Generating Script & Storyboards...
+                  正在生成剧本和分镜...
                 </>
               ) : (
                 <>
                   <Wand2 className="h-5 w-5" />
-                  Generate Magic
+                  施展魔法 (生成)
                 </>
               )}
             </Button>
@@ -166,7 +166,7 @@ export default function ScriptCreationPage() {
 
         <div className="text-center">
            <Button variant="ghost" onClick={() => router.push("/")} className="gap-1">
-             Skip to Editor <ArrowRight className="h-4 w-4" />
+             跳过，直接进入编辑器 <ArrowRight className="h-4 w-4" />
            </Button>
         </div>
       </div>

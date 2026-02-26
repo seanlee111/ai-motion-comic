@@ -176,7 +176,7 @@ function ShotControls({ type, frame, updateFrame, assets, loading, onGenerate, s
              {/* Assets */}
              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                <div className="space-y-1">
-                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block">Characters</label>
+                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block">角色</label>
                   <AssetSelector 
                     type="character" 
                     value={characterIds} 
@@ -208,7 +208,7 @@ function ShotControls({ type, frame, updateFrame, assets, loading, onGenerate, s
                   </div>
                </div>
                <div className="space-y-1">
-                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block">Scene</label>
+                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block">场景</label>
                   <AssetSelector 
                     type="scene" 
                     value={sceneId} 
@@ -241,16 +241,16 @@ function ShotControls({ type, frame, updateFrame, assets, loading, onGenerate, s
             {/* Custom Uploads */}
             <div className="space-y-1">
                 <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block flex items-center justify-between">
-                    <span>Custom Reference Images</span>
+                    <span>自定义参考图</span>
                     <label className="cursor-pointer text-primary hover:underline text-[10px] flex items-center">
-                        <Upload className="h-3 w-3 mr-1" /> Upload
+                        <Upload className="h-3 w-3 mr-1" /> 上传
                         <input type="file" className="hidden" accept="image/*" multiple onChange={handleFileUpload} />
                     </label>
                 </label>
                 <div className="flex flex-wrap gap-2 min-h-[40px] p-2 bg-muted/20 rounded-md border border-dashed">
                     {(!customUploads || customUploads.length === 0) && (
                         <div className="text-muted-foreground text-[10px] flex items-center justify-center w-full">
-                            No custom images uploaded
+                            未上传自定义图片
                         </div>
                     )}
                     {customUploads?.map((url, i) => (
@@ -270,23 +270,23 @@ function ShotControls({ type, frame, updateFrame, assets, loading, onGenerate, s
             {/* Script Area */}
             <div className="grid grid-cols-1 gap-4">
                 <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block">Action Script</label>
+                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block">动作脚本</label>
                     <Textarea 
                         value={script || ""}
                         onChange={(e) => handleScriptChange(e.target.value)}
-                        placeholder={`Describe action for ${type} shot...`}
+                        placeholder={`描述${type === 'start' ? '起始' : '结束'}镜头的动作...`}
                         className="min-h-[80px] resize-none"
                     />
                 </div>
                 <div className="space-y-1.5">
                     <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block flex items-center">
-                        <Move className="h-3 w-3 mr-1" /> Camera & Movement
+                        <Move className="h-3 w-3 mr-1" /> 运镜与动态
                     </label>
                     <Textarea 
                         value={actionNotes || ""}
                         onChange={(e) => {
                             const val = e.target.value;
-                             if (type === 'start') {
+                            if (type === 'start') {
                                 const updates: any = { startActionNotes: val };
                                 if (!frame.endActionNotes) updates.endActionNotes = val;
                                 updateFrame(frame.id, updates);
@@ -294,7 +294,7 @@ function ShotControls({ type, frame, updateFrame, assets, loading, onGenerate, s
                                 updateFrame(frame.id, { endActionNotes: val });
                             }
                         }}
-                        placeholder="Pan left, zoom in..."
+                        placeholder="左移，拉近..."
                         className="min-h-[60px] resize-none bg-muted/30"
                     />
                 </div>
@@ -322,7 +322,7 @@ function ShotControls({ type, frame, updateFrame, assets, loading, onGenerate, s
                     className="w-full"
                 >
                     {loading === type ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Wand2 className="mr-2 h-4 w-4" />}
-                    Generate {type === 'start' ? 'Start' : 'End'} Shot
+                    生成{type === 'start' ? '起始' : '结束'}镜头
                 </Button>
             </div>
         </div>
@@ -355,15 +355,15 @@ export function StoryboardFrame({ frame, index }: StoryboardFrameProps) {
     const customUploads = target === 'start' ? (frame.startCustomUploads ?? frame.customUploads) : (frame.endCustomUploads ?? frame.customUploads)
 
     if (!script) {
-        toast.error("Story script is required", {
-            description: `Please enter a description for the ${target} shot.`
+        toast.error("需要剧情脚本", {
+            description: `请输入${target === 'start' ? '起始' : '结束'}镜头的描述。`
         })
         return
     }
 
     if (selectedModels.length === 0) {
-        toast.error("No model selected", {
-            description: "Please select at least one AI model to generate images."
+        toast.error("未选择模型", {
+            description: "请至少选择一个 AI 模型来生成图片。"
         })
         setLoading(null)
         return
@@ -588,7 +588,7 @@ export function StoryboardFrame({ frame, index }: StoryboardFrameProps) {
 
     } catch (e: any) {
       setLoading(null)
-      toast.error("Generation failed", { description: e.message })
+      toast.error("生成失败", { description: e.message })
     }
   }
 
@@ -692,12 +692,12 @@ export function StoryboardFrame({ frame, index }: StoryboardFrameProps) {
       
       {/* Left Column: Controls & Script */}
       <div className="flex-1 space-y-4 min-w-[300px]">
-        <div className="xl:hidden font-bold text-muted-foreground mb-2">Frame {index + 1}</div>
+        <div className="xl:hidden font-bold text-muted-foreground mb-2">第 {index + 1} 帧</div>
         
         <Tabs defaultValue="start" className="w-full">
           <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="start">Start Shot</TabsTrigger>
-            <TabsTrigger value="end">End Shot</TabsTrigger>
+            <TabsTrigger value="start">起始镜头</TabsTrigger>
+            <TabsTrigger value="end">结束镜头</TabsTrigger>
           </TabsList>
           
           <TabsContent value="start">
@@ -733,15 +733,15 @@ export function StoryboardFrame({ frame, index }: StoryboardFrameProps) {
 
         <div className="bg-muted/10 rounded-lg p-3 border overflow-hidden flex flex-col">
             <div className="text-xs font-semibold text-muted-foreground mb-3 flex justify-between items-center">
-                <span>Preview</span>
+                <span>预览</span>
                 <div className="flex items-center gap-2">
-                    <span className="text-[10px] text-muted-foreground">Filter</span>
+                    <span className="text-[10px] text-muted-foreground">筛选</span>
                     <select
                         className="h-7 rounded-md border bg-background px-2 text-[10px]"
                         value={modelFilter}
                         onChange={(e) => setModelFilter(e.target.value)}
                     >
-                        <option value="all">All</option>
+                        <option value="all">全部</option>
                         {MODEL_OPTIONS.map(m => (
                             <option key={m.id} value={m.id}>{m.name}</option>
                         ))}
@@ -751,7 +751,7 @@ export function StoryboardFrame({ frame, index }: StoryboardFrameProps) {
             <div className="space-y-4 max-h-[420px] overflow-y-auto pr-1 scrollbar-thin">
                 {filteredImages.length === 0 ? (
                     <div className="text-center py-6 text-xs text-muted-foreground/60">
-                        No generated images yet.
+                        暂未生成图片。
                     </div>
                 ) : (
                     batchKeys.map(batchId => {
@@ -766,7 +766,7 @@ export function StoryboardFrame({ frame, index }: StoryboardFrameProps) {
                             <div key={batchId} className="space-y-2">
                                 <div className="flex items-center justify-between">
                                     <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                                        {batchId === "legacy" ? "Legacy" : `Batch ${batchId.slice(0, 8)}`}
+                                        {batchId === "legacy" ? "历史记录" : `批次 ${batchId.slice(0, 8)}`}
                                     </span>
                                     <span className="text-[10px] text-muted-foreground">{batchImages.length}</span>
                                 </div>
@@ -788,10 +788,10 @@ export function StoryboardFrame({ frame, index }: StoryboardFrameProps) {
                                                     <img src={img.url} className="w-full h-full object-cover" />
                                                     <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
                                                         <Button size="sm" variant="secondary" className="h-7 px-2" onClick={() => updateFrame(frame.id, { selectedStartImageId: img.id, startImageUrl: img.url })}>
-                                                            Use Start
+                                                            设为起始
                                                         </Button>
                                                         <Button size="sm" variant="secondary" className="h-7 px-2" onClick={() => updateFrame(frame.id, { selectedEndImageId: img.id, endImageUrl: img.url })}>
-                                                            Use End
+                                                            设为结束
                                                         </Button>
                                                     </div>
                                                 </div>
@@ -814,14 +814,14 @@ export function StoryboardFrame({ frame, index }: StoryboardFrameProps) {
                 onDrop={(e) => handleDrop(e, "start")}
                 onDragOver={handleDragOver}
             >
-                <div className="text-xs font-semibold text-muted-foreground text-center uppercase">Start Frame</div>
+                <div className="text-xs font-semibold text-muted-foreground text-center uppercase">起始帧</div>
                 <div className={cn(
                     "aspect-video rounded-md border-2 border-dashed flex items-center justify-center relative overflow-hidden bg-muted/20 transition-all",
                     frame.startImageUrl ? "border-solid border-green-500/50" : "hover:border-primary/50"
                 )}>
                     {frame.startImageUrl ? (
                         <>
-                            <img src={frame.startImageUrl} alt="Start" className="w-full h-full object-cover" />
+                            <img src={frame.startImageUrl} alt="起始" className="w-full h-full object-cover" />
                             <div className="absolute bottom-1 right-1 flex gap-1">
                                 <Button variant="secondary" size="icon" className="h-6 w-6 rounded-full opacity-80 hover:opacity-100" onClick={() => window.open(frame.startImageUrl, '_blank')}>
                                     <Download className="h-3 w-3" />
@@ -830,7 +830,7 @@ export function StoryboardFrame({ frame, index }: StoryboardFrameProps) {
                         </>
                     ) : (
                         <div className="text-center p-2 text-muted-foreground text-xs pointer-events-none">
-                            {loading === 'start' ? <Loader2 className="h-5 w-5 animate-spin mx-auto" /> : "Drag image here"}
+                            {loading === 'start' ? <Loader2 className="h-5 w-5 animate-spin mx-auto" /> : "拖拽图片到此处"}
                         </div>
                     )}
                 </div>
@@ -842,14 +842,14 @@ export function StoryboardFrame({ frame, index }: StoryboardFrameProps) {
                 onDrop={(e) => handleDrop(e, "end")}
                 onDragOver={handleDragOver}
             >
-                <div className="text-xs font-semibold text-muted-foreground text-center uppercase">End Frame</div>
+                <div className="text-xs font-semibold text-muted-foreground text-center uppercase">结束帧</div>
                 <div className={cn(
                     "aspect-video rounded-md border-2 border-dashed flex items-center justify-center relative overflow-hidden bg-muted/20 transition-all",
                     frame.endImageUrl ? "border-solid border-green-500/50" : "hover:border-primary/50"
                 )}>
                     {frame.endImageUrl ? (
                         <>
-                            <img src={frame.endImageUrl} alt="End" className="w-full h-full object-cover" />
+                            <img src={frame.endImageUrl} alt="结束" className="w-full h-full object-cover" />
                             <div className="absolute bottom-1 right-1 flex gap-1">
                                 <Button variant="secondary" size="icon" className="h-6 w-6 rounded-full opacity-80 hover:opacity-100" onClick={() => window.open(frame.endImageUrl, '_blank')}>
                                     <Download className="h-3 w-3" />
@@ -858,7 +858,7 @@ export function StoryboardFrame({ frame, index }: StoryboardFrameProps) {
                         </>
                     ) : (
                         <div className="text-center p-2 text-muted-foreground text-xs pointer-events-none">
-                            {loading === 'end' ? <Loader2 className="h-5 w-5 animate-spin mx-auto" /> : "Drag image here"}
+                            {loading === 'end' ? <Loader2 className="h-5 w-5 animate-spin mx-auto" /> : "拖拽图片到此处"}
                         </div>
                     )}
                 </div>

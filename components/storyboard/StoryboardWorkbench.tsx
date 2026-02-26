@@ -14,14 +14,14 @@ export function StoryboardWorkbench() {
   return (
     <div className="flex flex-col h-full overflow-hidden">
       <div className="flex-none p-4 border-b flex justify-between items-center bg-background z-10">
-        <h2 className="text-lg font-semibold">Storyboard ({frames.length} frames)</h2>
+        <h2 className="text-lg font-semibold">分镜板 ({frames.length} 帧)</h2>
         <div className="flex gap-2 items-center">
             <GlobalSettingsDialog />
             <Button variant="outline" onClick={() => router.push('/script-creation')}>
-                <Wand2 className="mr-2 h-4 w-4" /> AI Script
+                <Wand2 className="mr-2 h-4 w-4" /> AI 剧本
             </Button>
             <Button onClick={() => addFrame()}>
-                <Plus className="mr-2 h-4 w-4" /> Add Frame
+                <Plus className="mr-2 h-4 w-4" /> 添加分镜
             </Button>
         </div>
       </div>
@@ -33,14 +33,14 @@ export function StoryboardWorkbench() {
         
         {frames.length === 0 && (
             <div className="flex flex-col items-center justify-center h-64 text-muted-foreground">
-                <p>No frames yet.</p>
-                <Button variant="link" onClick={() => addFrame()}>Create your first frame</Button>
+                <p>暂无分镜。</p>
+                <Button variant="link" onClick={() => addFrame()}>创建第一个分镜</Button>
             </div>
         )}
         
         <div className="p-8 flex justify-center">
             <Button variant="outline" onClick={() => addFrame()} className="w-full max-w-md border-dashed">
-                <Plus className="mr-2 h-4 w-4" /> Add New Frame
+                <Plus className="mr-2 h-4 w-4" /> 添加新分镜
             </Button>
         </div>
       </div>

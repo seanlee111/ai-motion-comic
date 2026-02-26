@@ -72,14 +72,14 @@ export default function ScriptPage() {
     <div className="container max-w-4xl py-10">
       <Card>
         <CardHeader>
-          <CardTitle>AI Script Writer</CardTitle>
+          <CardTitle>AI 剧本创作</CardTitle>
           <CardDescription>
-            Enter your story idea or rough script below. AI will automatically break it down into a professional storyboard with shots, actions, and estimated duration.
+            在下方输入你的故事创意或粗略剧本。AI 将自动将其分解为包含镜头、动作和预估时长的专业分镜脚本。
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <Textarea
-            placeholder="e.g. A cyberpunk detective walks down a rainy neon street. Suddenly, a flying car zooms past him..."
+            placeholder="例如：一个赛博朋克侦探走在雨夜的霓虹街道上。突然，一辆飞行汽车呼啸而过..."
             className="min-h-[300px] text-lg leading-relaxed p-6"
             value={script}
             onChange={(e) => setScript(e.target.value)}
@@ -87,18 +87,18 @@ export default function ScriptPage() {
           
           <div className="flex justify-end gap-4">
              <Button variant="outline" onClick={() => router.push("/")}>
-                Cancel
+                取消
              </Button>
              <Button onClick={handleAnalyze} disabled={loading || !script} size="lg">
                 {loading ? (
                     <>
                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Analyzing...
+                        分析中...
                     </>
                 ) : (
                     <>
                         <Wand2 className="mr-2 h-4 w-4" />
-                        Generate Storyboard
+                        生成分镜
                         <ArrowRight className="ml-2 h-4 w-4" />
                     </>
                 )}

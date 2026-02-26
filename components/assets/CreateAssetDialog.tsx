@@ -77,7 +77,7 @@ export function CreateAssetDialog() {
       const res = await fetch("/api/assets", { method: "POST", body: formData })
       if (!res.ok) {
         const err = await res.json()
-        throw new Error(err.error || "Failed to create asset")
+        throw new Error(err.error || "创建素材失败")
       }
 
       const data = await res.json()
@@ -99,48 +99,48 @@ export function CreateAssetDialog() {
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button variant="outline" className="w-full justify-start">
-          <span className="mr-2 text-xl">+</span> Create New Asset
+          <span className="mr-2 text-xl">+</span> 创建新素材
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
-          <DialogTitle>Create New {type === "character" ? "Character" : "Scene"}</DialogTitle>
+          <DialogTitle>创建新{type === "character" ? "角色" : "场景"}</DialogTitle>
         </DialogHeader>
         <div className="grid gap-4 py-4">
           <div className="grid gap-2">
-            <Label>Asset Type</Label>
+            <Label>素材类型</Label>
             <Select value={type} onValueChange={(v: any) => setType(v)}>
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="character">Character</SelectItem>
-                <SelectItem value="scene">Scene</SelectItem>
+                <SelectItem value="character">角色</SelectItem>
+                <SelectItem value="scene">场景</SelectItem>
               </SelectContent>
             </Select>
           </div>
 
           <div className="grid gap-2">
-            <Label>Name</Label>
+            <Label>名称</Label>
             <Input 
               value={name} 
               onChange={(e) => setName(e.target.value)} 
-              placeholder="e.g., Cyberpunk Detective"
+              placeholder="例如：赛博朋克侦探"
             />
           </div>
 
           <div className="grid gap-2">
-            <Label>Description (Prompt)</Label>
+            <Label>描述 (提示词)</Label>
             <Textarea 
               value={description} 
               onChange={(e) => setDescription(e.target.value)} 
-              placeholder="Describe appearance, clothing, style..."
+              placeholder="描述外貌、服装、风格..."
               className="min-h-[100px]"
             />
           </div>
 
           <div className="grid gap-2">
-            <Label>Reference Images (Max 3)</Label>
+            <Label>参考图片 (最多3张)</Label>
             <div className="flex flex-wrap gap-2">
               {previews.map((src, idx) => (
                 <div key={idx} className="relative h-20 w-20 overflow-hidden rounded-md border">
@@ -174,7 +174,7 @@ export function CreateAssetDialog() {
         </div>
         <div className="flex justify-end">
           <Button onClick={handleSubmit} disabled={!name || loading}>
-            Create Asset
+            创建素材
           </Button>
         </div>
       </DialogContent>

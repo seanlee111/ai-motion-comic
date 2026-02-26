@@ -58,7 +58,7 @@ export function ControlPanel({ onGenerate, isGenerating }: ControlPanelProps) {
           onClick={() => setMode("text-to-image")}
         >
           <Type className="mr-2 h-4 w-4" />
-          Text to Image
+          文生图
         </Button>
         <Button
           variant={mode === "image-to-image" ? "default" : "outline"}
@@ -66,14 +66,14 @@ export function ControlPanel({ onGenerate, isGenerating }: ControlPanelProps) {
           onClick={() => setMode("image-to-image")}
         >
           <ImageIcon className="mr-2 h-4 w-4" />
-          Img to Img
+          图生图
         </Button>
       </div>
 
       <div className="space-y-2">
-        <Label>Prompt</Label>
+        <Label>提示词</Label>
         <Textarea
-          placeholder="Describe your scene (Supports Chinese/English)..."
+          placeholder="描述你的场景 (支持中/英文)..."
           className="min-h-[120px]"
           value={prompt}
           onChange={(e) => setPrompt(e.target.value)}
@@ -82,7 +82,7 @@ export function ControlPanel({ onGenerate, isGenerating }: ControlPanelProps) {
 
       {mode === "image-to-image" && (
         <div className="space-y-2">
-          <Label>Reference Image</Label>
+          <Label>参考图片</Label>
           <div 
             className="flex h-32 cursor-pointer flex-col items-center justify-center rounded-md border border-dashed hover:bg-accent"
             onClick={() => fileInputRef.current?.click()}
@@ -92,7 +92,7 @@ export function ControlPanel({ onGenerate, isGenerating }: ControlPanelProps) {
             ) : (
               <div className="flex flex-col items-center text-muted-foreground">
                 <Upload className="mb-2 h-6 w-6" />
-                <span className="text-xs">Click to upload</span>
+                <span className="text-xs">点击上传</span>
               </div>
             )}
             <Input 
@@ -107,29 +107,29 @@ export function ControlPanel({ onGenerate, isGenerating }: ControlPanelProps) {
       )}
 
       <div className="space-y-2">
-        <Label>Aspect Ratio</Label>
+        <Label>宽高比</Label>
         <Select value={aspectRatio} onValueChange={setAspectRatio}>
           <SelectTrigger>
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="16:9">16:9 (Landscape)</SelectItem>
-            <SelectItem value="9:16">9:16 (Portrait)</SelectItem>
-            <SelectItem value="1:1">1:1 (Square)</SelectItem>
-            <SelectItem value="2.35:1">2.35:1 (Cinematic)</SelectItem>
+            <SelectItem value="16:9">16:9 (横屏)</SelectItem>
+            <SelectItem value="9:16">9:16 (竖屏)</SelectItem>
+            <SelectItem value="1:1">1:1 (方形)</SelectItem>
+            <SelectItem value="2.35:1">2.35:1 (电影宽屏)</SelectItem>
           </SelectContent>
         </Select>
       </div>
 
       <div className="space-y-2">
-        <Label>Model</Label>
+        <Label>模型</Label>
         <Select value={model} onValueChange={setModel}>
           <SelectTrigger>
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="flux-pro-1.1">Flux Pro 1.1 (Best)</SelectItem>
-            <SelectItem value="sdxl">SDXL (Faster)</SelectItem>
+            <SelectItem value="flux-pro-1.1">Flux Pro 1.1 (最佳)</SelectItem>
+            <SelectItem value="sdxl">SDXL (快速)</SelectItem>
           </SelectContent>
         </Select>
       </div>
@@ -141,11 +141,11 @@ export function ControlPanel({ onGenerate, isGenerating }: ControlPanelProps) {
         disabled={isGenerating || !prompt}
       >
         {isGenerating ? (
-          <>Generating...</>
+          <>生成中...</>
         ) : (
           <>
             <Wand2 className="mr-2 h-4 w-4" />
-            Generate Keyframe
+            生成关键帧
           </>
         )}
       </Button>

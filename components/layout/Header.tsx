@@ -11,7 +11,7 @@ export function Header() {
         <Link href="/" className="mr-6 flex items-center gap-2">
           <Clapperboard className="h-6 w-6 text-primary" />
           <span className="text-lg font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-purple-600">
-            AI Motion Comic Studio
+            AI 动态漫画工作室
           </span>
         </Link>
         <div className="flex flex-1 items-center justify-between space-x-2 md:justify-end">

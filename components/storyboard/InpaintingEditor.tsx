@@ -84,7 +84,7 @@ export function InpaintingEditor({ open, onClose, imageUrl, onSave, modelId }: I
     <Dialog open={open} onOpenChange={(o) => !loading && onClose()}>
       <DialogContent className="max-w-4xl h-[90vh] flex flex-col">
         <DialogHeader>
-          <DialogTitle>Magic Edit (Inpainting)</DialogTitle>
+          <DialogTitle>魔法编辑 (重绘)</DialogTitle>
         </DialogHeader>
         
         <div className="flex-1 relative border rounded-md overflow-hidden bg-black/5 flex items-center justify-center">
@@ -124,11 +124,11 @@ export function InpaintingEditor({ open, onClose, imageUrl, onSave, modelId }: I
 
         <div className="flex gap-4 items-end mt-4">
             <div className="flex-1 space-y-2">
-                <Label>What to change?</Label>
+                <Label>要修改什么？</Label>
                 <Input 
                     value={prompt} 
                     onChange={e => setPrompt(e.target.value)}
-                    placeholder="e.g. A red tie, sunglasses, remove object..." 
+                    placeholder="例如：红色领带，墨镜，移除物体..." 
                 />
             </div>
             
@@ -141,7 +141,7 @@ export function InpaintingEditor({ open, onClose, imageUrl, onSave, modelId }: I
             
             <Button onClick={handleGenerate} disabled={loading || !prompt}>
                 {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Check className="mr-2 h-4 w-4" />}
-                Apply Changes
+                应用更改
             </Button>
         </div>
       </DialogContent>

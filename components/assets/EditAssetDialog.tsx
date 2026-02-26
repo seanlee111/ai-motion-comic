@@ -47,7 +47,7 @@ export function EditAssetDialog({ asset, trigger }: { asset: Asset; trigger?: Re
       const res = await fetch("/api/assets", { method: "PATCH", body: formData })
       if (!res.ok) {
         const err = await res.json()
-        throw new Error(err.error || "Failed to update asset")
+        throw new Error(err.error || "更新素材失败")
       }
       const data = await res.json()
       updateAsset(asset.id, data.asset)
@@ -72,30 +72,30 @@ export function EditAssetDialog({ asset, trigger }: { asset: Asset; trigger?: Re
       </DialogTrigger>
       <DialogContent className="sm:max-w-[520px]">
         <DialogHeader>
-          <DialogTitle>Edit Asset</DialogTitle>
+          <DialogTitle>编辑素材</DialogTitle>
         </DialogHeader>
 
         <div className="grid gap-4 py-4">
           <div className="grid gap-2">
-            <Label>Asset Type</Label>
+            <Label>素材类型</Label>
             <Select value={type} onValueChange={(v: any) => setType(v)}>
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="character">Character</SelectItem>
-                <SelectItem value="scene">Scene</SelectItem>
+                <SelectItem value="character">角色</SelectItem>
+                <SelectItem value="scene">场景</SelectItem>
               </SelectContent>
             </Select>
           </div>
 
           <div className="grid gap-2">
-            <Label>Name</Label>
+            <Label>名称</Label>
             <Input value={name} onChange={(e) => setName(e.target.value)} />
           </div>
 
           <div className="grid gap-2">
-            <Label>Description (Prompt)</Label>
+            <Label>描述 (提示词)</Label>
             <Textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
@@ -104,21 +104,21 @@ export function EditAssetDialog({ asset, trigger }: { asset: Asset; trigger?: Re
           </div>
 
           <div className="grid gap-2">
-            <Label>Reference Image</Label>
+            <Label>参考图片</Label>
             <div className="flex items-center gap-3">
               <div className="h-20 w-20 overflow-hidden rounded-md border bg-muted">
                 {preview ? (
                   <img src={preview} alt="Preview" className="h-full w-full object-cover" />
                 ) : (
                   <div className="flex h-full w-full items-center justify-center text-xs text-muted-foreground">
-                    No Image
+                    无图片
                   </div>
                 )}
               </div>
               <div className="flex gap-2">
                 <Button variant="outline" onClick={() => fileInputRef.current?.click()} disabled={loading}>
                   <Upload className="mr-2 h-4 w-4" />
-                  Replace
+                  替换
                 </Button>
                 {file && (
                   <Button
@@ -130,7 +130,7 @@ export function EditAssetDialog({ asset, trigger }: { asset: Asset; trigger?: Re
                     disabled={loading}
                   >
                     <X className="mr-2 h-4 w-4" />
-                    Reset
+                    重置
                   </Button>
                 )}
               </div>
@@ -147,11 +147,11 @@ export function EditAssetDialog({ asset, trigger }: { asset: Asset; trigger?: Re
 
         <div className="flex justify-end gap-2">
           <Button variant="outline" onClick={() => setOpen(false)} disabled={loading}>
-            Cancel
+            取消
           </Button>
           <Button onClick={handleSubmit} disabled={loading || !name || !isDirty}>
             {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-            Save
+            保存
           </Button>
         </div>
       </DialogContent>

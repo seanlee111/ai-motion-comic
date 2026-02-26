@@ -31,15 +31,15 @@ export function SettingsModal() {
       </DialogTrigger>
       <DialogContent className="sm:max-w-[550px]">
         <DialogHeader>
-          <DialogTitle>Global Settings</DialogTitle>
+          <DialogTitle>全局设置</DialogTitle>
           <DialogDescription>
-            API keys are managed via environment variables on the server.
+            API 密钥通过服务器环境变量管理。
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-3 text-sm text-muted-foreground">
-          <div>Image models: KLING_ACCESS_KEY, KLING_SECRET_KEY, JIMENG_AK, JIMENG_SK</div>
-          <div>Script model: LLM_KEY</div>
-          <div>Changes take effect after a redeploy on Vercel.</div>
+          <div>图像模型：KLING_ACCESS_KEY, KLING_SECRET_KEY, JIMENG_AK, JIMENG_SK</div>
+          <div>脚本模型：LLM_KEY</div>
+          <div>更改在 Vercel 重新部署后生效。</div>
         </div>
       </DialogContent>
     </Dialog>

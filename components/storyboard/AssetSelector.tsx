@@ -79,13 +79,13 @@ export function AssetSelector({ type, value, onChange, multi = false }: AssetSel
                         </Badge>
                     ))
                 ) : (
-                    <span className="text-muted-foreground font-normal">Select {type}s...</span>
+                    <span className="text-muted-foreground font-normal">选择{type === 'character' ? '角色' : '场景'}...</span>
                 )
             ) : (
                 selectedLabels ? (
                     <span>{selectedLabels}</span>
                 ) : (
-                    <span className="text-muted-foreground font-normal">Select {type}...</span>
+                    <span className="text-muted-foreground font-normal">选择{type === 'character' ? '角色' : '场景'}...</span>
                 )
             )}
           </div>
@@ -95,7 +95,7 @@ export function AssetSelector({ type, value, onChange, multi = false }: AssetSel
       <PopoverContent className="w-[300px] p-0" align="start">
           <div className="max-h-[300px] overflow-y-auto p-1">
             {filteredAssets.length === 0 ? (
-                <div className="p-4 text-sm text-muted-foreground text-center">No {type}s found.</div>
+                <div className="p-4 text-sm text-muted-foreground text-center">未找到{type === 'character' ? '角色' : '场景'}。</div>
             ) : (
                 <div className="flex flex-col gap-1">
                     {!multi && (
@@ -109,7 +109,7 @@ export function AssetSelector({ type, value, onChange, multi = false }: AssetSel
                             <div className="w-4 h-4 flex items-center justify-center">
                                 {!value && <Check className="h-4 w-4" />}
                             </div>
-                            <span className="text-sm text-muted-foreground italic">None</span>
+                            <span className="text-sm text-muted-foreground italic">无</span>
                         </div>
                     )}
                     {filteredAssets.map((asset) => {

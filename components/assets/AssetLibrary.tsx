@@ -21,7 +21,7 @@ function AssetCard({ asset }: { asset: any }) {
               <img src={asset.imageUrl} alt={asset.name} className="h-full w-full object-cover" />
             ) : (
               <div className="flex h-full w-full items-center justify-center text-xs text-muted-foreground">
-                No Image
+                无图片
               </div>
             )}
           </div>
@@ -74,31 +74,31 @@ export function AssetLibrary() {
   return (
     <div className="flex h-full w-64 flex-col border-r bg-muted/10">
       <div className="p-4 border-b">
-        <h2 className="mb-2 font-semibold">Asset Library</h2>
+        <h2 className="mb-2 font-semibold">素材库</h2>
         <CreateAssetDialog />
       </div>
       
       <div className="flex-1 overflow-y-auto p-4">
         <div className="mb-6">
-          <h3 className="mb-2 text-sm font-medium text-muted-foreground">Characters ({characters.length})</h3>
+          <h3 className="mb-2 text-sm font-medium text-muted-foreground">角色 ({characters.length})</h3>
           <div className="grid grid-cols-2 gap-2">
             {characters.map(asset => (
               <AssetCard key={asset.id} asset={asset} />
             ))}
             {loading && (
-              <div className="text-xs text-muted-foreground">Loading...</div>
+              <div className="text-xs text-muted-foreground">加载中...</div>
             )}
           </div>
         </div>
 
         <div>
-          <h3 className="mb-2 text-sm font-medium text-muted-foreground">Scenes ({scenes.length})</h3>
+          <h3 className="mb-2 text-sm font-medium text-muted-foreground">场景 ({scenes.length})</h3>
           <div className="grid grid-cols-2 gap-2">
             {scenes.map(asset => (
               <AssetCard key={asset.id} asset={asset} />
             ))}
             {loading && (
-              <div className="text-xs text-muted-foreground">Loading...</div>
+              <div className="text-xs text-muted-foreground">加载中...</div>
             )}
           </div>
         </div>

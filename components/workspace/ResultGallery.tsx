@@ -29,8 +29,8 @@ export function ResultGallery({ images }: ResultGalleryProps) {
     return (
       <div className="flex h-full w-full flex-col items-center justify-center text-muted-foreground">
         <Film className="mb-4 h-12 w-12 opacity-20" />
-        <p>No keyframes generated yet.</p>
-        <p className="text-sm">Start by describing your scene on the left.</p>
+        <p>暂无生成的关键帧。</p>
+        <p className="text-sm">请在左侧描述场景开始生成。</p>
       </div>
     )
   }
@@ -55,11 +55,11 @@ export function ResultGallery({ images }: ResultGalleryProps) {
                     onClick={() => handleDownload(image.url, image.id)}
                   >
                     <Download className="mr-2 h-4 w-4" />
-                    Download
+                    下载
                   </Button>
                   <Button size="sm" variant="secondary" disabled>
                     <Film className="mr-2 h-4 w-4" />
-                    To Video
+                    转视频
                   </Button>
                 </div>
               </div>
