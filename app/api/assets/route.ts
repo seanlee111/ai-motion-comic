@@ -97,6 +97,7 @@ export async function POST(req: NextRequest) {
     const metaBlob = await put(`${META_PREFIX}${id}.json`, JSON.stringify(asset), {
       access: "public",
       contentType: "application/json",
+      addRandomSuffix: false,
     });
 
     return NextResponse.json({ asset, metaUrl: metaBlob.url });
@@ -231,6 +232,8 @@ export async function PATCH(req: NextRequest) {
     await put(`${META_PREFIX}${id}.json`, JSON.stringify(updated), {
       access: "public",
       contentType: "application/json",
+      addRandomSuffix: false,
+      allowOverwrite: true,
     });
 
     return NextResponse.json({ asset: updated });
