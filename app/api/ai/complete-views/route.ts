@@ -23,13 +23,15 @@ export async function POST(req: NextRequest) {
     const analysisContent: any[] = [
       { 
         type: "text", 
-        text: `Analyze these images of a ${assetType === 'character' ? 'character' : 'scene'}. 
-        1. Provide a detailed visual description (appearance, clothing, style, colors).
-        2. Identify which views are present from this list: "Front", "Side", "Back", "Three-Quarter", "Close-up".
+        text: `请作为 AI 绘画提示词专家，分析这张 ${assetType === 'character' ? '角色' : '场景'} 图片。
         
-        Return ONLY a JSON object with this structure:
+        要求：
+        1. 生成简短、准确的角色描述（风格+角色+特征），字数 100 字以内。
+        2. 识别图中已有的视角（从以下列表中选择: "Front", "Side", "Back", "Three-Quarter", "Close-up"）。
+        
+        必须返回如下 JSON 对象：
         {
-          "description": "detailed description string",
+          "description": "简练的特征描述",
           "presentViews": ["Front", "Back"]
         }` 
       }
