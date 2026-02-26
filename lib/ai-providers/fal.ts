@@ -59,7 +59,9 @@ export const FalProvider: AIProviderAdapter = {
 
     if (mode === "image-to-image" && image_url) {
       payload.image_url = image_url;
-      payload.strength = strength || 0.85;
+      // Default strength 0.85 is often too high for character reference, causing loss of identity.
+      // Lowering to 0.75 to preserve more original features while allowing some changes.
+      payload.strength = strength || 0.75;
       if (modelConfig.id.includes('flux')) {
          endpoint = "https://queue.fal.run/fal-ai/flux-general/image-to-image";
       } else if (modelConfig.id.includes('sdxl')) {

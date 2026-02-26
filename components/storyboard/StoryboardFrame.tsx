@@ -377,17 +377,35 @@ export function StoryboardFrame({ frame, index }: StoryboardFrameProps) {
       const characters = (characterIds || []).map(id => assets.find(a => a.id === id)).filter(Boolean)
       const scene = assets.find(a => a.id === sceneId)
       
-      let fullPrompt = ""
-      if (scene) fullPrompt += `[Scene: ${scene.name}, ${scene.description}] `
+      // Optimized Prompt Construction
+      const promptParts: string[] = [];
       
-      if (characters.length > 0) {
-        characters.forEach(char => {
-            if (char) fullPrompt += `[Character: ${char.name}, ${char.description}] `
-        })
+      // 1. Scene
+      if (scene) {
+          const sceneDesc = scene.description ? `, ${scene.description}` : "";
+          promptParts.push(`Scene: ${scene.name}${sceneDesc}`);
       }
       
-      const timeContext = target === "start" ? "Opening shot, start of action." : "Closing shot, end of action."
-      fullPrompt += `Action: ${script}. ${actionNotes || ""}. ${timeContext} Masterpiece, cinematic lighting, 8k.`
+      // 2. Characters
+      if (characters.length > 0) {
+          const charParts = characters.map(char => {
+              if (!char) return "";
+              const charDesc = char.description ? ` (${char.description})` : "";
+              return `${char.name}${charDesc}`;
+          }).filter(Boolean);
+          if (charParts.length > 0) promptParts.push(`Characters: ${charParts.join(", ")}`);
+      }
+      
+      // 3. Action & Context
+      const timeContext = target === "start" ? "Opening shot, start of action" : "Closing shot, end of action";
+      promptParts.push(`Action: ${script}`);
+      if (actionNotes) promptParts.push(actionNotes);
+      promptParts.push(timeContext);
+      
+      // 4. Style & Quality
+      promptParts.push("Masterpiece, cinematic lighting, 8k, highly detailed");
+      
+      const fullPrompt = promptParts.join(". ");
 
       // Gather all reference images
       const referenceImages: string[] = [];
