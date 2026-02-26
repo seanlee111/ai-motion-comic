@@ -9,6 +9,9 @@ const inter = Inter({ subsets: ["latin"] });
 export const metadata: Metadata = {
   title: "AI Motion Comic Studio",
   description: "Generate keyframes for motion comics using AI",
+  icons: {
+    icon: "/icon.svg",
+  },
 };
 
 import { Toaster } from "@/components/ui/sonner"
