@@ -126,7 +126,8 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ newImages: [], message: "No new views needed or slots full." });
     }
 
-    // --- Step 3: Generate Missing Views using Jimeng AI ---
+    // --- Step 3: Generate Missing Views using Jimeng AI (Ark) ---
+    // Using the same configuration as start/end frames (Jimeng 4.5 via Ark)
     const referenceImage = images[0];
     const generateEndpoint = "https://ark.cn-beijing.volces.com/api/v3/images/generations";
     
@@ -139,23 +140,29 @@ export async function POST(req: NextRequest) {
     const refBase64 = await getBase64ForGen(referenceImage);
     const generatedUrls: string[] = [];
 
-    // Use environment variable for model endpoint ID, or fallback
-    const modelEndpointId = process.env.JIMENG_ENDPOINT_ID || "ep-20250214152358-q42t7";
+    // Use the exact model ID from lib/ai-providers/jimeng.ts
+    const modelId = "doubao-seedream-4-5-251128";
 
     // Run sequentially
     for (const view of viewsToGenerate) {
         try {
-            // Prompt engineered as requested: "参考该图片，补充完整五视图的意思" + specific view + description
+            // Prompt engineered as requested
             const prompt = `参考该图片，补充完整五视图的意思。绘制该角色的 ${view} 视图 (View)。\n${finalDescription}`;
             
+            // Construct payload matching lib/ai-providers/jimeng.ts generateArk()
             const payload = {
-                model: modelEndpointId,
+                model: modelId,
                 prompt: prompt,
+                width: 1024,
+                height: 1024, // Square for character views
+                return_url: true,
+                stream: false,
+                watermark: false,
+                // Image reference fields
                 image_urls: [refBase64],
-                strength: 0.75, // Balance
-                scale: 3.5,
-                height: 1024,
-                width: 1024
+                image: [refBase64], // Fallback/Compat field used in provider
+                sequential_image_generation: "auto",
+                sequential_image_generation_options: { max_images: 1 }
             };
 
             const genRes = await fetch(generateEndpoint, {
@@ -170,13 +177,19 @@ export async function POST(req: NextRequest) {
             if (!genRes.ok) {
                 const errText = await genRes.text();
                 console.error(`Jimeng Generation failed for ${view}: ${errText}`);
+                // Try to parse error for better message
+                try {
+                    const errJson = JSON.parse(errText);
+                    if (errJson.error?.message) {
+                        console.error(`Jimeng Error Message: ${errJson.error.message}`);
+                    }
+                } catch {}
                 continue;
             }
 
             const genData = await genRes.json();
-            // Ark returns images directly in `data` array usually
-            // Structure: { data: [ { url: "..." } ] }
             
+            // Ark returns images directly in `data` array usually
             if (genData.data && genData.data.length > 0 && genData.data[0].url) {
                 generatedUrls.push(genData.data[0].url);
             }
