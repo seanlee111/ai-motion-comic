@@ -107,14 +107,8 @@ export function VideoGenerator() {
             </div>
             
             <div className="flex-1 overflow-y-auto p-4 space-y-6">
-                <Tabs defaultValue="video" className="w-full">
-                    <TabsList className="w-full bg-[#2a2a2a] p-0.5 h-8">
-                        <TabsTrigger value="image" disabled className="flex-1 text-xs h-7 data-[state=active]:bg-[#333]">图片</TabsTrigger>
-                        <TabsTrigger value="video" className="flex-1 text-xs h-7 data-[state=active]:bg-[#333]">视频</TabsTrigger>
-                        <TabsTrigger value="audio" disabled className="flex-1 text-xs h-7 data-[state=active]:bg-[#333]">音频</TabsTrigger>
-                    </TabsList>
-                </Tabs>
-
+                {/* Tabs removed as requested */}
+                
                 <div className="flex gap-2 p-1 bg-[#2a2a2a] rounded-lg">
                     {/* Removed unused buttons as requested */}
                     <Button size="sm" className="flex-1 h-7 text-[10px] bg-blue-600 hover:bg-blue-700 text-white shadow-none">首尾帧</Button>
