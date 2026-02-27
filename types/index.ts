@@ -63,6 +63,7 @@ export interface StoryboardFrame {
   startImageUrl?: string;
   endImageUrl?: string;
   characterId?: string;
+  videoUrl?: string; // New: Generated video URL
   
   // State
   isGenerating?: boolean;

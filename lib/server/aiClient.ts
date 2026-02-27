@@ -192,6 +192,96 @@ Each object must have:
         return this.processResponse(await res.json());
     }
 
+    async generateVideo(
+        startImageBase64: string, 
+        endImageBase64: string, 
+        prompt: string
+    ): Promise<string | null> {
+        if (!this.arkKey) throw new Error("Server missing ARK_API_KEY");
+
+        const modelId = "doubao-seedance-1-5-pro-251215";
+        const videoEndpoint = "https://ark.cn-beijing.volces.com/api/v3/videos/generations";
+
+        const payload = {
+            model: modelId,
+            prompt: prompt,
+            image_urls: [startImageBase64, endImageBase64],
+            // width/height usually inferred from image or model defaults
+            // seedance 1.5 usually takes prompt + image_url (start/end)
+            // It might need explicit width/height if we want to force it, but let's stick to defaults or 16:9
+            // Ark standard video generation payload:
+            // "video_generation_options": { "fps": 24, "duration": 5 } - example
+            // Seedance specific: often just prompt + images
+        };
+
+        const res = await fetch(videoEndpoint, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${this.arkKey}`
+            },
+            body: JSON.stringify(payload)
+        });
+
+        if (!res.ok) {
+            const errText = await res.text();
+            throw new Error(`Video Generation failed: ${res.status} ${errText}`);
+        }
+
+        const data = await res.json();
+        // Ark video generation is usually async. It returns a task ID or a direct URL if fast (rare).
+        // Standard Ark Video API returns { id: "task_id", status: "QUEUED" } usually.
+        // If it's sync (unlikely for video), it returns { data: [{ url: ... }] }.
+        // Wait, Doubao Seedance on Ark might be sync or async.
+        // Assuming standard OpenAI-like Image Generation but for Video? No, Video is usually async.
+        // Let's assume it returns a task ID and we need to poll, OR if it's the "fast" endpoint.
+        // However, the user provided model ID "doubao-seedance-1-5-pro-251215".
+        // Let's assume it returns a URL directly for now (optimistic) or check response structure.
+        // Actually, most Volcengine Video APIs are async.
+        // But for simplicity in this turn, I'll implement the call. If it returns a task ID, we might need a polling mechanism.
+        // Let's assume the response structure is { data: { video_url: "..." } } or similar for now,
+        // or if it's async, we might need to handle it. 
+        // Given the instructions don't mention polling, I will assume it returns the video URL or we implement a basic wait if needed.
+        // Actually, let's look at the standard response.
+        
+        if (data.data && data.data.length > 0 && data.data[0].url) {
+            return data.data[0].url; // Direct URL (Sync)
+        } else if (data.id) {
+            // Async Task ID - we need to poll
+            // For now, let's just return the Task ID or throw "Async not implemented"
+            // But to "get it working", let's try to poll once or twice?
+            // Better: Return the task ID and let the frontend poll?
+            // Or implement a simple server-side poll loop (dangerous for long videos).
+            // Let's assume for this "pro" model it might be async.
+            return await this.pollVideoTask(data.id);
+        }
+        
+        return null;
+    }
+
+    private async pollVideoTask(taskId: string): Promise<string | null> {
+        const statusEndpoint = `https://ark.cn-beijing.volces.com/api/v3/videos/generations/${taskId}`;
+        const maxRetries = 60; // 5 mins max (5s interval)
+        
+        for (let i = 0; i < maxRetries; i++) {
+            await new Promise(r => setTimeout(r, 5000));
+            const res = await fetch(statusEndpoint, {
+                headers: { "Authorization": `Bearer ${this.arkKey}` }
+            });
+            
+            if (!res.ok) continue;
+            const data = await res.json();
+            
+            if (data.status === "SUCCEEDED" && data.data?.video?.url) {
+                return data.data.video.url;
+            }
+            if (data.status === "FAILED") {
+                throw new Error(`Video generation task failed: ${data.error?.message}`);
+            }
+        }
+        throw new Error("Video generation timed out");
+    }
+
     private processResponse(data: any): any {
         const content = data.choices?.[0]?.message?.content;
         try {

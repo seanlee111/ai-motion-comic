@@ -67,3 +67,22 @@ export async function completeViewsAction(
         return { success: false, error: e.message };
     }
 }
+
+export async function generateVideoAction(
+    startImageUrl: string, 
+    endImageUrl: string, 
+    prompt: string
+) {
+    try {
+        const startBase64 = await urlToBase64(startImageUrl);
+        const endBase64 = await urlToBase64(endImageUrl);
+        
+        const videoUrl = await aiClient.generateVideo(startBase64, endBase64, prompt);
+        
+        if (!videoUrl) throw new Error("Failed to generate video URL");
+        
+        return { success: true, videoUrl };
+    } catch (e: any) {
+        return { success: false, error: e.message };
+    }
+}
