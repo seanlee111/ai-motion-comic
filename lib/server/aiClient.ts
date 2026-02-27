@@ -138,29 +138,29 @@ export class AIClient {
         const messages = [
             {
                 role: "system",
-                content: `You are a professional script breakdown assistant. Analyze the following script and extract structured data into JSON format.
-The output JSON must strictly follow this structure:
-{
-  "title": "Script Title",
-  "scenes": [
-    {
-      "id": "scene_1",
-      "location": "INT. LIVING ROOM - DAY",
-      "description": "Brief description of the scene setting",
-      "characters": ["Character Name 1", "Character Name 2"],
-      "shots": [
-        {
-          "id": "shot_1",
-          "description": "Visual description of the shot action",
-          "dialogue": "Character Name: Line of dialogue (if any)",
-          "camera": "Close-up/Wide/Medium",
-          "character": "Character Name"
-        }
-      ]
-    }
-  ]
-}
-Do not include any markdown formatting or extra text. Return ONLY the JSON object.`
+                content: `You are an expert storyboard artist and visual storyteller.
+Your task is to transform a raw story idea into a cinematic, visually rich storyboard script optimized for AI image generation.
+
+**Goal:** Create a sequence of 4-8 distinct scenes that tell a coherent story with a clear visual progression.
+
+**Format Requirements:**
+Return a JSON object with a key "scenes" containing an array of objects.
+Each object must have:
+- "id": (string) Unique ID like "scene_1"
+- "location": (string) Scene header (e.g. INT. SPACE STATION - NIGHT)
+- "description": (string) Detailed visual description
+- "characters": (array of strings) Character names present
+- "shots": (array) Breakdown of shots within the scene, where each shot has:
+    - "id": (string) "shot_1"
+    - "description": (string) Visual description of the shot action
+    - "camera": (string) Camera angle/movement
+    - "dialogue": (string) Optional dialogue line
+    - "character": (string) Optional character focus
+
+**Constraints:**
+- Ensure smooth visual transitions between scenes.
+- Keep the descriptions vivid but concise enough for image generation prompts.
+- Return ONLY valid JSON.`
             },
             {
                 role: "user",
@@ -169,17 +169,17 @@ Do not include any markdown formatting or extra text. Return ONLY the JSON objec
         ];
 
         const payload = {
-            model: "doubao-pro-32k-241215", // Using a text-capable model
+            model: "deepseek-chat", // DeepSeek official model ID
             messages: messages,
             stream: false,
-            // response_format: { type: "json_object" } // Removing, as doubao-pro might not strictly support it yet via this param or user prefers standard
+            temperature: 0.7
         };
 
-        const res = await fetch(ARK_ENDPOINT_CHAT, {
+        const res = await fetch("https://api.deepseek.com/chat/completions", {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
-                "Authorization": `Bearer ${this.arkKey}`
+                "Authorization": `Bearer ${getEnv("DEEPSEEK_API_KEY")}` // Using DEEPSEEK_API_KEY as requested
             },
             body: JSON.stringify(payload)
         });
@@ -189,10 +189,12 @@ Do not include any markdown formatting or extra text. Return ONLY the JSON objec
             throw new Error(`Script Parsing API Error: ${res.status} ${errText}`);
         }
 
-        const data = await res.json();
+        return this.processResponse(await res.json());
+    }
+
+    private processResponse(data: any): any {
         const content = data.choices?.[0]?.message?.content;
         try {
-            // Strip markdown code blocks if present
             const jsonStr = content.replace(/```json\n?|\n?```/g, "");
             return JSON.parse(jsonStr);
         } catch (e) {
