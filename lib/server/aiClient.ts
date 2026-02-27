@@ -213,15 +213,20 @@ Each object must have:
                     type: "image_url",
                     image_url: {
                         url: startImageBase64
-                    }
+                    },
+                    role: "first_frame"
                 },
                 {
                     type: "image_url",
                     image_url: {
                         url: endImageBase64
-                    }
+                    },
+                    role: "last_frame"
                 }
-            ]
+            ],
+            generate_audio: true,
+            duration: 5,
+            ratio: "16:9" // Or "adaptive"
         };
 
         const res = await fetch(videoEndpoint, {
