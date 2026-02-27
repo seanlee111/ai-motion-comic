@@ -65,6 +65,16 @@ export interface StoryboardFrame {
   characterId?: string;
   videoUrl?: string; // New: Generated video URL
   
+  // Video History
+  videoVersions?: {
+      id: string;
+      url: string;
+      prompt: string;
+      modelId: string;
+      duration: number;
+      timestamp: number;
+  }[];
+
   // State
   isGenerating?: boolean;
 }
