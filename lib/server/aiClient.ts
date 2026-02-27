@@ -132,6 +132,74 @@ export class AIClient {
         }
         return null;
     }
+    async parseScript(script: string): Promise<any> {
+        if (!this.arkKey) throw new Error("Server missing ARK_API_KEY");
+
+        const messages = [
+            {
+                role: "system",
+                content: `You are a professional script breakdown assistant. Analyze the following script and extract structured data into JSON format.
+The output JSON must strictly follow this structure:
+{
+  "title": "Script Title",
+  "scenes": [
+    {
+      "id": "scene_1",
+      "location": "INT. LIVING ROOM - DAY",
+      "description": "Brief description of the scene setting",
+      "characters": ["Character Name 1", "Character Name 2"],
+      "shots": [
+        {
+          "id": "shot_1",
+          "description": "Visual description of the shot action",
+          "dialogue": "Character Name: Line of dialogue (if any)",
+          "camera": "Close-up/Wide/Medium",
+          "character": "Character Name"
+        }
+      ]
+    }
+  ]
+}
+Do not include any markdown formatting or extra text. Return ONLY the JSON object.`
+            },
+            {
+                role: "user",
+                content: script
+            }
+        ];
+
+        const payload = {
+            model: "doubao-pro-32k-241215", // Using a text-capable model
+            messages: messages,
+            stream: false,
+            // response_format: { type: "json_object" } // Removing, as doubao-pro might not strictly support it yet via this param or user prefers standard
+        };
+
+        const res = await fetch(ARK_ENDPOINT_CHAT, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${this.arkKey}`
+            },
+            body: JSON.stringify(payload)
+        });
+
+        if (!res.ok) {
+            const errText = await res.text();
+            throw new Error(`Script Parsing API Error: ${res.status} ${errText}`);
+        }
+
+        const data = await res.json();
+        const content = data.choices?.[0]?.message?.content;
+        try {
+            // Strip markdown code blocks if present
+            const jsonStr = content.replace(/```json\n?|\n?```/g, "");
+            return JSON.parse(jsonStr);
+        } catch (e) {
+            console.error("Failed to parse script JSON", content);
+            throw new Error("Failed to parse script JSON response");
+        }
+    }
 }
 
 export const aiClient = new AIClient();
