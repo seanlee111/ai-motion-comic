@@ -200,16 +200,28 @@ Each object must have:
         if (!this.arkKey) throw new Error("Server missing ARK_API_KEY");
 
         const modelId = "doubao-seedance-1-5-pro-251215";
-        // Correct endpoint for Doubao Seedance video generation
-        // Based on analysis, if the "videos/generations" is 404, we should try singular or check docs.
-        // Assuming standard Volcengine convention for CV tasks might be different.
-        // Let's try the singular "video/generations" first as a strong candidate.
-        const videoEndpoint = "https://ark.cn-beijing.volces.com/api/v3/video/generations";
+        const videoEndpoint = "https://ark.cn-beijing.volces.com/api/v3/content/generation/tasks";
 
         const payload = {
             model: modelId,
-            prompt: prompt,
-            image_urls: [startImageBase64, endImageBase64],
+            content: [
+                {
+                    type: "text",
+                    text: prompt
+                },
+                {
+                    type: "image_url",
+                    image_url: {
+                        url: startImageBase64
+                    }
+                },
+                {
+                    type: "image_url",
+                    image_url: {
+                        url: endImageBase64
+                    }
+                }
+            ]
         };
 
         const res = await fetch(videoEndpoint, {
@@ -228,30 +240,8 @@ Each object must have:
         }
 
         const data = await res.json();
-        // Ark video generation is usually async. It returns a task ID or a direct URL if fast (rare).
-        // Standard Ark Video API returns { id: "task_id", status: "QUEUED" } usually.
-        // If it's sync (unlikely for video), it returns { data: [{ url: ... }] }.
-        // Wait, Doubao Seedance on Ark might be sync or async.
-        // Assuming standard OpenAI-like Image Generation but for Video? No, Video is usually async.
-        // Let's assume it returns a task ID and we need to poll, OR if it's the "fast" endpoint.
-        // However, the user provided model ID "doubao-seedance-1-5-pro-251215".
-        // Let's assume it returns a URL directly for now (optimistic) or check response structure.
-        // Actually, most Volcengine Video APIs are async.
-        // But for simplicity in this turn, I'll implement the call. If it returns a task ID, we might need a polling mechanism.
-        // Let's assume the response structure is { data: { video_url: "..." } } or similar for now,
-        // or if it's async, we might need to handle it. 
-        // Given the instructions don't mention polling, I will assume it returns the video URL or we implement a basic wait if needed.
-        // Actually, let's look at the standard response.
-        
-        if (data.data && data.data.length > 0 && data.data[0].url) {
-            return data.data[0].url; // Direct URL (Sync)
-        } else if (data.id) {
-            // Async Task ID - we need to poll
-            // For now, let's just return the Task ID or throw "Async not implemented"
-            // But to "get it working", let's try to poll once or twice?
-            // Better: Return the task ID and let the frontend poll?
-            // Or implement a simple server-side poll loop (dangerous for long videos).
-            // Let's assume for this "pro" model it might be async.
+        // The API returns { id: "task_id" }
+        if (data.id) {
             return await this.pollVideoTask(data.id);
         }
         
@@ -259,7 +249,8 @@ Each object must have:
     }
 
     private async pollVideoTask(taskId: string): Promise<string | null> {
-        const statusEndpoint = `https://ark.cn-beijing.volces.com/api/v3/videos/generations/${taskId}`;
+        // Polling endpoint: https://ark.cn-beijing.volces.com/api/v3/content/generation/tasks/{id}
+        const statusEndpoint = `https://ark.cn-beijing.volces.com/api/v3/content/generation/tasks/${taskId}`;
         const maxRetries = 60; // 5 mins max (5s interval)
         
         for (let i = 0; i < maxRetries; i++) {
@@ -271,11 +262,11 @@ Each object must have:
             if (!res.ok) continue;
             const data = await res.json();
             
-            if (data.status === "SUCCEEDED" && data.data?.video?.url) {
-                return data.data.video.url;
+            if (data.status === "succeeded" && data.content?.video_url) {
+                return data.content.video_url;
             }
-            if (data.status === "FAILED") {
-                throw new Error(`Video generation task failed: ${data.error?.message}`);
+            if (data.status === "failed") {
+                throw new Error(`Video generation task failed: ${data.error?.message || "Unknown error"}`);
             }
         }
         throw new Error("Video generation timed out");
