@@ -22,20 +22,22 @@ export function VideoGenerator() {
   const [duration, setDuration] = useState("5s")
   const [prompt, setPrompt] = useState("")
 
+  // Use a derived selectedFrame that always reflects the latest store state
   const selectedFrame = frames.find(f => f.id === selectedFrameId) || frames[0]
 
   useEffect(() => {
-      if (selectedFrame) {
-          setSelectedFrameId(selectedFrame.id)
-          setPrompt(selectedFrame.storyScript || "")
+      // Set initial selection if none
+      if (!selectedFrameId && frames.length > 0) {
+          setSelectedFrameId(frames[0].id)
       }
-  }, [frames.length]) // Only on mount or when frames change significantly
+  }, [frames.length, selectedFrameId])
 
+  // Sync local prompt state when switching frames
   useEffect(() => {
       if (selectedFrame) {
           setPrompt(selectedFrame.storyScript || "")
       }
-  }, [selectedFrameId])
+  }, [selectedFrame?.id]) // Only when ID changes, not on every frame update
 
   const handleGenerateVideo = async () => {
     if (!selectedFrame) return;
