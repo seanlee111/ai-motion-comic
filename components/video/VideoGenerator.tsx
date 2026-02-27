@@ -42,8 +42,9 @@ export function VideoGenerator() {
   const handleGenerateVideo = async () => {
     if (!selectedFrame) return;
     
-    const startImg = selectedFrame.startImages?.[0]?.url;
-    const endImg = selectedFrame.endImages?.[0]?.url;
+    // Prefer explicitly selected images, fallback to first in array
+    const startImg = selectedFrame.startImageUrl || selectedFrame.startImages?.[0]?.url;
+    const endImg = selectedFrame.endImageUrl || selectedFrame.endImages?.[0]?.url;
 
     if (!startImg || !endImg) {
         toast.error("需要首尾关键帧才能生成视频");
@@ -153,16 +154,16 @@ export function VideoGenerator() {
                         <Label className="text-xs text-gray-400">参考图 (首尾帧)</Label>
                         <div className="grid grid-cols-2 gap-2">
                              <div className="aspect-video bg-[#2a2a2a] rounded overflow-hidden relative border border-[#333]">
-                                 {selectedFrame?.startImages?.[0] ? (
-                                     <img src={selectedFrame.startImages[0].url} className="w-full h-full object-cover" />
+                                 {(selectedFrame?.startImageUrl || selectedFrame?.startImages?.[0]?.url) ? (
+                                     <img src={selectedFrame.startImageUrl || selectedFrame.startImages?.[0]?.url} className="w-full h-full object-cover" />
                                  ) : (
                                      <div className="flex items-center justify-center h-full text-xs text-gray-600">首帧</div>
                                  )}
                                  <div className="absolute top-1 left-1 text-[8px] bg-black/60 px-1 rounded text-white">Start</div>
                              </div>
                              <div className="aspect-video bg-[#2a2a2a] rounded overflow-hidden relative border border-[#333]">
-                                 {selectedFrame?.endImages?.[0] ? (
-                                     <img src={selectedFrame.endImages[0].url} className="w-full h-full object-cover" />
+                                 {(selectedFrame?.endImageUrl || selectedFrame?.endImages?.[0]?.url) ? (
+                                     <img src={selectedFrame.endImageUrl || selectedFrame.endImages?.[0]?.url} className="w-full h-full object-cover" />
                                  ) : (
                                      <div className="flex items-center justify-center h-full text-xs text-gray-600">尾帧</div>
                                  )}
@@ -186,7 +187,7 @@ export function VideoGenerator() {
             <div className="p-4 border-t border-[#333] flex items-center justify-end">
                 <Button 
                     onClick={handleGenerateVideo} 
-                    disabled={isGenerating || !selectedFrame?.startImages?.[0] || !selectedFrame?.endImages?.[0]}
+                    disabled={isGenerating || (!selectedFrame?.startImageUrl && !selectedFrame?.startImages?.[0]) || (!selectedFrame?.endImageUrl && !selectedFrame?.endImages?.[0])}
                     className="bg-blue-600 hover:bg-blue-700 text-white px-6 h-9 text-xs w-full"
                 >
                     {isGenerating ? <Loader2 className="h-3 w-3 animate-spin mr-2" /> : null}
@@ -247,11 +248,11 @@ export function VideoGenerator() {
                                 <p className="text-[10px] text-gray-500 line-clamp-3 leading-relaxed">
                                     {frame.storyScript}
                                 </p>
-                                {frame.startImages?.[0] && (
+                                {frame.startImageUrl || frame.startImages?.[0] ? (
                                     <div className="absolute bottom-2 right-2 w-8 h-8 rounded bg-black border border-[#444] overflow-hidden">
-                                        <img src={frame.startImages[0].url} className="w-full h-full object-cover" />
+                                        <img src={frame.startImageUrl || frame.startImages![0].url} className="w-full h-full object-cover" />
                                     </div>
-                                )}
+                                ) : null}
                             </div>
                         </div>
                     ))}
