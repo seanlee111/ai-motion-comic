@@ -92,7 +92,7 @@ export function AssetLibrary({ className }: { className?: string }) {
       <div className="flex-1 overflow-y-auto p-4">
         <div className="mb-6">
           <h3 className="mb-2 text-sm font-medium text-muted-foreground">角色 ({characters.length})</h3>
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+          <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 gap-2">
             {characters.map(asset => (
               <AssetCard key={asset.id} asset={asset} />
             ))}
@@ -104,7 +104,7 @@ export function AssetLibrary({ className }: { className?: string }) {
 
         <div>
           <h3 className="mb-2 text-sm font-medium text-muted-foreground">场景 ({scenes.length})</h3>
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+          <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 gap-2">
             {scenes.map(asset => (
               <AssetCard key={asset.id} asset={asset} />
             ))}
