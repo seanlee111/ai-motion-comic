@@ -17,9 +17,7 @@ export function StoryboardWorkbench() {
         <h2 className="text-lg font-semibold">分镜板 ({frames.length} 帧)</h2>
         <div className="flex gap-2 items-center">
             <GlobalSettingsDialog />
-            <Button variant="outline" onClick={() => router.push('/script-creation')}>
-                <Wand2 className="mr-2 h-4 w-4" /> AI 剧本
-            </Button>
+            {/* Removed AI Script button as it's now a separate tab */}
             <Button onClick={() => addFrame()}>
                 <Plus className="mr-2 h-4 w-4" /> 添加分镜
             </Button>
@@ -34,7 +32,8 @@ export function StoryboardWorkbench() {
         {frames.length === 0 && (
             <div className="flex flex-col items-center justify-center h-64 text-muted-foreground">
                 <p>暂无分镜。</p>
-                <Button variant="link" onClick={() => addFrame()}>创建第一个分镜</Button>
+                <p className="text-xs mt-2">请切换到“剧本解析”标签页生成分镜，或手动添加。</p>
+                <Button variant="link" onClick={() => addFrame()}>手动添加第一个分镜</Button>
             </div>
         )}
         
