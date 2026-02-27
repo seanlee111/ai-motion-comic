@@ -22,6 +22,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { createAssetAction } from "@/app/actions/assets"
+import { generateDescriptionAction } from "@/app/actions/ai"
 
 const MAX_IMAGES = 5;
 
@@ -81,13 +83,6 @@ export function CreateAssetDialog() {
     setFiles(newFiles)
     setPreviews(newPreviews)
   }
-
-import { createAssetAction } from "@/app/actions/assets"
-import { generateDescriptionAction } from "@/app/actions/ai"
-
-// ... imports
-
-// ... inside CreateAssetDialog
 
   const handleSmartDescription = async () => {
     if (files.length === 0) {

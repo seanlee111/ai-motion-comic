@@ -12,6 +12,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
+import { generateDescriptionAction, completeViewsAction } from "@/app/actions/ai"
 
 const VIEW_CONFIGS = {
     3: ["Front", "Side", "Back"],
@@ -113,12 +114,6 @@ export function EditAssetDialog({ asset, trigger }: { asset: Asset; trigger?: Re
   }
 
   const addLog = (msg: string) => setApiLogs(prev => [msg, ...prev].slice(0, 5))
-
-import { generateDescriptionAction, completeViewsAction } from "@/app/actions/ai";
-
-// ... (existing imports)
-
-// ... (inside component)
 
   const handleSmartDescription = async () => {
     const activeImages = Object.values(viewImages);
