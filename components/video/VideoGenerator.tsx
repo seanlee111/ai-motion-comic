@@ -35,9 +35,17 @@ export function VideoGenerator() {
   // Sync local prompt state when switching frames
   useEffect(() => {
       if (selectedFrame) {
-          setPrompt(selectedFrame.storyScript || "")
+          // Initialize prompt with stored videoPrompt, fallback to storyScript
+          setPrompt(selectedFrame.videoPrompt || selectedFrame.storyScript || "")
       }
-  }, [selectedFrame?.id]) // Only when ID changes, not on every frame update
+  }, [selectedFrame?.id])
+
+  const handlePromptChange = (val: string) => {
+      setPrompt(val);
+      if (selectedFrame) {
+          updateFrame(selectedFrame.id, { videoPrompt: val } as any);
+      }
+  };
 
   const handleGenerateVideo = async () => {
     if (!selectedFrame) return;
@@ -52,7 +60,7 @@ export function VideoGenerator() {
     }
 
     // Use global store state instead of local state
-    updateFrame(selectedFrame.id, { isGenerating: true } as any);
+    updateFrame(selectedFrame.id, { isGenerating: true, videoPrompt: prompt } as any);
     
     try {
         const res = await generateVideoAction(startImg, endImg, prompt);
@@ -176,7 +184,7 @@ export function VideoGenerator() {
                         <Label className="text-xs text-gray-400">视频提示词</Label>
                         <Textarea 
                             value={prompt}
-                            onChange={(e) => setPrompt(e.target.value)}
+                            onChange={(e) => handlePromptChange(e.target.value)}
                             className="bg-[#2a2a2a] border-0 text-xs min-h-[100px] resize-none focus-visible:ring-1 focus-visible:ring-gray-600"
                             placeholder="描述视频的动态内容..."
                         />

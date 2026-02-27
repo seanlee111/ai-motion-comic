@@ -66,6 +66,7 @@ export interface StoryboardFrame {
   videoUrl?: string; // New: Generated video URL
   
   // Video History
+  videoPrompt?: string; // Specific prompt for video generation
   videoVersions?: {
       id: string;
       url: string;

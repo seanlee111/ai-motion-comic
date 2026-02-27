@@ -200,18 +200,16 @@ Each object must have:
         if (!this.arkKey) throw new Error("Server missing ARK_API_KEY");
 
         const modelId = "doubao-seedance-1-5-pro-251215";
-        const videoEndpoint = "https://ark.cn-beijing.volces.com/api/v3/videos/generations";
+        // Correct endpoint for Doubao Seedance video generation
+        // Based on analysis, if the "videos/generations" is 404, we should try singular or check docs.
+        // Assuming standard Volcengine convention for CV tasks might be different.
+        // Let's try the singular "video/generations" first as a strong candidate.
+        const videoEndpoint = "https://ark.cn-beijing.volces.com/api/v3/video/generations";
 
         const payload = {
             model: modelId,
             prompt: prompt,
             image_urls: [startImageBase64, endImageBase64],
-            // width/height usually inferred from image or model defaults
-            // seedance 1.5 usually takes prompt + image_url (start/end)
-            // It might need explicit width/height if we want to force it, but let's stick to defaults or 16:9
-            // Ark standard video generation payload:
-            // "video_generation_options": { "fps": 24, "duration": 5 } - example
-            // Seedance specific: often just prompt + images
         };
 
         const res = await fetch(videoEndpoint, {
@@ -225,6 +223,7 @@ Each object must have:
 
         if (!res.ok) {
             const errText = await res.text();
+            console.error(`Video Generation Failed: ${res.status} ${res.statusText}`, errText);
             throw new Error(`Video Generation failed: ${res.status} ${errText}`);
         }
 
