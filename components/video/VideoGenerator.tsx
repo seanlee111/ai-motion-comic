@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react"
 import { useStoryStore } from "@/lib/story-store"
 import { Button } from "@/components/ui/button"
-import { Loader2, Film, Play, RefreshCw, Upload, Image as ImageIcon, Video, Music, ArrowLeft, Filter } from "lucide-react"
+import { Loader2, Film, Play, RefreshCw, Upload, Image as ImageIcon, Video, Music, ArrowLeft, Filter, ScrollText } from "lucide-react"
 import { generateVideoAction } from "@/app/actions/ai"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
@@ -12,15 +12,20 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 
 export function VideoGenerator() {
   const { frames, updateFrame } = useStoryStore()
   const [selectedFrameId, setSelectedFrameId] = useState<string | null>(null)
+  const [generatingIds, setGeneratingIds] = useState<string[]>([])
+  const [logs, setLogs] = useState<string[]>([])
   
   // Controls
   const [model, setModel] = useState("doubao-seedance-1-5-pro")
   const [duration, setDuration] = useState("5s")
   const [prompt, setPrompt] = useState("")
+
+  const addLog = (msg: string) => setLogs(prev => [`[${new Date().toLocaleTimeString()}] ${msg}`, ...prev])
 
   // Use a derived selectedFrame that always reflects the latest store state
   const selectedFrame = frames.find(f => f.id === selectedFrameId) || frames[0]
@@ -56,17 +61,23 @@ export function VideoGenerator() {
 
     if (!startImg || !endImg) {
         toast.error("需要首尾关键帧才能生成视频");
+        addLog("Error: Missing start or end frame images");
         return;
     }
 
     // Use global store state instead of local state
     updateFrame(selectedFrame.id, { isGenerating: true, videoPrompt: prompt } as any);
+    addLog(`Starting generation for Frame ${selectedFrame.id.slice(0,4)}...`);
+    addLog(`Model: ${model}, Prompt: ${prompt.slice(0, 50)}...`);
     
     try {
         const res = await generateVideoAction(startImg, endImg, prompt);
         if (!res.success) {
+            addLog(`Error: ${res.error}`);
             throw new Error(res.error);
         }
+        
+        addLog(`Success: Video URL generated: ${res.videoUrl}`);
         
         // Add to history and update current
         const newVersion = {
@@ -89,6 +100,7 @@ export function VideoGenerator() {
         toast.success("视频生成成功");
     } catch (e: any) {
         toast.error(e.message);
+        addLog(`Exception: ${e.message}`);
         updateFrame(selectedFrame.id, { isGenerating: false } as any);
     }
   };
@@ -108,11 +120,36 @@ export function VideoGenerator() {
     <div className="flex h-full bg-[#121212] text-white overflow-hidden">
         {/* Left Sidebar - Controls */}
         <div className="w-[320px] flex-none border-r border-[#333] flex flex-col bg-[#1a1a1a]">
-            <div className="p-4 border-b border-[#333] flex items-center gap-2">
-                <Button variant="ghost" size="icon" className="h-8 w-8 text-gray-400 hover:text-white">
-                    <ArrowLeft className="h-4 w-4" />
-                </Button>
-                <span className="font-medium text-sm">第1幕：镜头{frames.findIndex(f => f.id === selectedFrameId) + 1}</span>
+            <div className="p-4 border-b border-[#333] flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                    <Button variant="ghost" size="icon" className="h-8 w-8 text-gray-400 hover:text-white">
+                        <ArrowLeft className="h-4 w-4" />
+                    </Button>
+                    <span className="font-medium text-sm">第1幕：镜头{frames.findIndex(f => f.id === selectedFrameId) + 1}</span>
+                </div>
+                <Dialog>
+                    <DialogTrigger asChild>
+                        <Button variant="ghost" size="icon" className="h-8 w-8 text-gray-400 hover:text-white" title="活动日志">
+                            <ScrollText className="h-4 w-4" />
+                        </Button>
+                    </DialogTrigger>
+                    <DialogContent className="bg-[#1a1a1a] border-[#333] text-white max-w-2xl">
+                        <DialogHeader>
+                            <DialogTitle>API 活动日志</DialogTitle>
+                        </DialogHeader>
+                        <ScrollArea className="h-[400px] w-full rounded-md border border-[#333] bg-[#111] p-4">
+                            {logs.length === 0 ? (
+                                <div className="text-gray-500 text-sm text-center py-10">暂无日志记录</div>
+                            ) : (
+                                logs.map((log, i) => (
+                                    <div key={i} className="mb-2 text-xs font-mono text-gray-300 break-all border-b border-white/5 pb-1 last:border-0">
+                                        {log}
+                                    </div>
+                                ))
+                            )}
+                        </ScrollArea>
+                    </DialogContent>
+                </Dialog>
             </div>
             
             <div className="flex-1 overflow-y-auto p-4 space-y-6">
