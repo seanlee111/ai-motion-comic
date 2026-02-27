@@ -113,8 +113,7 @@ export function VideoGenerator() {
                 </Tabs>
 
                 <div className="flex gap-2 p-1 bg-[#2a2a2a] rounded-lg">
-                    <Button variant="ghost" size="sm" className="flex-1 h-7 text-[10px] text-gray-400">图生视频</Button>
-                    <Button variant="ghost" size="sm" className="flex-1 h-7 text-[10px] text-gray-400">参考生视频</Button>
+                    {/* Removed unused buttons as requested */}
                     <Button size="sm" className="flex-1 h-7 text-[10px] bg-blue-600 hover:bg-blue-700 text-white shadow-none">首尾帧</Button>
                 </div>
 
@@ -187,17 +186,11 @@ export function VideoGenerator() {
                 </div>
             </div>
 
-            <div className="p-4 border-t border-[#333] flex items-center justify-between">
-                <div className="flex items-center gap-1.5">
-                    <div className="w-4 h-4 rounded-full bg-blue-500/20 flex items-center justify-center">
-                        <div className="w-2 h-2 rounded-full bg-blue-500"></div>
-                    </div>
-                    <span className="text-xs text-blue-400 font-mono">18</span>
-                </div>
+            <div className="p-4 border-t border-[#333] flex items-center justify-end">
                 <Button 
                     onClick={handleGenerateVideo} 
                     disabled={isGenerating || !selectedFrame?.startImages?.[0] || !selectedFrame?.endImages?.[0]}
-                    className="bg-blue-600 hover:bg-blue-700 text-white px-6 h-9 text-xs"
+                    className="bg-blue-600 hover:bg-blue-700 text-white px-6 h-9 text-xs w-full"
                 >
                     {isGenerating ? <Loader2 className="h-3 w-3 animate-spin mr-2" /> : null}
                     {isGenerating ? "生成中..." : "生成视频"}
