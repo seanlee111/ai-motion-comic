@@ -1,7 +1,7 @@
 "use client"
 
-import { useState } from "react"
-import { Loader2, Play, Layout, Wand2, Settings } from "lucide-react"
+import { useState, useEffect } from "react"
+import { Loader2, Play, Layout, Wand2, Settings, ArrowRight } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -9,6 +9,8 @@ import { toast } from "sonner"
 import { parseScriptAction } from "@/app/actions/script"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
+import { useStoryStore } from "@/lib/story-store"
+import { StoryboardFrame } from "@/types"
 
 const DEFAULT_SYSTEM_PROMPT = `你是一位专业的分镜画师和视觉叙事专家。
 你的任务是将一个原始的故事创意转化为适合AI图像生成的、具有电影感的详细分镜脚本。
@@ -62,17 +64,25 @@ export function ScriptParser() {
   const [loading, setLoading] = useState(false)
   const [result, setResult] = useState<ParsedScript | null>(null)
   const [systemPrompt, setSystemPrompt] = useState(DEFAULT_SYSTEM_PROMPT)
+  
+  const { setFrames, script: storeScript, setScript: setStoreScript } = useStoryStore()
+
+  // Sync with store on mount
+  useEffect(() => {
+      if (storeScript) setScript(storeScript);
+  }, []);
 
   const handleParse = async () => {
     if (!script.trim()) return;
     
     setLoading(true);
     try {
-        const res = await parseScriptAction(script);
+        const res = await parseScriptAction(script); // TODO: Pass systemPrompt if backend supports it
         if (!res.success) {
             throw new Error(res.error);
         }
         setResult(res.data);
+        setStoreScript(script); // Save raw script to store
         toast.success("剧本解析成功");
     } catch (e: any) {
         toast.error(e.message);
@@ -81,26 +91,39 @@ export function ScriptParser() {
     }
   }
 
-  // TODO: We might want to use the generateScript functionality here too, or merge them.
-  // The user asked to use DeepSeek model capabilities for script generation.
-  // Currently parseScriptAction parses existing script text.
-  // If we want to GENERATE script from idea, we need another action or modify this one.
-  // Let's assume the user puts their idea in the textarea and we "Parse" (which actually uses LLM to structure it).
-  // Wait, the previous page had "Generate Script" from "Idea".
-  // This component is "Script Parser" - input script -> structured data.
-  // If the user wants to GENERATE, they might type a short idea.
-  // The LLM prompt in parseScriptAction is designed to "Analyze the following script".
-  // If we want generation, we should probably check if input is short/idea-like and use a generation prompt,
-  // OR just trust the LLM to handle it.
-  // Given the user said "剧本生成出现了问题", they likely mean the "Idea -> Script" flow.
-  // The current ScriptParser takes text and outputs JSON.
-  // If the user enters an idea "A cat jumps over moon", the current parser might try to parse it as a full script and fail or return weird data.
-  
-  // Let's add a "Generate" mode or button if the input is short?
-  // Or just rely on the user pasting a full script?
-  // The user said "智能剧本解析...放在左侧边栏...替换...剧本创作页面".
-  // So this page should handle creation too.
-  
+  const handleApplyToStoryboard = () => {
+      if (!result) return;
+      
+      // Transform ParsedScript -> StoryboardFrame[]
+      // We flatten scenes and shots into a linear sequence of frames
+      const newFrames: StoryboardFrame[] = [];
+      
+      result.scenes.forEach(scene => {
+          scene.shots.forEach(shot => {
+              newFrames.push({
+                  id: crypto.randomUUID(), // New ID
+                  storyScript: shot.description, // Main visual description
+                  // We can store extra metadata if StoryboardFrame supports it, 
+                  // or append to description.
+                  // For now, let's keep it simple as per original logic which mapped text segments to frames.
+                  // Ideally, we should enhance StoryboardFrame to hold camera, dialogue, etc.
+                  // But to maintain compatibility:
+                  characterIds: [], // To be filled later
+                  customUploads: [],
+                  startImages: [],
+                  endImages: [],
+                  // Optional: we could append dialogue to script for context
+                  // storyScript: `${shot.description} ${shot.dialogue ? `[Dialogue: ${shot.dialogue}]` : ''}`
+              });
+          });
+      });
+      
+      if (newFrames.length > 0) {
+          setFrames(newFrames);
+          toast.success(`已生成 ${newFrames.length} 个分镜并同步到故事板`);
+      }
+  };
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 h-[calc(100vh-120px)]">
       {/* Input Area */}
@@ -156,8 +179,16 @@ export function ScriptParser() {
 
       {/* Output Area */}
       <Card className="flex flex-col h-full bg-[#1a1a1a] border-[#333] text-white overflow-hidden">
-        <CardHeader className="pb-2 border-b border-[#333]">
+        <CardHeader className="pb-2 border-b border-[#333] flex flex-row items-center justify-between">
             <CardTitle className="text-lg font-medium">分镜预览</CardTitle>
+            {result && (
+                <Button 
+                    onClick={handleApplyToStoryboard}
+                    className="bg-green-600 hover:bg-green-700 text-white h-8 text-xs"
+                >
+                    应用到故事板 <ArrowRight className="ml-2 h-3 w-3" />
+                </Button>
+            )}
         </CardHeader>
         <CardContent className="flex-1 p-0 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-700">
             {!result ? (
