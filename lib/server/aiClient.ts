@@ -233,10 +233,18 @@ Each object must have:
             body: JSON.stringify(payload)
         });
 
+        const requestId = res.headers.get("x-tt-logid") || "unknown";
+
         if (!res.ok) {
             const errText = await res.text();
-            console.error(`Video Generation Failed: ${res.status} ${res.statusText}`, errText);
-            throw new Error(`Video Generation failed: ${res.status} ${errText}`);
+            let errDetail = errText;
+            try {
+                const errJson = JSON.parse(errText);
+                errDetail = JSON.stringify(errJson, null, 2);
+            } catch (e) {}
+            
+            console.error(`Video Generation Failed [${requestId}]: ${res.status}`, errDetail);
+            throw new Error(`API Error ${res.status} [ReqID: ${requestId}]: ${errDetail}`);
         }
 
         const data = await res.json();

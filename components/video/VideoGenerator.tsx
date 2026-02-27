@@ -67,17 +67,25 @@ export function VideoGenerator() {
 
     // Use global store state instead of local state
     updateFrame(selectedFrame.id, { isGenerating: true, videoPrompt: prompt } as any);
-    addLog(`Starting generation for Frame ${selectedFrame.id.slice(0,4)}...`);
-    addLog(`Model: ${model}, Prompt: ${prompt.slice(0, 50)}...`);
+    
+    const timestamp = new Date().toLocaleTimeString();
+    addLog(`--- Generation Started [${timestamp}] ---`);
+    addLog(`Frame ID: ${selectedFrame.id}`);
+    addLog(`Model: ${model}`);
+    addLog(`Start Image: ${startImg.slice(0, 50)}...`);
+    addLog(`End Image: ${endImg.slice(0, 50)}...`);
+    addLog(`Prompt: ${prompt}`);
     
     try {
         const res = await generateVideoAction(startImg, endImg, prompt);
         if (!res.success) {
-            addLog(`Error: ${res.error}`);
+            addLog(`❌ FAILED`);
+            addLog(`Error Details: ${res.error}`);
             throw new Error(res.error);
         }
         
-        addLog(`Success: Video URL generated: ${res.videoUrl}`);
+        addLog(`✅ SUCCESS`);
+        addLog(`Video URL: ${res.videoUrl}`);
         
         // Add to history and update current
         const newVersion = {
