@@ -16,7 +16,6 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 export function VideoGenerator() {
   const { frames, updateFrame } = useStoryStore()
   const [selectedFrameId, setSelectedFrameId] = useState<string | null>(null)
-  const [generatingIds, setGeneratingIds] = useState<string[]>([])
   
   // Controls
   const [model, setModel] = useState("doubao-seedance-1-5-pro")
@@ -49,7 +48,9 @@ export function VideoGenerator() {
         return;
     }
 
-    setGeneratingIds(prev => [...prev, selectedFrame.id]);
+    // Use global store state instead of local state
+    updateFrame(selectedFrame.id, { isGenerating: true } as any);
+    
     try {
         const res = await generateVideoAction(startImg, endImg, prompt);
         if (!res.success) {
@@ -70,18 +71,18 @@ export function VideoGenerator() {
         
         updateFrame(selectedFrame.id, { 
             videoUrl: res.videoUrl,
-            videoVersions: [newVersion, ...currentVersions]
+            videoVersions: [newVersion, ...currentVersions],
+            isGenerating: false
         } as any); 
         
         toast.success("视频生成成功");
     } catch (e: any) {
         toast.error(e.message);
-    } finally {
-        setGeneratingIds(prev => prev.filter(id => id !== selectedFrame.id));
+        updateFrame(selectedFrame.id, { isGenerating: false } as any);
     }
   };
 
-  const isGenerating = selectedFrame ? generatingIds.includes(selectedFrame.id) : false;
+  const isGenerating = selectedFrame?.isGenerating || false;
 
   if (frames.length === 0) {
       return (
