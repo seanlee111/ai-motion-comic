@@ -200,7 +200,8 @@ Each object must have:
         if (!this.arkKey) throw new Error("Server missing ARK_API_KEY");
 
         const modelId = "doubao-seedance-1-5-pro-251215";
-        const videoEndpoint = "https://ark.cn-beijing.volces.com/api/v3/content/generation/tasks";
+        // Correct endpoint based on SDK docs (plural: contents/generations/tasks)
+        const videoEndpoint = "https://ark.cn-beijing.volces.com/api/v3/contents/generations/tasks";
 
         const payload = {
             model: modelId,
@@ -226,7 +227,7 @@ Each object must have:
             ],
             generate_audio: true,
             duration: 5,
-            ratio: "16:9" // Or "adaptive"
+            ratio: "16:9"
         };
 
         const res = await fetch(videoEndpoint, {
@@ -262,8 +263,8 @@ Each object must have:
     }
 
     private async pollVideoTask(taskId: string): Promise<string | null> {
-        // Polling endpoint: https://ark.cn-beijing.volces.com/api/v3/content/generation/tasks/{id}
-        const statusEndpoint = `https://ark.cn-beijing.volces.com/api/v3/content/generation/tasks/${taskId}`;
+        // Polling endpoint: plural path
+        const statusEndpoint = `https://ark.cn-beijing.volces.com/api/v3/contents/generations/tasks/${taskId}`;
         const maxRetries = 60; // 5 mins max (5s interval)
         
         for (let i = 0; i < maxRetries; i++) {
@@ -275,6 +276,8 @@ Each object must have:
             if (!res.ok) continue;
             const data = await res.json();
             
+            // Response structure for GET /tasks/{id}:
+            // { id: "...", status: "succeeded", content: { video_url: "..." } }
             if (data.status === "succeeded" && data.content?.video_url) {
                 return data.content.video_url;
             }
