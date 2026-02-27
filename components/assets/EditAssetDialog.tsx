@@ -114,6 +114,12 @@ export function EditAssetDialog({ asset, trigger }: { asset: Asset; trigger?: Re
 
   const addLog = (msg: string) => setApiLogs(prev => [msg, ...prev].slice(0, 5))
 
+import { generateDescriptionAction, completeViewsAction } from "@/app/actions/ai";
+
+// ... (existing imports)
+
+// ... (inside component)
+
   const handleSmartDescription = async () => {
     const activeImages = Object.values(viewImages);
     if (activeImages.length === 0) {
@@ -124,32 +130,16 @@ export function EditAssetDialog({ asset, trigger }: { asset: Asset; trigger?: Re
     setIsDescribing(true);
     addLog(`[Describe] Requesting for ${activeImages.length} images...`)
     try {
-        // Convert any new files to base64 for API
-        const imagesToSend = await Promise.all(activeImages.map(async (url) => {
-            // Find if this URL corresponds to a File
-            const viewEntry = Object.entries(viewImages).find(([_, u]) => u === url);
-            if (viewEntry && newFilesMap[viewEntry[0]]) {
-                return await fileToBase64(newFilesMap[viewEntry[0]]);
-            }
-            return url;
-        }));
+        const result = await generateDescriptionAction(activeImages);
         
-        const res = await fetch("/api/ai/describe", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ images: imagesToSend })
-        });
-        
-        if (!res.ok) {
-            const err = await res.json();
-            addLog(`[Describe] Error: ${err.error || res.statusText}`)
-            throw new Error(err.error || "描述生成失败");
+        if (!result.success) {
+            addLog(`[Describe] Error: ${result.error}`)
+            throw new Error(result.error);
         }
         
-        const data = await res.json();
-        addLog(`[Describe] Success. Length: ${data.description?.length}`)
-        if (data.description) {
-            setDescription(data.description); // Replace or append? Usually replace for fresh generation
+        addLog(`[Describe] Success. Length: ${result.description?.length}`)
+        if (result.description) {
+            setDescription(result.description);
             toast.success("智能描述生成成功");
         }
     } catch (e: any) {
@@ -176,39 +166,17 @@ export function EditAssetDialog({ asset, trigger }: { asset: Asset; trigger?: Re
       setIsDrawing(true);
       addLog(`[Draw] Requesting views: ${missingViews.join(', ')}`)
       try {
-          // Prepare reference images map { "Front": "base64/url" }
-          const references: Record<string, string> = {};
-          
-          await Promise.all(Object.entries(viewImages).map(async ([v, url]) => {
-              if (newFilesMap[v]) {
-                  references[v] = await fileToBase64(newFilesMap[v]);
-              } else {
-                  references[v] = url;
-              }
-          }));
+          const result = await completeViewsAction(viewImages, missingViews, description);
 
-          const res = await fetch("/api/ai/complete-views", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ 
-                  references,
-                  missingViews,
-                  description: description,
-                  assetType: type
-              })
-          });
-
-          if (!res.ok) {
-              const err = await res.json();
-              addLog(`[Draw] Error: ${err.error || res.statusText}`)
-              throw new Error(err.error || "智能绘图失败");
+          if (!result.success) {
+              addLog(`[Draw] Error: ${result.error}`)
+              throw new Error(result.error);
           }
 
-          const data = await res.json();
-          addLog(`[Draw] Success. Generated: ${Object.keys(data.generatedViews || {}).join(', ')}`)
-          if (data.generatedViews) {
-              setViewImages(prev => ({ ...prev, ...data.generatedViews }));
-              toast.success(`成功补全 ${Object.keys(data.generatedViews).length} 个视图`);
+          addLog(`[Draw] Success. Generated: ${Object.keys(result.generatedViews || {}).join(', ')}`)
+          if (result.generatedViews) {
+              setViewImages(prev => ({ ...prev, ...result.generatedViews }));
+              toast.success(`成功补全 ${Object.keys(result.generatedViews).length} 个视图`);
           }
 
       } catch (e: any) {

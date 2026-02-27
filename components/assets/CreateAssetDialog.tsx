@@ -82,6 +82,13 @@ export function CreateAssetDialog() {
     setPreviews(newPreviews)
   }
 
+import { createAssetAction } from "@/app/actions/assets"
+import { generateDescriptionAction } from "@/app/actions/ai"
+
+// ... imports
+
+// ... inside CreateAssetDialog
+
   const handleSmartDescription = async () => {
     if (files.length === 0) {
         toast.error("请先上传参考图片");
@@ -90,23 +97,15 @@ export function CreateAssetDialog() {
     
     setIsDescribing(true);
     try {
-        // Convert files to base64
         const base64Images = await Promise.all(files.map(fileToBase64));
+        const result = await generateDescriptionAction(base64Images);
         
-        const res = await fetch("/api/ai/describe", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ images: base64Images })
-        });
-        
-        if (!res.ok) {
-            const err = await res.json();
-            throw new Error(err.error || "描述生成失败");
+        if (!result.success) {
+            throw new Error(result.error || "描述生成失败");
         }
         
-        const data = await res.json();
-        if (data.description) {
-            setDescription(prev => prev ? prev + "\n" + data.description : data.description);
+        if (result.description) {
+            setDescription(prev => prev ? prev + "\n" + result.description : result.description);
             toast.success("智能描述生成成功");
         }
     } catch (e: any) {
@@ -129,14 +128,12 @@ export function CreateAssetDialog() {
           formData.append("files", file);
       });
 
-      const res = await fetch("/api/assets", { method: "POST", body: formData })
-      if (!res.ok) {
-        const err = await res.json()
-        throw new Error(err.error || "创建素材失败")
+      const res = await createAssetAction(formData)
+      if (!res.success) {
+        throw new Error(res.error || "创建素材失败")
       }
 
-      const data = await res.json()
-      addAsset(data.asset)
+      if (res.asset) addAsset(res.asset)
 
       setName("")
       setDescription("")

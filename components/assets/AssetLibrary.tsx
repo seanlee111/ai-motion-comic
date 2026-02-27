@@ -8,6 +8,8 @@ import { Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { EditAssetDialog } from "./EditAssetDialog"
 
+import { createAssetAction, deleteAssetAction, getAssetsAction, updateAssetAction } from "@/app/actions/assets"
+
 function AssetCard({ asset }: { asset: any }) {
   const { deleteAsset } = useStoryStore()
 
@@ -47,8 +49,12 @@ function AssetCard({ asset }: { asset: any }) {
           size="icon" 
           className="h-6 w-6" 
           onClick={async () => {
-            await fetch(`/api/assets?id=${asset.id}`, { method: "DELETE" })
-            deleteAsset(asset.id)
+            const res = await deleteAssetAction(asset.id)
+            if (res.success) {
+                deleteAsset(asset.id)
+            } else {
+                alert(res.error || "Delete failed")
+            }
           }}
         >
           <Trash2 className="h-3 w-3" />
@@ -68,10 +74,10 @@ export function AssetLibrary({ className }: { className?: string }) {
     const load = async () => {
       setLoading(true)
       try {
-        const res = await fetch("/api/assets", { cache: "no-store" })
-        if (!res.ok) return
-        const data = await res.json()
-        if (Array.isArray(data.assets)) setAssets(data.assets)
+        const res = await getAssetsAction()
+        if (res.success && Array.isArray(res.assets)) {
+            setAssets(res.assets)
+        }
       } finally {
         setLoading(false)
       }
