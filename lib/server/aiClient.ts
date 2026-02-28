@@ -204,7 +204,7 @@ Each object must have:
         startImageBase64: string, 
         endImageBase64: string, 
         prompt: string
-    ): Promise<string | null> {
+    ): Promise<{ taskId: string; requestPayload: any; responseBody: any }> {
         if (!this.arkKey) throw new Error("Server missing ARK_API_KEY");
 
         // Validate image formats
@@ -231,20 +231,19 @@ Each object must have:
                     image_url: {
                         url: startImageBase64
                     },
-                    image_role: "first_frame"
+                    role: "first_frame"
                 },
                 {
                     type: "image_url",
                     image_url: {
                         url: endImageBase64
                     },
-                    image_role: "last_frame"
+                    role: "last_frame"
                 }
             ],
             generate_audio: true,
             duration: 5,
-            ratio: "16:9",
-            resolution: "720p",
+            ratio: "adaptive",
             watermark: false
         };
 
@@ -260,6 +259,7 @@ Each object must have:
         });
 
         const requestId = res.headers.get("x-tt-logid") || "unknown";
+        let responseBody;
 
         if (!res.ok) {
             const errText = await res.text();
@@ -267,68 +267,51 @@ Each object must have:
             try {
                 const errJson = JSON.parse(errText);
                 errDetail = JSON.stringify(errJson, null, 2);
-            } catch (e) {}
+                responseBody = errJson;
+            } catch (e) {
+                responseBody = { error: errText };
+            }
             
             console.error(`Video Generation Failed [${requestId}]: ${res.status}`, errDetail);
             throw new Error(`API Error ${res.status} [ReqID: ${requestId}]: ${errDetail}`);
         }
 
         const data = await res.json();
+        responseBody = data;
         console.log("Video generation task created:", data);
 
         // The API returns { id: "task_id" }
         if (data.id) {
-            return await this.pollVideoTask(data.id);
+            return { taskId: data.id, requestPayload: payload, responseBody: data }; // Return taskId immediately
         }
         
         throw new Error("No task ID returned from video generation API");
     }
 
-    private async pollVideoTask(taskId: string): Promise<string | null> {
-        // Polling endpoint: plural path
-        const statusEndpoint = `https://ark.cn-beijing.volces.com/api/v3/contents/generations/tasks/${taskId}`;
-        // Increase timeout to 10 mins as suggested
-        const maxRetries = 120; // 10 mins (5s interval)
+    async checkVideoTask(taskId: string): Promise<{ status: string; videoUrl?: string; error?: string; responseBody?: any }> {
+        if (!this.arkKey) throw new Error("Server missing ARK_API_KEY");
         
-        for (let i = 0; i < maxRetries; i++) {
-            await new Promise(r => setTimeout(r, 5000));
-            const res = await fetch(statusEndpoint, {
-                headers: { "Authorization": `Bearer ${this.arkKey}` }
-            });
-            
-            if (!res.ok) {
-                const errText = await res.text();
-                console.error(`Polling error (attempt ${i+1}):`, errText);
-                continue;
-            }
-
-            const data = await res.json();
-            console.log(`Task ${taskId} status:`, data.status);
-            
-            // Handle all possible statuses
-            switch (data.status) {
-                case "succeeded":
-                    if (data.content?.video_url) {
-                        return data.content.video_url;
-                    }
-                    throw new Error("Task succeeded but no video URL returned");
-                
-                case "failed":
-                    throw new Error(`Video generation failed: ${data.error?.message || "Unknown error"}`);
-                
-                case "expired":
-                    throw new Error("Video generation task expired");
-                
-                case "queued":
-                case "running":
-                    // Continue polling
-                    break;
-                
-                default:
-                    console.warn(`Unknown status: ${data.status}`);
-            }
+        const statusEndpoint = `https://ark.cn-beijing.volces.com/api/v3/contents/generations/tasks/${taskId}`;
+        
+        const res = await fetch(statusEndpoint, {
+            headers: { "Authorization": `Bearer ${this.arkKey}` }
+        });
+        
+        if (!res.ok) {
+            const errText = await res.text();
+            throw new Error(`Polling error: ${res.status} ${errText}`);
         }
-        throw new Error("Video generation timed out after 10 minutes");
+
+        const data = await res.json();
+        console.log(`Task ${taskId} status:`, data.status);
+        
+        if (data.status === "succeeded") {
+            return { status: "succeeded", videoUrl: data.content?.video_url, responseBody: data };
+        } else if (data.status === "failed" || data.status === "expired" || data.status === "cancelled") {
+            return { status: "failed", error: data.error?.message || `Task ${data.status}`, responseBody: data };
+        } else {
+            return { status: data.status || "running", responseBody: data };
+        }
     }
 
     private processResponse(data: any): any {

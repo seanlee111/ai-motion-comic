@@ -67,6 +67,7 @@ export interface StoryboardFrame {
   
   // Video History
   videoPrompt?: string; // Specific prompt for video generation
+  taskId?: string; // Current async task ID for video generation
   videoVersions?: {
       id: string;
       url: string;

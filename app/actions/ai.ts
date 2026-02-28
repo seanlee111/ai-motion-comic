@@ -4,6 +4,7 @@ import { aiClient } from "@/lib/server/aiClient";
 
 // Helper to fetch URL and convert to base64 (Server-side only)
 const urlToBase64 = async (url: string): Promise<string> => {
+    if (url.startsWith("data:")) return url;
     try {
         const response = await fetch(url);
         if (!response.ok) throw new Error(`Failed to fetch image: ${response.statusText}`);
@@ -77,12 +78,22 @@ export async function generateVideoAction(
         const startBase64 = await urlToBase64(startImageUrl);
         const endBase64 = await urlToBase64(endImageUrl);
         
-        const videoUrl = await aiClient.generateVideo(startBase64, endBase64, prompt);
+        // Returns taskId now
+        const result = await aiClient.generateVideo(startBase64, endBase64, prompt);
         
-        if (!videoUrl) throw new Error("Failed to generate video URL");
+        if (!result.taskId) throw new Error("Failed to submit video generation task");
         
-        return { success: true, videoUrl };
+        return { success: true, ...result };
     } catch (e: any) {
         return { success: false, error: e.message };
+    }
+}
+
+export async function checkVideoStatusAction(taskId: string) {
+    try {
+        const result = await aiClient.checkVideoTask(taskId);
+        return { success: true, ...result };
+    } catch (e: any) {
+        return { success: false, status: "failed", error: e.message };
     }
 }
