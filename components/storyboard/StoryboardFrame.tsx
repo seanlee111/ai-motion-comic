@@ -829,16 +829,39 @@ export function StoryboardFrame({ frame, index }: StoryboardFrameProps) {
         {/* Drop Zones (Final Preview) */}
         <div className="grid grid-cols-2 gap-4">
             {/* Start Frame Slot */}
-            <div 
-                className="space-y-1"
-                onDrop={(e) => handleDrop(e, "start")}
-                onDragOver={handleDragOver}
-            >
-                <div className="text-xs font-semibold text-muted-foreground text-center uppercase">起始帧</div>
-                <div className={cn(
-                    "aspect-video rounded-md border-2 border-dashed flex items-center justify-center relative overflow-hidden bg-muted/20 transition-all",
-                    frame.startImageUrl ? "border-solid border-green-500/50" : "hover:border-primary/50"
-                )}>
+            <div className="space-y-1">
+                <div className="flex justify-between items-center px-1">
+                    <div className="text-xs font-semibold text-muted-foreground text-center uppercase">起始帧</div>
+                    <label className="cursor-pointer hover:bg-muted/50 p-1 rounded transition-colors" title="上传本地图片">
+                        <Upload className="h-3 w-3 text-muted-foreground" />
+                        <input 
+                            type="file" 
+                            className="hidden" 
+                            accept="image/*" 
+                            onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                if (file) {
+                                    const reader = new FileReader();
+                                    reader.onload = (e) => {
+                                        const result = e.target?.result as string;
+                                        if (result) {
+                                            updateFrame(frame.id, { startImageUrl: result });
+                                        }
+                                    };
+                                    reader.readAsDataURL(file);
+                                }
+                            }} 
+                        />
+                    </label>
+                </div>
+                <div 
+                    className={cn(
+                        "aspect-video rounded-md border-2 border-dashed flex items-center justify-center relative overflow-hidden bg-muted/20 transition-all",
+                        frame.startImageUrl ? "border-solid border-green-500/50" : "hover:border-primary/50"
+                    )}
+                    onDrop={(e) => handleDrop(e, "start")}
+                    onDragOver={handleDragOver}
+                >
                     {frame.startImageUrl ? (
                         <>
                             <img src={frame.startImageUrl} alt="起始" className="w-full h-full object-cover" />
@@ -857,16 +880,39 @@ export function StoryboardFrame({ frame, index }: StoryboardFrameProps) {
             </div>
 
             {/* End Frame Slot */}
-            <div 
-                className="space-y-1"
-                onDrop={(e) => handleDrop(e, "end")}
-                onDragOver={handleDragOver}
-            >
-                <div className="text-xs font-semibold text-muted-foreground text-center uppercase">结束帧</div>
-                <div className={cn(
-                    "aspect-video rounded-md border-2 border-dashed flex items-center justify-center relative overflow-hidden bg-muted/20 transition-all",
-                    frame.endImageUrl ? "border-solid border-green-500/50" : "hover:border-primary/50"
-                )}>
+            <div className="space-y-1">
+                <div className="flex justify-between items-center px-1">
+                    <div className="text-xs font-semibold text-muted-foreground text-center uppercase">结束帧</div>
+                    <label className="cursor-pointer hover:bg-muted/50 p-1 rounded transition-colors" title="上传本地图片">
+                        <Upload className="h-3 w-3 text-muted-foreground" />
+                        <input 
+                            type="file" 
+                            className="hidden" 
+                            accept="image/*" 
+                            onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                if (file) {
+                                    const reader = new FileReader();
+                                    reader.onload = (e) => {
+                                        const result = e.target?.result as string;
+                                        if (result) {
+                                            updateFrame(frame.id, { endImageUrl: result });
+                                        }
+                                    };
+                                    reader.readAsDataURL(file);
+                                }
+                            }} 
+                        />
+                    </label>
+                </div>
+                <div 
+                    className={cn(
+                        "aspect-video rounded-md border-2 border-dashed flex items-center justify-center relative overflow-hidden bg-muted/20 transition-all",
+                        frame.endImageUrl ? "border-solid border-green-500/50" : "hover:border-primary/50"
+                    )}
+                    onDrop={(e) => handleDrop(e, "end")}
+                    onDragOver={handleDragOver}
+                >
                     {frame.endImageUrl ? (
                         <>
                             <img src={frame.endImageUrl} alt="结束" className="w-full h-full object-cover" />
