@@ -176,26 +176,38 @@ export class AIClient {
             temperature: 0.7
         };
 
-        const res = await fetch("https://api.deepseek.com/chat/completions", {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                "Authorization": `Bearer ${getEnv("DEEPSEEK_API_KEY")}` // Using DEEPSEEK_API_KEY as requested
-            },
-            body: JSON.stringify(payload)
-        });
+        let responseBody: any = null;
 
-        if (!res.ok) {
-            const errText = await res.text();
-            throw new Error(`Script Parsing API Error: ${res.status} ${errText}`);
+        try {
+            const res = await fetch("https://api.deepseek.com/chat/completions", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${getEnv("DEEPSEEK_API_KEY")}` // Using DEEPSEEK_API_KEY as requested
+                },
+                body: JSON.stringify(payload)
+            });
+
+            if (!res.ok) {
+                const errText = await res.text();
+                responseBody = { error: errText, status: res.status };
+                throw new Error(`Script Parsing API Error: ${res.status} ${errText}`);
+            }
+
+            responseBody = await res.json();
+            return {
+                data: this.processResponse(responseBody),
+                requestPayload: payload,
+                responseBody: responseBody
+            };
+        } catch (e: any) {
+            // Attach payload and responseBody to error for debugging
+            e.requestPayload = payload;
+            if (responseBody) {
+                e.responseBody = responseBody;
+            }
+            throw e;
         }
-
-        const responseData = await res.json();
-        return {
-            data: this.processResponse(responseData),
-            requestPayload: payload,
-            responseBody: responseData
-        };
     }
 
     // Helper to validate Base64 image format

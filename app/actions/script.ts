@@ -11,6 +11,11 @@ export async function parseScriptAction(script: string, systemPrompt?: string) {
         const result = await aiClient.parseScript(script, systemPrompt);
         return { success: true, data: result.data, requestPayload: result.requestPayload, responseBody: result.responseBody };
     } catch (e: any) {
-        return { success: false, error: e.message };
+        return { 
+            success: false, 
+            error: e.message,
+            requestPayload: e.requestPayload,
+            responseBody: e.responseBody
+        };
     }
 }
