@@ -168,7 +168,9 @@ export function VideoGenerator() {
         addLog(`Task Submitted Successfully`, 'success', { taskId: res.taskId, payload: res.requestPayload });
         
         // Update store with taskId to trigger polling effect
-        updateFrame(selectedFrame.id, { taskId: res.taskId } as any);
+        if (res.taskId) {
+            updateFrame(selectedFrame.id, { taskId: res.taskId } as any);
+        }
         
     } catch (e: any) {
         toast.error(e.message);
