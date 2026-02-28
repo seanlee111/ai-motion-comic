@@ -327,18 +327,23 @@ export class AIClient {
         }
 
         try {
-            // 1. Try to extract from markdown code blocks first
-            const jsonMatch = content.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
-            let jsonStr = jsonMatch ? jsonMatch[1] : content;
+            // Aggressive cleanup: remove markdown code block markers globally
+            // This handles cases where "```json" is at the start, or just "```"
+            const cleaned = content
+                .replace(/```json/gi, "") // Remove ```json (case insensitive)
+                .replace(/```/g, "")      // Remove remaining ```
+                .trim();
 
-            // 2. Locate the JSON object boundaries
-            const firstBrace = jsonStr.indexOf('{');
-            const lastBrace = jsonStr.lastIndexOf('}');
+            // Find the first '{' and the last '}' to isolate the JSON object
+            const firstBrace = cleaned.indexOf('{');
+            const lastBrace = cleaned.lastIndexOf('}');
 
-            if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
-                jsonStr = jsonStr.substring(firstBrace, lastBrace + 1);
+            if (firstBrace === -1 || lastBrace === -1 || lastBrace <= firstBrace) {
+                 throw new Error("No JSON object found in response");
             }
 
+            const jsonStr = cleaned.substring(firstBrace, lastBrace + 1);
+            
             return JSON.parse(jsonStr);
         } catch (e) {
             console.error("Failed to parse script JSON", content);
