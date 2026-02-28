@@ -18,6 +18,8 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
+import * as mammoth from "mammoth";
+
 const DEFAULT_SYSTEM_PROMPT = `你是一位专业的分镜画师和视觉叙事专家。
 你的任务是将一个原始的故事创意转化为适合AI图像生成的、具有电影感的详细分镜脚本。
 
@@ -85,7 +87,9 @@ export function ScriptParser() {
   const [selectedVariantIndex, setSelectedVariantIndex] = useState<number | null>(null)
   const [systemPrompt, setSystemPrompt] = useState(DEFAULT_SYSTEM_PROMPT)
   const [knowledgeBase, setKnowledgeBase] = useState("")
-  const [showKnowledgeDialog, setShowKnowledgeDialog] = useState(false)
+    const [showKnowledgeDialog, setShowKnowledgeDialog] = useState(false)
+    const fileInputRef = useRef<HTMLInputElement>(null)
+    const [isUploading, setIsUploading] = useState(false)
   const [showLogsDialog, setShowLogsDialog] = useState(false)
   
   // New config states
@@ -98,6 +102,38 @@ export function ScriptParser() {
   useEffect(() => {
       if (storeScript) setScriptInput(storeScript);
   }, []);
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+
+      setIsUploading(true);
+      try {
+          let text = "";
+          if (file.type === "text/plain") {
+              text = await file.text();
+          } else if (file.type === "application/vnd.openxmlformats-officedocument.wordprocessingml.document") {
+              const arrayBuffer = await file.arrayBuffer();
+              const result = await mammoth.extractRawText({ arrayBuffer });
+              text = result.value;
+          } else {
+              toast.error("不支持的文件格式，仅支持 .txt 和 .docx");
+              return;
+          }
+
+          if (text) {
+              setKnowledgeBase(prev => (prev ? prev + "\n\n" : "") + text);
+              toast.success("文件内容已追加到知识库");
+          }
+      } catch (err) {
+          console.error("File read error:", err);
+          toast.error("读取文件失败");
+      } finally {
+          setIsUploading(false);
+          // Reset input
+          if (fileInputRef.current) fileInputRef.current.value = "";
+      }
+  };
 
   const handleGenerate = async () => {
     if (!scriptInput.trim()) return;
@@ -230,6 +266,28 @@ export function ScriptParser() {
                                 <DialogDescription>上传背景设定、世界观文档或参考资料，AI 将基于此进行创作。</DialogDescription>
                             </DialogHeader>
                             <div className="space-y-4 py-4">
+                                <div className="flex justify-between items-center">
+                                    <div className="text-xs text-gray-500">支持 .txt, .docx 格式</div>
+                                    <div className="flex gap-2">
+                                        <input 
+                                            type="file" 
+                                            ref={fileInputRef}
+                                            className="hidden" 
+                                            accept=".txt,.docx"
+                                            onChange={handleFileUpload}
+                                        />
+                                        <Button 
+                                            variant="outline" 
+                                            size="sm" 
+                                            className="h-7 text-xs border-[#333] bg-[#222] hover:bg-[#333] text-gray-300"
+                                            onClick={() => fileInputRef.current?.click()}
+                                            disabled={isUploading}
+                                        >
+                                            {isUploading ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Upload className="h-3 w-3 mr-1" />}
+                                            上传文档
+                                        </Button>
+                                    </div>
+                                </div>
                                 <Textarea 
                                     value={knowledgeBase}
                                     onChange={(e) => setKnowledgeBase(e.target.value)}
