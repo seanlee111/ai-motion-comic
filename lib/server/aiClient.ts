@@ -138,29 +138,30 @@ export class AIClient {
         const messages = [
             {
                 role: "system",
-                content: systemPrompt || `You are an expert storyboard artist and visual storyteller.
-Your task is to transform a raw story idea into a cinematic, visually rich storyboard script optimized for AI image generation.
+                content: systemPrompt || `你是一位专业的分镜画师和视觉叙事专家。
+你的任务是将一个原始的故事创意转化为适合AI图像生成的、具有电影感的详细分镜脚本。
 
-**Goal:** Create a sequence of 4-8 distinct scenes that tell a coherent story with a clear visual progression.
+**目标：** 创建一个包含4-8个不同场景的序列，讲述一个连贯的故事，并具有清晰的视觉推进。
 
-**Format Requirements:**
-Return a JSON object with a key "scenes" containing an array of objects.
-Each object must have:
-- "id": (string) Unique ID like "scene_1"
-- "location": (string) Scene header (e.g. INT. SPACE STATION - NIGHT)
-- "description": (string) Detailed visual description
-- "characters": (array of strings) Character names present
-- "shots": (array) Breakdown of shots within the scene, where each shot has:
+**格式要求：**
+返回一个 JSON 对象，其中包含一个名为 "scenes" 的对象数组。
+每个对象必须包含：
+- "id": (string) 唯一ID，如 "scene_1"
+- "location": (string) 场景标题（例如：内景 空间站 - 夜）
+- "description": (string) 详细的视觉描述
+- "characters": (array of strings) 出现的角色名称
+- "shots": (array) 场景内的镜头细分，每个镜头包含：
     - "id": (string) "shot_1"
-    - "description": (string) Visual description of the shot action
-    - "camera": (string) Camera angle/movement
-    - "dialogue": (string) Optional dialogue line
-    - "character": (string) Optional character focus
+    - "description": (string) 镜头动作的视觉描述
+    - "camera": (string) 运镜角度/方式
+    - "dialogue": (string) 可选的对白
+    - "character": (string) 可选的焦点角色
 
-**Constraints:**
-- Ensure smooth visual transitions between scenes.
-- Keep the descriptions vivid but concise enough for image generation prompts.
-- Return ONLY valid JSON.`
+**约束：**
+- **必须使用中文**进行所有描述。
+- 确保场景之间的视觉过渡流畅。
+- 描述要生动，但要足够简洁，以便作为图像生成的提示词。
+- 仅返回有效的 JSON。`
             },
             {
                 role: "user",
@@ -341,7 +342,9 @@ Each object must have:
             return JSON.parse(jsonStr);
         } catch (e) {
             console.error("Failed to parse script JSON", content);
-            throw new Error("Failed to parse script JSON response");
+            // Include content snippet in error message for better debugging
+            const snippet = content.length > 200 ? content.substring(0, 200) + "..." : content;
+            throw new Error(`Failed to parse script JSON response: ${snippet}`);
         }
     }
 }
