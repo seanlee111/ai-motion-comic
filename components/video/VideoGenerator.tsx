@@ -77,36 +77,36 @@ export function VideoGenerator() {
                   const res = await checkVideoStatusAction(selectedFrame.taskId!);
                   addLog(`Polling status: ${res.status}`, 'info', res.responseBody);
 
-                  if (res.status === 'succeeded' && res.videoUrl) {
-                       // Success
-                       addLog(`✅ Video Generation Succeeded`, 'success');
-                       
-                       const newVersion = {
-                           id: crypto.randomUUID(),
-                           url: res.videoUrl,
-                           prompt: selectedFrame.videoPrompt || "",
-                           modelId: model,
-                           duration: parseInt(duration),
-                           timestamp: Date.now()
-                       };
-                       
-                       updateFrame(selectedFrame.id, { 
-                           videoUrl: res.videoUrl,
-                           videoVersions: [newVersion, ...(selectedFrame.videoVersions || [])],
-                           isGenerating: false,
-                           taskId: undefined // Clear taskId
-                       } as any);
-                       
-                       toast.success("视频生成成功");
-                       if (pollingRef.current) clearInterval(pollingRef.current);
-                  } else if (res.status === 'failed') {
-                      // Failed
-                      addLog(`❌ Video Generation Failed`, 'error', res.error);
-                      updateFrame(selectedFrame.id, { isGenerating: false, taskId: undefined } as any);
-                      toast.error(`生成失败: ${res.error}`);
-                      if (pollingRef.current) clearInterval(pollingRef.current);
-                  } 
-                  // If running/queued, continue polling
+                if (res.status === 'succeeded' && res.videoUrl) {
+                     // Success
+                     addLog(`✅ Video Generation Succeeded`, 'success');
+                     
+                     const newVersion = {
+                         id: crypto.randomUUID(),
+                         url: res.videoUrl,
+                         prompt: selectedFrame.videoPrompt || "",
+                         modelId: model,
+                         duration: parseInt(duration),
+                         timestamp: Date.now()
+                     };
+                     
+                     updateFrame(selectedFrame.id, { 
+                         videoUrl: res.videoUrl,
+                         videoVersions: [newVersion, ...(selectedFrame.videoVersions || [])],
+                         isGenerating: false,
+                         taskId: undefined // Clear taskId
+                     } as any);
+                     
+                     toast.success("视频生成成功");
+                     if (pollingRef.current) clearInterval(pollingRef.current);
+                } else if (res.status === 'failed') {
+                    // Failed
+                    addLog(`❌ Video Generation Failed`, 'error', res.error);
+                    updateFrame(selectedFrame.id, { isGenerating: false, taskId: undefined } as any);
+                    toast.error(`生成失败: ${res.error}`);
+                    if (pollingRef.current) clearInterval(pollingRef.current);
+                } 
+                // If running/queued, continue polling
               } catch (e: any) {
                   console.error("Polling error", e);
                   // Don't stop polling immediately on network error, but maybe log it
