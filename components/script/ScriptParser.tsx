@@ -288,11 +288,12 @@ export function ScriptParser() {
                     </SelectTrigger>
                     <SelectContent className="bg-[#1a1a1a] border-[#333] text-white">
                         <SelectItem value="default">智能匹配</SelectItem>
-                        <SelectItem value="cinematic">电影质感</SelectItem>
-                        <SelectItem value="anime">二次元/动漫</SelectItem>
-                        <SelectItem value="cyberpunk">赛博朋克</SelectItem>
-                        <SelectItem value="noir">黑色电影</SelectItem>
-                        <SelectItem value="documentary">纪录片风格</SelectItem>
+                        <SelectItem value="hot-blooded-school">热血校园</SelectItem>
+                        <SelectItem value="sci-fi">科幻未来</SelectItem>
+                        <SelectItem value="romance">言情浪漫</SelectItem>
+                        <SelectItem value="suspense-thriller">悬疑惊悚</SelectItem>
+                        <SelectItem value="historical-wuxia">古装武侠</SelectItem>
+                        <SelectItem value="comedy-daily">搞笑日常</SelectItem>
                     </SelectContent>
                 </Select>
                 
