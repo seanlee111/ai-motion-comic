@@ -1,16 +1,19 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Loader2, Play, Layout, Wand2, Settings, ArrowRight } from "lucide-react"
+import { Loader2, Play, Layout, Wand2, Settings, ArrowRight, FileText, Sparkles, ChevronRight, Copy, RefreshCw } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card"
 import { toast } from "sonner"
 import { parseScriptAction } from "@/app/actions/script"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
 import { useStoryStore } from "@/lib/story-store"
 import { StoryboardFrame } from "@/types"
+import { ScrollArea } from "@/components/ui/scroll-area"
+import { Badge } from "@/components/ui/badge"
+import { cn } from "@/lib/utils"
 
 const DEFAULT_SYSTEM_PROMPT = `你是一位专业的分镜画师和视觉叙事专家。
 你的任务是将一个原始的故事创意转化为适合AI图像生成的、具有电影感的详细分镜脚本。
@@ -57,33 +60,40 @@ type ParsedScene = {
 type ParsedScript = {
     title: string;
     scenes: ParsedScene[];
+    createdAt?: number; // Added timestamp
 }
 
 export function ScriptParser() {
-  const [script, setScript] = useState("")
+  const [scriptInput, setScriptInput] = useState("")
   const [loading, setLoading] = useState(false)
-  const [result, setResult] = useState<ParsedScript | null>(null)
+  const [variants, setVariants] = useState<ParsedScript[]>([])
+  const [selectedVariantIndex, setSelectedVariantIndex] = useState<number | null>(null)
   const [systemPrompt, setSystemPrompt] = useState(DEFAULT_SYSTEM_PROMPT)
   
   const { setFrames, script: storeScript, setScript: setStoreScript } = useStoryStore()
 
   // Sync with store on mount
   useEffect(() => {
-      if (storeScript) setScript(storeScript);
+      if (storeScript) setScriptInput(storeScript);
   }, []);
 
-  const handleParse = async () => {
-    if (!script.trim()) return;
+  const handleGenerate = async () => {
+    if (!scriptInput.trim()) return;
     
     setLoading(true);
     try {
-        const res = await parseScriptAction(script); // TODO: Pass systemPrompt if backend supports it
+        // We can potentially generate multiple variations by calling this multiple times or asking the backend
+        // For now, let's just generate one and append it.
+        const res = await parseScriptAction(scriptInput); 
         if (!res.success) {
             throw new Error(res.error);
         }
-        setResult(res.data);
-        setStoreScript(script); // Save raw script to store
-        toast.success("剧本解析成功");
+        
+        const newScript = { ...res.data, createdAt: Date.now() };
+        setVariants(prev => [newScript, ...prev]);
+        setSelectedVariantIndex(0); // Select the new one
+        setStoreScript(scriptInput); // Save raw script to store
+        toast.success("剧本灵感生成成功");
     } catch (e: any) {
         toast.error(e.message);
     } finally {
@@ -92,55 +102,54 @@ export function ScriptParser() {
   }
 
   const handleApplyToStoryboard = () => {
-      if (!result) return;
+      if (selectedVariantIndex === null || !variants[selectedVariantIndex]) return;
+      const selectedScript = variants[selectedVariantIndex];
       
       // Transform ParsedScript -> StoryboardFrame[]
-      // We flatten scenes and shots into a linear sequence of frames
       const newFrames: StoryboardFrame[] = [];
       
-      result.scenes.forEach(scene => {
+      selectedScript.scenes.forEach(scene => {
           scene.shots.forEach(shot => {
               newFrames.push({
-                  id: crypto.randomUUID(), // New ID
-                  storyScript: shot.description, // Main visual description
-                  // We can store extra metadata if StoryboardFrame supports it, 
-                  // or append to description.
-                  // For now, let's keep it simple as per original logic which mapped text segments to frames.
-                  // Ideally, we should enhance StoryboardFrame to hold camera, dialogue, etc.
-                  // But to maintain compatibility:
-                  characterIds: [], // To be filled later
+                  id: crypto.randomUUID(),
+                  storyScript: shot.description,
+                  characterIds: [],
                   customUploads: [],
                   startImages: [],
                   endImages: [],
-                  // Optional: we could append dialogue to script for context
-                  // storyScript: `${shot.description} ${shot.dialogue ? `[Dialogue: ${shot.dialogue}]` : ''}`
+                  // We could store more metadata here if needed
               });
           });
       });
       
       if (newFrames.length > 0) {
           setFrames(newFrames);
-          toast.success(`已生成 ${newFrames.length} 个分镜并同步到故事板`);
+          toast.success(`已生成 ${newFrames.length} 个分镜并映射到故事板`);
       }
   };
 
+  const selectedVariant = selectedVariantIndex !== null ? variants[selectedVariantIndex] : null;
+
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 h-[calc(100vh-120px)]">
-      {/* Input Area */}
-      <Card className="flex flex-col h-full bg-[#1a1a1a] border-[#333] text-white">
-        <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <div className="flex items-center gap-2">
-                <CardTitle className="text-lg font-medium">剧本创作 / 输入</CardTitle>
+    <div className="grid grid-cols-12 gap-6 h-[calc(100vh-120px)]">
+      
+      {/* Column 1: AI Assistant & Input (3 cols) */}
+      <Card className="col-span-3 flex flex-col h-full bg-[#1a1a1a] border-[#333] text-white">
+        <CardHeader className="pb-3 border-b border-[#333]">
+            <div className="flex items-center justify-between">
+                <CardTitle className="text-base font-medium flex items-center gap-2">
+                    <Sparkles className="h-4 w-4 text-blue-400" />
+                    创意输入
+                </CardTitle>
                 <Dialog>
                     <DialogTrigger asChild>
                         <Button variant="ghost" size="icon" className="h-6 w-6">
-                            <Settings className="h-4 w-4 text-muted-foreground" />
+                            <Settings className="h-4 w-4 text-gray-500" />
                         </Button>
                     </DialogTrigger>
                     <DialogContent className="max-w-2xl bg-[#1a1a1a] border-[#333] text-white">
                         <DialogHeader>
-                            <DialogTitle>自定义 AI 设定</DialogTitle>
-                            <DialogDescription>调整系统提示词以改变 AI 生成/解析的方式。</DialogDescription>
+                            <DialogTitle>AI 设定</DialogTitle>
                         </DialogHeader>
                         <div className="space-y-4 py-4">
                             <div className="space-y-2">
@@ -156,88 +165,172 @@ export function ScriptParser() {
                     </DialogContent>
                 </Dialog>
             </div>
-            <div className="flex gap-2">
-                <Button 
-                    onClick={handleParse} 
-                    disabled={loading || !script.trim()}
-                    className="bg-blue-600 hover:bg-blue-700 text-white"
-                >
-                    {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Wand2 className="mr-2 h-4 w-4" />}
-                    智能生成/解析
-                </Button>
-            </div>
+            <CardDescription className="text-xs text-gray-500">
+                输入你的故事想法，AI 将协助你进行扩写并生成分镜脚本。
+            </CardDescription>
         </CardHeader>
-        <CardContent className="flex-1 p-4 pt-0">
+        <CardContent className="flex-1 p-3 flex flex-col gap-3">
             <Textarea
-                value={script}
-                onChange={(e) => setScript(e.target.value)}
-                placeholder="在此输入故事创意或完整剧本..."
-                className="h-full bg-[#111] border-0 resize-none text-base leading-relaxed p-4 font-mono text-gray-300 focus-visible:ring-1 focus-visible:ring-gray-700"
+                value={scriptInput}
+                onChange={(e) => setScriptInput(e.target.value)}
+                placeholder="例如：一个赛博朋克风格的侦探故事，主角在雨夜追踪一个神秘的信号..."
+                className="flex-1 bg-[#111] border-0 resize-none text-sm leading-relaxed p-3 font-mono text-gray-300 focus-visible:ring-1 focus-visible:ring-gray-700"
             />
+            <Button 
+                onClick={handleGenerate} 
+                disabled={loading || !scriptInput.trim()}
+                className="w-full bg-blue-600 hover:bg-blue-700 text-white"
+            >
+                {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Wand2 className="mr-2 h-4 w-4" />}
+                生成剧本灵感
+            </Button>
         </CardContent>
       </Card>
 
-      {/* Output Area */}
-      <Card className="flex flex-col h-full bg-[#1a1a1a] border-[#333] text-white overflow-hidden">
-        <CardHeader className="pb-2 border-b border-[#333] flex flex-row items-center justify-between">
-            <CardTitle className="text-lg font-medium">分镜预览</CardTitle>
-            {result && (
+      {/* Column 2: Inspiration/Variants (3 cols) */}
+      <Card className="col-span-3 flex flex-col h-full bg-[#1a1a1a] border-[#333] text-white">
+        <CardHeader className="pb-3 border-b border-[#333]">
+            <CardTitle className="text-base font-medium flex items-center gap-2">
+                <FileText className="h-4 w-4 text-purple-400" />
+                灵感库
+            </CardTitle>
+            <CardDescription className="text-xs text-gray-500">
+                AI 生成的多种剧本方案
+            </CardDescription>
+        </CardHeader>
+        <CardContent className="flex-1 p-0 overflow-hidden">
+            <ScrollArea className="h-full">
+                <div className="p-3 space-y-3">
+                    {variants.length === 0 ? (
+                        <div className="text-center py-10 text-gray-500 text-xs">
+                            <p>暂无灵感</p>
+                            <p className="mt-1">请在左侧输入并生成</p>
+                        </div>
+                    ) : (
+                        variants.map((variant, idx) => (
+                            <div 
+                                key={idx}
+                                onClick={() => setSelectedVariantIndex(idx)}
+                                className={cn(
+                                    "p-3 rounded-lg border cursor-pointer transition-all hover:bg-[#252525]",
+                                    selectedVariantIndex === idx 
+                                        ? "bg-[#252525] border-blue-500 ring-1 ring-blue-500/50" 
+                                        : "bg-[#222] border-[#333]"
+                                )}
+                            >
+                                <div className="flex justify-between items-start mb-2">
+                                    <h3 className="font-medium text-sm text-gray-200 line-clamp-1">{variant.title || `方案 ${variants.length - idx}`}</h3>
+                                    {idx === 0 && <Badge variant="secondary" className="text-[10px] h-4 px-1">最新</Badge>}
+                                </div>
+                                <div className="text-xs text-gray-500 line-clamp-2 mb-2">
+                                    {variant.scenes?.[0]?.description || "无描述"}
+                                </div>
+                                <div className="flex items-center justify-between text-[10px] text-gray-600">
+                                    <span>{variant.scenes?.length || 0} 个场景</span>
+                                    <span>{new Date(variant.createdAt || Date.now()).toLocaleTimeString()}</span>
+                                </div>
+                            </div>
+                        ))
+                    )}
+                </div>
+            </ScrollArea>
+        </CardContent>
+      </Card>
+
+      {/* Column 3: Detail & Mapping (6 cols) */}
+      <Card className="col-span-6 flex flex-col h-full bg-[#1a1a1a] border-[#333] text-white overflow-hidden">
+        <CardHeader className="pb-3 border-b border-[#333] flex flex-row items-center justify-between">
+            <div>
+                <CardTitle className="text-base font-medium flex items-center gap-2">
+                    <Layout className="h-4 w-4 text-green-400" />
+                    分镜详情
+                </CardTitle>
+                <CardDescription className="text-xs text-gray-500">
+                    查看并确认分镜内容
+                </CardDescription>
+            </div>
+            {selectedVariant && (
                 <Button 
                     onClick={handleApplyToStoryboard}
                     className="bg-green-600 hover:bg-green-700 text-white h-8 text-xs"
                 >
-                    应用到故事板 <ArrowRight className="ml-2 h-3 w-3" />
+                    映射到关键帧生成 <ArrowRight className="ml-2 h-3 w-3" />
                 </Button>
             )}
         </CardHeader>
-        <CardContent className="flex-1 p-0 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-700">
-            {!result ? (
-                <div className="flex flex-col items-center justify-center h-full text-gray-500 gap-3">
-                    <Layout className="h-12 w-12 opacity-20" />
-                    <p>输入内容后点击生成，AI 将自动拆解分镜</p>
-                </div>
-            ) : (
-                <div className="p-4 space-y-6">
-                    <h2 className="text-xl font-bold text-center">{result.title}</h2>
-                    {result.scenes?.map((scene, sIdx) => (
-                        <div key={sIdx} className="space-y-3">
-                            <div className="bg-[#252525] p-3 rounded-lg border border-[#444]">
-                                <div className="font-bold text-blue-400 text-sm mb-1">{scene.location}</div>
-                                <div className="text-xs text-gray-400">{scene.description}</div>
-                                <div className="flex gap-2 mt-2">
-                                    {scene.characters?.map((char, cIdx) => (
-                                        <span key={cIdx} className="text-[10px] bg-[#333] px-2 py-0.5 rounded-full text-gray-300">
-                                            {char}
-                                        </span>
-                                    ))}
-                                </div>
-                            </div>
-                            
-                            <div className="space-y-2 pl-4 border-l-2 border-[#333]">
-                                {scene.shots?.map((shot, shotIdx) => (
-                                    <div key={shotIdx} className="bg-[#222] p-3 rounded border border-[#333] hover:border-[#555] transition-colors flex gap-3">
-                                        <div className="flex-none w-8 h-8 rounded-full bg-[#333] flex items-center justify-center text-xs font-mono text-gray-500">
-                                            {shotIdx + 1}
-                                        </div>
-                                        <div className="flex-1 space-y-1">
-                                            <div className="flex justify-between">
-                                                <span className="text-sm font-medium text-gray-200">{shot.description}</span>
-                                                <span className="text-[10px] bg-blue-900/30 text-blue-400 px-1.5 py-0.5 rounded">{shot.camera}</span>
-                                            </div>
-                                            {shot.dialogue && (
-                                                <div className="text-xs text-gray-400 italic">“{shot.dialogue}”</div>
-                                            )}
-                                            {shot.character && (
-                                                <div className="text-[10px] text-purple-400">@{shot.character}</div>
-                                            )}
-                                        </div>
-                                    </div>
-                                ))}
+        <CardContent className="flex-1 p-0 overflow-hidden bg-[#111]">
+            <ScrollArea className="h-full">
+                {!selectedVariant ? (
+                    <div className="flex flex-col items-center justify-center h-full text-gray-500 gap-3 py-20">
+                        <Layout className="h-12 w-12 opacity-20" />
+                        <p>请从中间栏选择一个剧本方案查看详情</p>
+                    </div>
+                ) : (
+                    <div className="p-6 space-y-8">
+                        <div className="text-center space-y-2">
+                            <h2 className="text-2xl font-bold text-white">{selectedVariant.title}</h2>
+                            <div className="flex justify-center gap-2">
+                                <Badge variant="outline" className="border-[#333] text-gray-400">
+                                    {selectedVariant.scenes?.length} 场景
+                                </Badge>
+                                <Badge variant="outline" className="border-[#333] text-gray-400">
+                                    {selectedVariant.scenes?.reduce((acc, s) => acc + (s.shots?.length || 0), 0)} 镜头
+                                </Badge>
                             </div>
                         </div>
-                    ))}
-                </div>
-            )}
+
+                        {selectedVariant.scenes?.map((scene, sIdx) => (
+                            <div key={sIdx} className="space-y-4">
+                                <div className="flex items-start gap-3">
+                                    <div className="flex-none pt-1">
+                                        <div className="w-6 h-6 rounded bg-blue-900/30 text-blue-400 flex items-center justify-center text-xs font-bold border border-blue-900/50">
+                                            {sIdx + 1}
+                                        </div>
+                                    </div>
+                                    <div className="flex-1 space-y-2">
+                                        <div className="bg-[#252525] p-4 rounded-lg border border-[#333]">
+                                            <div className="font-bold text-blue-400 text-sm mb-2">{scene.location}</div>
+                                            <p className="text-sm text-gray-300 leading-relaxed">{scene.description}</p>
+                                            {scene.characters && scene.characters.length > 0 && (
+                                                <div className="flex gap-2 mt-3 pt-3 border-t border-[#333]">
+                                                    {scene.characters.map((char, cIdx) => (
+                                                        <span key={cIdx} className="text-[10px] bg-[#333] px-2 py-0.5 rounded text-gray-400 border border-[#444]">
+                                                            {char}
+                                                        </span>
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </div>
+                                        
+                                        <div className="space-y-2 pl-4 border-l-2 border-[#222] ml-3">
+                                            {scene.shots?.map((shot, shotIdx) => (
+                                                <div key={shotIdx} className="bg-[#1a1a1a] p-3 rounded border border-[#333] hover:border-[#444] transition-colors flex gap-3 group">
+                                                    <div className="flex-none w-6 h-6 rounded-full bg-[#222] flex items-center justify-center text-[10px] font-mono text-gray-500 group-hover:text-gray-300">
+                                                        {shotIdx + 1}
+                                                    </div>
+                                                    <div className="flex-1 space-y-1">
+                                                        <div className="flex justify-between items-start">
+                                                            <span className="text-sm text-gray-300">{shot.description}</span>
+                                                            <Badge variant="secondary" className="text-[10px] bg-[#222] text-gray-500 hover:bg-[#333] ml-2 shrink-0">
+                                                                {shot.camera}
+                                                            </Badge>
+                                                        </div>
+                                                        {shot.dialogue && (
+                                                            <div className="text-xs text-gray-500 italic mt-1">
+                                                                “{shot.dialogue}”
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                )}
+            </ScrollArea>
         </CardContent>
       </Card>
     </div>
