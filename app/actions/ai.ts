@@ -73,7 +73,13 @@ export async function generateVideoAction(
     startImageUrl: string, 
     endImageUrl: string, 
     prompt: string
-) {
+): Promise<{
+    success: boolean;
+    taskId?: string;
+    requestPayload?: any;
+    responseBody?: any;
+    error?: string;
+}> {
     try {
         const startBase64 = await urlToBase64(startImageUrl);
         const endBase64 = await urlToBase64(endImageUrl);
