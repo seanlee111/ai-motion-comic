@@ -109,6 +109,12 @@ export interface StoryStore {
     deleteApiLog: (id: string) => void;
     clearApiLogs: () => void;
 
+    // Script Logs
+    scriptLogs?: ApiLog[];
+    addScriptLog?: (log: ApiLog) => void;
+    deleteScriptLog?: (id: string) => void;
+    clearScriptLogs?: () => void;
+
     // Assets
     assets?: Asset[];
     addAsset?: (asset: Omit<Asset, 'id'>) => void;

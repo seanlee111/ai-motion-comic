@@ -95,7 +95,7 @@ export function ScriptParser() {
   const [selectedStyle, setSelectedStyle] = useState("default")
   const [shotCount, setShotCount] = useState("4-8")
   
-  const { setFrames, script: storeScript, setScript: setStoreScript, apiLogs, addApiLog } = useStoryStore()
+  const { setFrames, script: storeScript, setScript: setStoreScript, scriptLogs, addScriptLog } = useStoryStore()
 
   // Sync with store on mount
   useEffect(() => {
@@ -123,17 +123,19 @@ export function ScriptParser() {
         const res = await parseScriptAction(finalInput, systemPrompt); 
         
         // Log the interaction
-        addApiLog({
-            id: crypto.randomUUID(),
-            timestamp: Date.now(),
-            endpoint: "parseScript",
-            modelId: "deepseek-chat",
-            status: res.success ? 200 : 500,
-            duration: Date.now() - startTime,
-            error: res.error,
-            requestPayload: res.requestPayload,
-            responseBody: res.responseBody
-        });
+        if (addScriptLog) {
+            addScriptLog({
+                id: crypto.randomUUID(),
+                timestamp: Date.now(),
+                endpoint: "parseScript",
+                modelId: "deepseek-chat",
+                status: res.success ? 200 : 500,
+                duration: Date.now() - startTime,
+                error: res.error,
+                requestPayload: res.requestPayload,
+                responseBody: res.responseBody
+            });
+        }
 
         if (!res.success) {
             throw new Error(res.error);
@@ -331,7 +333,7 @@ export function ScriptParser() {
                 <DialogTitle>API 调用日志</DialogTitle>
             </DialogHeader>
             <ScrollArea className="flex-1 border border-[#333] rounded bg-[#111] p-4">
-                {apiLogs?.map((log) => (
+                {scriptLogs?.map((log) => (
                     <div key={log.id} className="mb-4 pb-4 border-b border-[#333] last:border-0 font-mono text-xs">
                         <div className="flex justify-between items-center mb-2">
                             <span className={cn("font-bold", log.status === 200 ? "text-green-400" : "text-red-400")}>
@@ -359,7 +361,7 @@ export function ScriptParser() {
                         </Collapsible>
                     </div>
                 ))}
-                {(!apiLogs || apiLogs.length === 0) && <div className="text-center text-gray-500">暂无日志</div>}
+                {(!scriptLogs || scriptLogs.length === 0) && <div className="text-center text-gray-500">暂无日志</div>}
             </ScrollArea>
         </DialogContent>
       </Dialog>

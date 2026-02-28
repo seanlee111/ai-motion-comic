@@ -321,8 +321,23 @@ Each object must have:
 
     private processResponse(data: any): any {
         const content = data.choices?.[0]?.message?.content;
+        if (!content) {
+             throw new Error("Empty response from AI");
+        }
+
         try {
-            const jsonStr = content.replace(/```json\n?|\n?```/g, "");
+            // 1. Try to extract from markdown code blocks first
+            const jsonMatch = content.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
+            let jsonStr = jsonMatch ? jsonMatch[1] : content;
+
+            // 2. Locate the JSON object boundaries
+            const firstBrace = jsonStr.indexOf('{');
+            const lastBrace = jsonStr.lastIndexOf('}');
+
+            if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+                jsonStr = jsonStr.substring(firstBrace, lastBrace + 1);
+            }
+
             return JSON.parse(jsonStr);
         } catch (e) {
             console.error("Failed to parse script JSON", content);

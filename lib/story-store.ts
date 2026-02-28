@@ -123,6 +123,11 @@ export const useStoryStore = create<StoryStore>()(
       addApiLog: (log) => set((state) => ({ apiLogs: [log, ...(state.apiLogs || [])].slice(0, 100) })), // Keep last 100 logs
       deleteApiLog: (id) => set((state) => ({ apiLogs: (state.apiLogs || []).filter(l => l.id !== id) })),
       clearApiLogs: () => set({ apiLogs: [] }),
+
+      scriptLogs: [],
+      addScriptLog: (log) => set((state) => ({ scriptLogs: [log, ...(state.scriptLogs || [])].slice(0, 100) })),
+      deleteScriptLog: (id) => set((state) => ({ scriptLogs: (state.scriptLogs || []).filter(l => l.id !== id) })),
+      clearScriptLogs: () => set({ scriptLogs: [] }),
     }),
     {
       name: 'ai-motion-comic-data',
