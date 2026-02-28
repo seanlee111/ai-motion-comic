@@ -331,6 +331,8 @@ function ShotControls({ type, frame, updateFrame, assets, loading, onGenerate, s
 
 export function StoryboardFrame({ frame, index }: StoryboardFrameProps) {
   const { updateFrame, deleteFrame, assets, addApiLog } = useStoryStore()
+  const safeAssets = assets || []
+  
   const [loading, setLoading] = useState<"start" | "end" | "all" | null>(null)
   const [selectedModels, setSelectedModels] = useState<string[]>(MODEL_OPTIONS.map(m => m.id))
   const [editImage, setEditImage] = useState<{ url: string, type: "start" | "end" } | null>(null)
@@ -374,8 +376,8 @@ export function StoryboardFrame({ frame, index }: StoryboardFrameProps) {
     
     try {
       // Resolve character references
-      const characters = (characterIds || []).map(id => assets.find(a => a.id === id)).filter(Boolean)
-      const scene = assets.find(a => a.id === sceneId)
+      const characters = (characterIds || []).map(id => safeAssets.find(a => a.id === id)).filter(Boolean)
+      const scene = safeAssets.find(a => a.id === sceneId)
       
       // Optimized Prompt Construction
       const promptParts: string[] = [];
@@ -723,7 +725,7 @@ export function StoryboardFrame({ frame, index }: StoryboardFrameProps) {
                 type="start"
                 frame={frame}
                 updateFrame={updateFrame}
-                assets={assets}
+                assets={safeAssets}
                 loading={loading}
                 onGenerate={generateImage}
                 selectedModels={selectedModels}
@@ -736,7 +738,7 @@ export function StoryboardFrame({ frame, index }: StoryboardFrameProps) {
                 type="end"
                 frame={frame}
                 updateFrame={updateFrame}
-                assets={assets}
+                assets={safeAssets}
                 loading={loading}
                 onGenerate={generateImage}
                 selectedModels={selectedModels}
