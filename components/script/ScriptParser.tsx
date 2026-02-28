@@ -518,45 +518,6 @@ export function ScriptParser() {
         </CardContent>
       </Card>
       
-      {/* Logs Dialog */}
-      <Dialog open={showLogsDialog} onOpenChange={setShowLogsDialog}>
-        <DialogContent className="max-w-3xl bg-[#1a1a1a] border-[#333] text-white max-h-[80vh] flex flex-col">
-            <DialogHeader>
-                <DialogTitle>API 调用日志</DialogTitle>
-            </DialogHeader>
-            <ScrollArea className="flex-1 border border-[#333] rounded bg-[#111] p-4">
-                {apiLogs?.map((log) => (
-                    <div key={log.id} className="mb-4 pb-4 border-b border-[#333] last:border-0 font-mono text-xs">
-                        <div className="flex justify-between items-center mb-2">
-                            <span className={cn("font-bold", log.status === 200 ? "text-green-400" : "text-red-400")}>
-                                {log.endpoint} ({log.status})
-                            </span>
-                            <span className="text-gray-500">{new Date(log.timestamp).toLocaleTimeString()} - {log.duration}ms</span>
-                        </div>
-                        {log.error && <div className="text-red-400 mb-2">Error: {log.error}</div>}
-                        <Collapsible>
-                            <CollapsibleTrigger className="flex items-center gap-1 text-gray-500 hover:text-gray-300 mb-1">
-                                <ChevronRight className="h-3 w-3" /> 请求详情
-                            </CollapsibleTrigger>
-                            <CollapsibleContent>
-                                <div className="grid grid-cols-2 gap-2 mt-2">
-                                    <div className="bg-black p-2 rounded overflow-auto max-h-[200px]">
-                                        <div className="text-gray-500 mb-1">Request:</div>
-                                        <pre>{JSON.stringify(log.requestPayload, null, 2)}</pre>
-                                    </div>
-                                    <div className="bg-black p-2 rounded overflow-auto max-h-[200px]">
-                                        <div className="text-gray-500 mb-1">Response:</div>
-                                        <pre>{JSON.stringify(log.responseBody, null, 2)}</pre>
-                                    </div>
-                                </div>
-                            </CollapsibleContent>
-                        </Collapsible>
-                    </div>
-                ))}
-                {(!apiLogs || apiLogs.length === 0) && <div className="text-center text-gray-500">暂无日志</div>}
-            </ScrollArea>
-        </DialogContent>
-      </Dialog>
     </div>
   )
 }
