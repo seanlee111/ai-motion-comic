@@ -16,6 +16,8 @@ import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+
 const DEFAULT_SYSTEM_PROMPT = `你是一位专业的分镜画师和视觉叙事专家。
 你的任务是将一个原始的故事创意转化为适合AI图像生成的、具有电影感的详细分镜脚本。
 
@@ -89,6 +91,10 @@ export function ScriptParser() {
   const [showKnowledgeDialog, setShowKnowledgeDialog] = useState(false)
   const [showLogsDialog, setShowLogsDialog] = useState(false)
   
+  // New config states
+  const [selectedStyle, setSelectedStyle] = useState("default")
+  const [shotCount, setShotCount] = useState("4-8")
+  
   const { setFrames, script: storeScript, setScript: setStoreScript, apiLogs, addApiLog } = useStoryStore()
 
   // Sync with store on mount
@@ -102,11 +108,16 @@ export function ScriptParser() {
     setIsGenerating(true);
     const startTime = Date.now();
 
-    // Combine knowledge base with input if present
+    // Combine knowledge base and config with input
     let finalInput = scriptInput;
-    if (knowledgeBase.trim()) {
-        finalInput = `【参考知识库/背景设定】：\n${knowledgeBase}\n\n【用户创意】：\n${scriptInput}`;
-    }
+    const configContext = `【用户配置】：\n- 期望风格：${selectedStyle === 'default' ? '智能匹配' : selectedStyle}\n- 期望分镜数量：${shotCount}个场景`;
+    
+    let contextParts = [];
+    if (knowledgeBase.trim()) contextParts.push(`【参考知识库/背景设定】：\n${knowledgeBase}`);
+    contextParts.push(configContext);
+    contextParts.push(`【用户创意】：\n${scriptInput}`);
+    
+    finalInput = contextParts.join("\n\n");
 
     try {
         const res = await parseScriptAction(finalInput, systemPrompt); 
@@ -268,6 +279,35 @@ export function ScriptParser() {
                 placeholder="例如：一个赛博朋克风格的侦探故事，主角在雨夜追踪一个神秘的信号..."
                 className="flex-1 bg-[#111] border-0 resize-none text-sm leading-relaxed p-3 font-mono text-gray-300 focus-visible:ring-1 focus-visible:ring-gray-700"
             />
+            
+            {/* Generation Options */}
+            <div className="grid grid-cols-2 gap-2">
+                <Select value={selectedStyle} onValueChange={setSelectedStyle}>
+                    <SelectTrigger className="h-8 text-xs bg-[#111] border-[#333]">
+                        <SelectValue placeholder="风格" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-[#1a1a1a] border-[#333] text-white">
+                        <SelectItem value="default">智能匹配</SelectItem>
+                        <SelectItem value="cinematic">电影质感</SelectItem>
+                        <SelectItem value="anime">二次元/动漫</SelectItem>
+                        <SelectItem value="cyberpunk">赛博朋克</SelectItem>
+                        <SelectItem value="noir">黑色电影</SelectItem>
+                        <SelectItem value="documentary">纪录片风格</SelectItem>
+                    </SelectContent>
+                </Select>
+                
+                <Select value={shotCount} onValueChange={setShotCount}>
+                    <SelectTrigger className="h-8 text-xs bg-[#111] border-[#333]">
+                        <SelectValue placeholder="分镜数" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-[#1a1a1a] border-[#333] text-white">
+                        <SelectItem value="4-8">短篇 (4-8镜)</SelectItem>
+                        <SelectItem value="8-12">中篇 (8-12镜)</SelectItem>
+                        <SelectItem value="12-16">长篇 (12-16镜)</SelectItem>
+                    </SelectContent>
+                </Select>
+            </div>
+
             {knowledgeBase && (
                 <div className="text-[10px] text-blue-400 flex items-center gap-1 bg-blue-900/20 px-2 py-1 rounded">
                     <Book className="h-3 w-3" /> 已启用知识库上下文
