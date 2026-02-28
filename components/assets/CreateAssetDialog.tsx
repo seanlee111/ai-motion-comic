@@ -128,7 +128,9 @@ export function CreateAssetDialog() {
         throw new Error(res.error || "创建素材失败")
       }
 
-      if (res.asset) addAsset(res.asset)
+      if (res.asset && addAsset) {
+          addAsset(res.asset)
+      }
 
       setName("")
       setDescription("")

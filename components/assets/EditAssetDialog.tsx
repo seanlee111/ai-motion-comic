@@ -183,7 +183,7 @@ export function EditAssetDialog({ asset, trigger }: { asset: Asset; trigger?: Re
   };
 
   const handleSubmit = async () => {
-    if (!name) return
+    if (!name || !updateAsset) return
     setLoading(true)
     try {
       const formData = new FormData()
@@ -223,7 +223,9 @@ export function EditAssetDialog({ asset, trigger }: { asset: Asset; trigger?: Re
         throw new Error(err.error || "更新素材失败")
       }
       const data = await res.json()
-      updateAsset(asset.id, data.asset)
+      if (updateAsset) {
+          updateAsset(asset.id, data.asset)
+      }
       setOpen(false)
       toast.success("素材更新成功")
     } catch (e: any) {
