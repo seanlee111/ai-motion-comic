@@ -132,6 +132,16 @@ export const useStoryStore = create<StoryStore>()(
     {
       name: 'ai-motion-comic-data',
       storage: createJSONStorage(() => localStorage),
+      // Only persist specific fields to avoid quota issues with large logs or images
+      partialize: (state) => ({
+          assets: state.assets,
+          frames: state.frames,
+          script: state.script,
+          // We can optionally persist logs, but maybe limit them further or exclude them if they are causing the issue
+          // For now, let's exclude logs from localStorage persistence as they are heavy and ephemeral
+          // apiLogs: state.apiLogs, 
+          // scriptLogs: state.scriptLogs
+      }),
     }
   )
 )
