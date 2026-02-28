@@ -8,7 +8,7 @@ import { useStoryStore } from "@/lib/story-store"
 // import { ScrollArea } from "@/components/ui/scroll-area" 
 import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
-import { APILog } from "@/types"
+import { ApiLog } from "@/types"
 import { toast } from "sonner"
 import {
   ContextMenu,
@@ -17,7 +17,7 @@ import {
   ContextMenuTrigger,
 } from "@/components/ui/context-menu"
 
-function LogItem({ log, onDelete }: { log: APILog; onDelete: (id: string) => void }) {
+function LogItem({ log, onDelete }: { log: ApiLog; onDelete?: (id: string) => void }) {
     const [expanded, setExpanded] = useState(false);
     const upstream = (log.responseBody as any)?.upstream;
     const upstreamLabel = upstream?.model || upstream?.req_key;
@@ -117,7 +117,7 @@ function LogItem({ log, onDelete }: { log: APILog; onDelete: (id: string) => voi
                 </div>
             </ContextMenuTrigger>
             <ContextMenuContent>
-                <ContextMenuItem onClick={() => onDelete(log.id)} className="text-red-600">
+                <ContextMenuItem onClick={() => onDelete && onDelete(log.id)} className="text-red-600">
                     <Trash2 className="h-4 w-4 mr-2" />
                     删除日志
                 </ContextMenuItem>
@@ -126,7 +126,7 @@ function LogItem({ log, onDelete }: { log: APILog; onDelete: (id: string) => voi
     )
 }
 
-export function GlobalSettingsDialog() {
+export function ApiLogsDialog() {
   const { apiLogs, clearApiLogs, deleteApiLog } = useStoryStore()
   const [open, setOpen] = useState(false)
 

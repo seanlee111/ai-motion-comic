@@ -5,7 +5,7 @@ import { StoryboardFrame } from "./StoryboardFrame"
 import { Button } from "@/components/ui/button"
 import { Plus, Wand2 } from "lucide-react"
 import { useRouter } from "next/navigation"
-import { GlobalSettingsDialog } from "@/components/settings/GlobalSettingsDialog"
+import { ApiLogsDialog } from "@/components/settings/GlobalSettingsDialog"
 
 export function StoryboardWorkbench() {
   const { frames, addFrame } = useStoryStore()
@@ -16,7 +16,7 @@ export function StoryboardWorkbench() {
       <div className="flex-none p-4 border-b flex justify-between items-center bg-background z-10">
         <h2 className="text-lg font-semibold">分镜板 ({frames.length} 帧)</h2>
         <div className="flex gap-2 items-center">
-            <GlobalSettingsDialog />
+            <ApiLogsDialog />
             {/* Removed AI Script button as it's now a separate tab */}
             <Button onClick={() => addFrame()}>
                 <Plus className="mr-2 h-4 w-4" /> 添加分镜
