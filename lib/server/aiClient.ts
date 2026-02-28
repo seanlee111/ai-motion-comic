@@ -192,12 +192,28 @@ Each object must have:
         return this.processResponse(await res.json());
     }
 
+    // Helper to validate Base64 image format
+    private validateBase64Image(base64: string): boolean {
+        // Must start with data:image/[format];base64,
+        // Supported formats: jpg, jpeg, png, webp, bmp
+        const pattern = /^data:image\/(jpeg|jpg|png|webp|bmp);base64,/;
+        return pattern.test(base64);
+    }
+
     async generateVideo(
         startImageBase64: string, 
         endImageBase64: string, 
         prompt: string
     ): Promise<string | null> {
         if (!this.arkKey) throw new Error("Server missing ARK_API_KEY");
+
+        // Validate image formats
+        if (!this.validateBase64Image(startImageBase64)) {
+            throw new Error("Invalid start image format. Must be data:image/[type];base64,... (jpeg/jpg/png/webp/bmp)");
+        }
+        if (!this.validateBase64Image(endImageBase64)) {
+            throw new Error("Invalid end image format. Must be data:image/[type];base64,... (jpeg/jpg/png/webp/bmp)");
+        }
 
         const modelId = "doubao-seedance-1-5-pro-251215";
         // Correct endpoint based on SDK docs (plural: contents/generations/tasks)
@@ -215,20 +231,24 @@ Each object must have:
                     image_url: {
                         url: startImageBase64
                     },
-                    role: "first_frame"
+                    image_role: "first_frame"
                 },
                 {
                     type: "image_url",
                     image_url: {
                         url: endImageBase64
                     },
-                    role: "last_frame"
+                    image_role: "last_frame"
                 }
             ],
             generate_audio: true,
             duration: 5,
-            ratio: "16:9"
+            ratio: "16:9",
+            resolution: "720p",
+            watermark: false
         };
+
+        console.log("Sending video generation request:", JSON.stringify(payload, null, 2));
 
         const res = await fetch(videoEndpoint, {
             method: "POST",
@@ -254,18 +274,21 @@ Each object must have:
         }
 
         const data = await res.json();
+        console.log("Video generation task created:", data);
+
         // The API returns { id: "task_id" }
         if (data.id) {
             return await this.pollVideoTask(data.id);
         }
         
-        return null;
+        throw new Error("No task ID returned from video generation API");
     }
 
     private async pollVideoTask(taskId: string): Promise<string | null> {
         // Polling endpoint: plural path
         const statusEndpoint = `https://ark.cn-beijing.volces.com/api/v3/contents/generations/tasks/${taskId}`;
-        const maxRetries = 60; // 5 mins max (5s interval)
+        // Increase timeout to 10 mins as suggested
+        const maxRetries = 120; // 10 mins (5s interval)
         
         for (let i = 0; i < maxRetries; i++) {
             await new Promise(r => setTimeout(r, 5000));
@@ -273,19 +296,39 @@ Each object must have:
                 headers: { "Authorization": `Bearer ${this.arkKey}` }
             });
             
-            if (!res.ok) continue;
-            const data = await res.json();
-            
-            // Response structure for GET /tasks/{id}:
-            // { id: "...", status: "succeeded", content: { video_url: "..." } }
-            if (data.status === "succeeded" && data.content?.video_url) {
-                return data.content.video_url;
+            if (!res.ok) {
+                const errText = await res.text();
+                console.error(`Polling error (attempt ${i+1}):`, errText);
+                continue;
             }
-            if (data.status === "failed") {
-                throw new Error(`Video generation task failed: ${data.error?.message || "Unknown error"}`);
+
+            const data = await res.json();
+            console.log(`Task ${taskId} status:`, data.status);
+            
+            // Handle all possible statuses
+            switch (data.status) {
+                case "succeeded":
+                    if (data.content?.video_url) {
+                        return data.content.video_url;
+                    }
+                    throw new Error("Task succeeded but no video URL returned");
+                
+                case "failed":
+                    throw new Error(`Video generation failed: ${data.error?.message || "Unknown error"}`);
+                
+                case "expired":
+                    throw new Error("Video generation task expired");
+                
+                case "queued":
+                case "running":
+                    // Continue polling
+                    break;
+                
+                default:
+                    console.warn(`Unknown status: ${data.status}`);
             }
         }
-        throw new Error("Video generation timed out");
+        throw new Error("Video generation timed out after 10 minutes");
     }
 
     private processResponse(data: any): any {
