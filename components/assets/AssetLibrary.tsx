@@ -12,6 +12,16 @@ import { createAssetAction, deleteAssetAction, getAssetsAction, updateAssetActio
 
 function AssetCard({ asset }: { asset: any }) {
   const { deleteAsset } = useStoryStore()
+  
+  const handleDelete = async () => {
+      if (!deleteAsset) return; // Guard against undefined
+      const res = await deleteAssetAction(asset.id);
+      if (res.success) {
+          deleteAsset(asset.id);
+      } else {
+          alert(res.error || "Delete failed");
+      }
+  };
 
   const coverImage = asset.imageUrls?.[0] || asset.imageUrl;
   const count = asset.imageUrls?.length || (asset.imageUrl ? 1 : 0);
@@ -48,14 +58,7 @@ function AssetCard({ asset }: { asset: any }) {
           variant="destructive" 
           size="icon" 
           className="h-6 w-6" 
-          onClick={async () => {
-            const res = await deleteAssetAction(asset.id)
-            if (res.success) {
-                deleteAsset(asset.id)
-            } else {
-                alert(res.error || "Delete failed")
-            }
-          }}
+          onClick={handleDelete}
         >
           <Trash2 className="h-3 w-3" />
         </Button>
@@ -72,6 +75,7 @@ export function AssetLibrary({ className }: { className?: string }) {
 
   useEffect(() => {
     const load = async () => {
+      if (!setAssets) return;
       setLoading(true)
       try {
         const res = await getAssetsAction()
@@ -85,8 +89,8 @@ export function AssetLibrary({ className }: { className?: string }) {
     load()
   }, [setAssets])
   
-  const characters = assets.filter(a => a.type === 'character')
-  const scenes = assets.filter(a => a.type === 'scene')
+  const characters = (assets || []).filter(a => a.type === 'character')
+  const scenes = (assets || []).filter(a => a.type === 'scene')
 
   return (
     <div className={cn("flex h-full w-64 flex-col border-r bg-muted/10", className)}>
