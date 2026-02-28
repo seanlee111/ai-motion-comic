@@ -132,13 +132,13 @@ export class AIClient {
         }
         return null;
     }
-    async parseScript(script: string): Promise<any> {
+    async parseScript(script: string, systemPrompt?: string): Promise<{ data: any; requestPayload: any; responseBody: any }> {
         if (!this.arkKey) throw new Error("Server missing ARK_API_KEY");
 
         const messages = [
             {
                 role: "system",
-                content: `You are an expert storyboard artist and visual storyteller.
+                content: systemPrompt || `You are an expert storyboard artist and visual storyteller.
 Your task is to transform a raw story idea into a cinematic, visually rich storyboard script optimized for AI image generation.
 
 **Goal:** Create a sequence of 4-8 distinct scenes that tell a coherent story with a clear visual progression.
@@ -189,7 +189,12 @@ Each object must have:
             throw new Error(`Script Parsing API Error: ${res.status} ${errText}`);
         }
 
-        return this.processResponse(await res.json());
+        const responseData = await res.json();
+        return {
+            data: this.processResponse(responseData),
+            requestPayload: payload,
+            responseBody: responseData
+        };
     }
 
     // Helper to validate Base64 image format

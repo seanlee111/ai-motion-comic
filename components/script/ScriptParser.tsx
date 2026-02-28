@@ -1,7 +1,7 @@
 "use client"
 
-import { useState, useEffect } from "react"
-import { Loader2, Play, Layout, Wand2, Settings, ArrowRight, FileText, Sparkles, ChevronRight, Copy, RefreshCw } from "lucide-react"
+import { useState, useEffect, useRef } from "react"
+import { Loader2, Play, Layout, Wand2, Settings, ArrowRight, FileText, Sparkles, ChevronRight, Copy, RefreshCw, Book, Upload } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card"
@@ -14,9 +14,15 @@ import { StoryboardFrame } from "@/types"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 
 const DEFAULT_SYSTEM_PROMPT = `你是一位专业的分镜画师和视觉叙事专家。
 你的任务是将一个原始的故事创意转化为适合AI图像生成的、具有电影感的详细分镜脚本。
+
+**扩写与创意补充：**
+- 如果用户输入非常简短（如一句话），你需要发挥想象力，将其扩写为一个完整的、有起承转合的4-8个场景的微电影剧本。
+- 补充细节：为场景添加具体的环境描写、光影氛围、角色动作和情感表达。
+- 确保故事逻辑通顺，情节紧凑有趣。
 
 **目标：** 创建一系列4-8个独特的场景，讲述一个连贯的故事，并具有清晰的视觉推进感。
 
@@ -60,17 +66,22 @@ type ParsedScene = {
 type ParsedScript = {
     title: string;
     scenes: ParsedScene[];
-    createdAt?: number; // Added timestamp
+    createdAt?: number;
+    knowledgeBaseContext?: string;
 }
 
 export function ScriptParser() {
   const [scriptInput, setScriptInput] = useState("")
-  const [loading, setLoading] = useState(false)
+  // const [loading, setLoading] = useState(false)
+  const [isGenerating, setIsGenerating] = useState(false)
   const [variants, setVariants] = useState<ParsedScript[]>([])
   const [selectedVariantIndex, setSelectedVariantIndex] = useState<number | null>(null)
   const [systemPrompt, setSystemPrompt] = useState(DEFAULT_SYSTEM_PROMPT)
+  const [knowledgeBase, setKnowledgeBase] = useState("")
+  const [showKnowledgeDialog, setShowKnowledgeDialog] = useState(false)
+  const [showLogsDialog, setShowLogsDialog] = useState(false)
   
-  const { setFrames, script: storeScript, setScript: setStoreScript } = useStoryStore()
+  const { setFrames, script: storeScript, setScript: setStoreScript, apiLogs, addApiLog } = useStoryStore()
 
   // Sync with store on mount
   useEffect(() => {
@@ -80,16 +91,40 @@ export function ScriptParser() {
   const handleGenerate = async () => {
     if (!scriptInput.trim()) return;
     
-    setLoading(true);
+    setIsGenerating(true);
+    const startTime = Date.now();
+
+    // Combine knowledge base with input if present
+    let finalInput = scriptInput;
+    if (knowledgeBase.trim()) {
+        finalInput = `【参考知识库/背景设定】：\n${knowledgeBase}\n\n【用户创意】：\n${scriptInput}`;
+    }
+
     try {
-        // We can potentially generate multiple variations by calling this multiple times or asking the backend
-        // For now, let's just generate one and append it.
-        const res = await parseScriptAction(scriptInput); 
+        const res = await parseScriptAction(finalInput, systemPrompt); 
+        
+        // Log the interaction
+        addApiLog({
+            id: crypto.randomUUID(),
+            timestamp: Date.now(),
+            endpoint: "parseScript",
+            modelId: "deepseek-chat",
+            status: res.success ? 200 : 500,
+            duration: Date.now() - startTime,
+            error: res.error,
+            requestPayload: res.requestPayload,
+            responseBody: res.responseBody
+        });
+
         if (!res.success) {
             throw new Error(res.error);
         }
         
-        const newScript = { ...res.data, createdAt: Date.now() };
+        const newScript = { 
+            ...res.data, 
+            createdAt: Date.now(),
+            knowledgeBaseContext: knowledgeBase.slice(0, 50) + "..."
+        };
         setVariants(prev => [newScript, ...prev]);
         setSelectedVariantIndex(0); // Select the new one
         setStoreScript(scriptInput); // Save raw script to store
@@ -97,7 +132,7 @@ export function ScriptParser() {
     } catch (e: any) {
         toast.error(e.message);
     } finally {
-        setLoading(false);
+        setIsGenerating(false);
     }
   }
 
@@ -141,29 +176,59 @@ export function ScriptParser() {
                     <Sparkles className="h-4 w-4 text-blue-400" />
                     创意输入
                 </CardTitle>
-                <Dialog>
-                    <DialogTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-6 w-6">
-                            <Settings className="h-4 w-4 text-gray-500" />
-                        </Button>
-                    </DialogTrigger>
-                    <DialogContent className="max-w-2xl bg-[#1a1a1a] border-[#333] text-white">
-                        <DialogHeader>
-                            <DialogTitle>AI 设定</DialogTitle>
-                        </DialogHeader>
-                        <div className="space-y-4 py-4">
-                            <div className="space-y-2">
-                                <Label>系统提示词</Label>
+                <div className="flex gap-1">
+                    <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setShowLogsDialog(true)} title="API日志">
+                        <FileText className="h-4 w-4 text-gray-500" />
+                    </Button>
+                    <Dialog open={showKnowledgeDialog} onOpenChange={setShowKnowledgeDialog}>
+                        <DialogTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-6 w-6" title="知识库设定">
+                                <Book className="h-4 w-4 text-gray-500" />
+                            </Button>
+                        </DialogTrigger>
+                        <DialogContent className="max-w-2xl bg-[#1a1a1a] border-[#333] text-white">
+                            <DialogHeader>
+                                <DialogTitle>剧本知识库</DialogTitle>
+                                <DialogDescription>上传背景设定、世界观文档或参考资料，AI 将基于此进行创作。</DialogDescription>
+                            </DialogHeader>
+                            <div className="space-y-4 py-4">
                                 <Textarea 
-                                    value={systemPrompt}
-                                    onChange={(e) => setSystemPrompt(e.target.value)}
-                                    className="min-h-[300px] font-mono text-sm bg-[#111] border-[#333]"
+                                    value={knowledgeBase}
+                                    onChange={(e) => setKnowledgeBase(e.target.value)}
+                                    placeholder="在此粘贴世界观设定、角色小传或风格指南..."
+                                    className="min-h-[200px] font-mono text-sm bg-[#111] border-[#333]"
                                 />
+                                <div className="flex justify-end gap-2">
+                                    <Button variant="ghost" onClick={() => setKnowledgeBase("")}>清空</Button>
+                                    <Button onClick={() => setShowKnowledgeDialog(false)}>保存设定</Button>
+                                </div>
                             </div>
-                            <Button variant="outline" onClick={() => setSystemPrompt(DEFAULT_SYSTEM_PROMPT)}>恢复默认</Button>
-                        </div>
-                    </DialogContent>
-                </Dialog>
+                        </DialogContent>
+                    </Dialog>
+                    <Dialog>
+                        <DialogTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-6 w-6">
+                                <Settings className="h-4 w-4 text-gray-500" />
+                            </Button>
+                        </DialogTrigger>
+                        <DialogContent className="max-w-2xl bg-[#1a1a1a] border-[#333] text-white">
+                            <DialogHeader>
+                                <DialogTitle>AI 设定</DialogTitle>
+                            </DialogHeader>
+                            <div className="space-y-4 py-4">
+                                <div className="space-y-2">
+                                    <Label>系统提示词</Label>
+                                    <Textarea 
+                                        value={systemPrompt}
+                                        onChange={(e) => setSystemPrompt(e.target.value)}
+                                        className="min-h-[300px] font-mono text-sm bg-[#111] border-[#333]"
+                                    />
+                                </div>
+                                <Button variant="outline" onClick={() => setSystemPrompt(DEFAULT_SYSTEM_PROMPT)}>恢复默认</Button>
+                            </div>
+                        </DialogContent>
+                    </Dialog>
+                </div>
             </div>
             <CardDescription className="text-xs text-gray-500">
                 输入你的故事想法，AI 将协助你进行扩写并生成分镜脚本。
@@ -176,16 +241,61 @@ export function ScriptParser() {
                 placeholder="例如：一个赛博朋克风格的侦探故事，主角在雨夜追踪一个神秘的信号..."
                 className="flex-1 bg-[#111] border-0 resize-none text-sm leading-relaxed p-3 font-mono text-gray-300 focus-visible:ring-1 focus-visible:ring-gray-700"
             />
+            {knowledgeBase && (
+                <div className="text-[10px] text-blue-400 flex items-center gap-1 bg-blue-900/20 px-2 py-1 rounded">
+                    <Book className="h-3 w-3" /> 已启用知识库上下文
+                </div>
+            )}
             <Button 
                 onClick={handleGenerate} 
-                disabled={loading || !scriptInput.trim()}
+                disabled={isGenerating || !scriptInput.trim()}
                 className="w-full bg-blue-600 hover:bg-blue-700 text-white"
             >
-                {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Wand2 className="mr-2 h-4 w-4" />}
-                生成剧本灵感
+                {isGenerating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Wand2 className="mr-2 h-4 w-4" />}
+                {isGenerating ? "正在扩写与生成..." : "生成剧本灵感"}
             </Button>
         </CardContent>
       </Card>
+
+      {/* Logs Dialog */}
+      <Dialog open={showLogsDialog} onOpenChange={setShowLogsDialog}>
+        <DialogContent className="max-w-3xl bg-[#1a1a1a] border-[#333] text-white max-h-[80vh] flex flex-col">
+            <DialogHeader>
+                <DialogTitle>API 调用日志</DialogTitle>
+            </DialogHeader>
+            <ScrollArea className="flex-1 border border-[#333] rounded bg-[#111] p-4">
+                {apiLogs?.map((log) => (
+                    <div key={log.id} className="mb-4 pb-4 border-b border-[#333] last:border-0 font-mono text-xs">
+                        <div className="flex justify-between items-center mb-2">
+                            <span className={cn("font-bold", log.status === 200 ? "text-green-400" : "text-red-400")}>
+                                {log.endpoint} ({log.status})
+                            </span>
+                            <span className="text-gray-500">{new Date(log.timestamp).toLocaleTimeString()} - {log.duration}ms</span>
+                        </div>
+                        {log.error && <div className="text-red-400 mb-2">Error: {log.error}</div>}
+                        <Collapsible>
+                            <CollapsibleTrigger className="flex items-center gap-1 text-gray-500 hover:text-gray-300 mb-1">
+                                <ChevronRight className="h-3 w-3" /> 请求详情
+                            </CollapsibleTrigger>
+                            <CollapsibleContent>
+                                <div className="grid grid-cols-2 gap-2 mt-2">
+                                    <div className="bg-black p-2 rounded overflow-auto max-h-[200px]">
+                                        <div className="text-gray-500 mb-1">Request:</div>
+                                        <pre>{JSON.stringify(log.requestPayload, null, 2)}</pre>
+                                    </div>
+                                    <div className="bg-black p-2 rounded overflow-auto max-h-[200px]">
+                                        <div className="text-gray-500 mb-1">Response:</div>
+                                        <pre>{JSON.stringify(log.responseBody, null, 2)}</pre>
+                                    </div>
+                                </div>
+                            </CollapsibleContent>
+                        </Collapsible>
+                    </div>
+                ))}
+                {(!apiLogs || apiLogs.length === 0) && <div className="text-center text-gray-500">暂无日志</div>}
+            </ScrollArea>
+        </DialogContent>
+      </Dialog>
 
       {/* Column 2: Inspiration/Variants (3 cols) */}
       <Card className="col-span-3 flex flex-col h-full bg-[#1a1a1a] border-[#333] text-white">
@@ -333,6 +443,46 @@ export function ScriptParser() {
             </ScrollArea>
         </CardContent>
       </Card>
+      
+      {/* Logs Dialog */}
+      <Dialog open={showLogsDialog} onOpenChange={setShowLogsDialog}>
+        <DialogContent className="max-w-3xl bg-[#1a1a1a] border-[#333] text-white max-h-[80vh] flex flex-col">
+            <DialogHeader>
+                <DialogTitle>API 调用日志</DialogTitle>
+            </DialogHeader>
+            <ScrollArea className="flex-1 border border-[#333] rounded bg-[#111] p-4">
+                {apiLogs?.map((log) => (
+                    <div key={log.id} className="mb-4 pb-4 border-b border-[#333] last:border-0 font-mono text-xs">
+                        <div className="flex justify-between items-center mb-2">
+                            <span className={cn("font-bold", log.status === 200 ? "text-green-400" : "text-red-400")}>
+                                {log.endpoint} ({log.status})
+                            </span>
+                            <span className="text-gray-500">{new Date(log.timestamp).toLocaleTimeString()} - {log.duration}ms</span>
+                        </div>
+                        {log.error && <div className="text-red-400 mb-2">Error: {log.error}</div>}
+                        <Collapsible>
+                            <CollapsibleTrigger className="flex items-center gap-1 text-gray-500 hover:text-gray-300 mb-1">
+                                <ChevronRight className="h-3 w-3" /> 请求详情
+                            </CollapsibleTrigger>
+                            <CollapsibleContent>
+                                <div className="grid grid-cols-2 gap-2 mt-2">
+                                    <div className="bg-black p-2 rounded overflow-auto max-h-[200px]">
+                                        <div className="text-gray-500 mb-1">Request:</div>
+                                        <pre>{JSON.stringify(log.requestPayload, null, 2)}</pre>
+                                    </div>
+                                    <div className="bg-black p-2 rounded overflow-auto max-h-[200px]">
+                                        <div className="text-gray-500 mb-1">Response:</div>
+                                        <pre>{JSON.stringify(log.responseBody, null, 2)}</pre>
+                                    </div>
+                                </div>
+                            </CollapsibleContent>
+                        </Collapsible>
+                    </div>
+                ))}
+                {(!apiLogs || apiLogs.length === 0) && <div className="text-center text-gray-500">暂无日志</div>}
+            </ScrollArea>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

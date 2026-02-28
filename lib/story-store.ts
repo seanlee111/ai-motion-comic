@@ -1,8 +1,8 @@
 import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
-import { StoryState, Asset, StoryboardFrame } from '@/types'
+import { StoryStore, Asset, StoryboardFrame, ApiLog } from '@/types'
 
-export const useStoryStore = create<StoryState>()(
+export const useStoryStore = create<StoryStore>()(
   persist(
     (set) => ({
       assets: [],
@@ -15,22 +15,22 @@ export const useStoryStore = create<StoryState>()(
             startImages: [],
             endImages: []
         }
-      ],
+    ],
 
-      addAsset: (assetData) => set((state) => ({
-        assets: [...state.assets, { ...assetData, id: crypto.randomUUID() }]
-      })),
+    addAsset: (assetData: Omit<Asset, 'id'>) => set((state: StoryStore) => ({
+        assets: [...(state.assets || []), { ...assetData, id: crypto.randomUUID() }]
+    })),
 
-      updateAsset: (id, updates) => set((state) => ({
-        assets: state.assets.map(a => a.id === id ? { ...a, ...updates } : a)
-      })),
+    updateAsset: (id: string, updates: Partial<Asset>) => set((state: StoryStore) => ({
+        assets: (state.assets || []).map(a => a.id === id ? { ...a, ...updates } : a)
+    })),
 
-      deleteAsset: (id) => set((state) => ({
-        assets: state.assets.filter(a => a.id !== id)
-      })),
-      setAssets: (assets: Asset[]) => set({ assets }),
+    deleteAsset: (id: string) => set((state: StoryStore) => ({
+        assets: (state.assets || []).filter(a => a.id !== id)
+    })),
+    setAssets: (assets: Asset[]) => set({ assets }),
 
-      addFrame: (frameData) => set((state) => ({
+    addFrame: (frameData?: Partial<StoryboardFrame>) => set((state: StoryStore) => ({
         frames: [...state.frames, { 
             id: crypto.randomUUID(), 
             storyScript: '', 
@@ -40,29 +40,29 @@ export const useStoryStore = create<StoryState>()(
             endImages: [],
             ...frameData 
         }]
-      })),
+    })),
 
-      updateFrame: (id, updates) => set((state) => ({
+    updateFrame: (id: string, updates: Partial<StoryboardFrame>) => set((state: StoryStore) => ({
         frames: state.frames.map(f => f.id === id ? { ...f, ...updates } : f)
-      })),
+    })),
 
-      deleteFrame: (id) => set((state) => ({
+    deleteFrame: (id: string) => set((state: StoryStore) => ({
         frames: state.frames.filter(f => f.id !== id)
-      })),
+    })),
 
-      reorderFrames: (fromIndex, toIndex) => set((state) => {
+    reorderFrames: (fromIndex: number, toIndex: number) => set((state: StoryStore) => {
         const newFrames = [...state.frames];
         const [moved] = newFrames.splice(fromIndex, 1);
         newFrames.splice(toIndex, 0, moved);
         return { frames: newFrames };
-      }),
+    }),
 
-      setFrames: (frames: StoryboardFrame[]) => set({ frames }),
+    setFrames: (frames: StoryboardFrame[]) => set({ frames }),
 
-      script: '',
-      setScript: (script: string) => set({ script }),
+    script: '',
+    setScript: (script: string) => set({ script }),
 
-      generateStoryboardsFromScript: (script: string) => set((state) => {
+    generateStoryboardsFromScript: (script: string) => set((state: StoryStore) => {
         // Parse the script to extract scenes based on [Scene X] or similar headers
         // If no headers found, fallback to paragraph splitting
         let segments: string[] = [];
@@ -95,8 +95,17 @@ export const useStoryStore = create<StoryState>()(
             }
         } else {
              // Fallback to double newline split for paragraphs, merging single newlines
-             segments = script.split(/\n\s*\n/).filter((line: string) => line.trim().length > 0);
+             // Also treat [Scene X] style blocks as segments if found
+             const blocks = script.split(/(\[Scene\s+\d+\][^\[]*)/g).filter(s => s.trim().length > 0);
+             if (blocks.length > 1) {
+                 segments = blocks;
+             } else {
+                 segments = script.split(/\n\s*\n/).filter((line: string) => line.trim().length > 0);
+             }
         }
+        
+        // Fallback: if segments is empty (e.g. script was just whitespace), return current state
+        if (segments.length === 0) return state;
 
         const newFrames: StoryboardFrame[] = segments.map((segment: string) => ({
             id: crypto.randomUUID(),
@@ -107,9 +116,6 @@ export const useStoryStore = create<StoryState>()(
             endImages: []
         }));
         
-        // If script is empty or no segments, keep at least one frame
-        if (newFrames.length === 0) return state;
-
         return { frames: newFrames };
       }),
 

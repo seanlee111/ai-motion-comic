@@ -81,43 +81,37 @@ export interface StoryboardFrame {
   isGenerating?: boolean;
 }
 
-export interface StoryState {
-  assets: Asset[];
-  frames: StoryboardFrame[];
-  
-  // Asset Actions
-  addAsset: (asset: Omit<Asset, 'id'>) => void;
-  updateAsset: (id: string, updates: Partial<Asset>) => void;
-  deleteAsset: (id: string) => void;
-  setAssets: (assets: Asset[]) => void;
-
-  // Frame Actions
-  addFrame: (frameData?: Partial<StoryboardFrame>) => void;
-  updateFrame: (id: string, updates: Partial<StoryboardFrame>) => void;
-  deleteFrame: (id: string) => void;
-  reorderFrames: (fromIndex: number, toIndex: number) => void;
-  setFrames: (frames: StoryboardFrame[]) => void; // For bulk import from script
-
-  // Script Actions
-  script?: string;
-  setScript: (script: string) => void;
-  generateStoryboardsFromScript: (script: string) => void;
-
-  // Logs
-  apiLogs?: APILog[];
-  addApiLog: (log: APILog) => void;
-  deleteApiLog: (id: string) => void;
-  clearApiLogs: () => void;
+export interface ApiLog {
+    id: string;
+    timestamp: number;
+    endpoint: string;
+    modelId?: string;
+    status: number;
+    duration: number;
+    error?: string;
+    requestPayload?: any;
+    responseBody?: any;
 }
 
-export interface APILog {
-  id: string;
-  timestamp: number;
-  endpoint: string;
-  modelId: string;
-  status: number;
-  duration: number;
-  error?: string;
-  requestPayload?: any; // Added for detailed view
-  responseBody?: any; // Added for detailed view
+export interface StoryStore {
+    frames: StoryboardFrame[];
+    script: string;
+    setScript: (script: string) => void;
+    setFrames: (frames: StoryboardFrame[]) => void;
+    addFrame: (frame: StoryboardFrame) => void;
+    updateFrame: (id: string, updates: Partial<StoryboardFrame>) => void;
+    deleteFrame: (id: string) => void;
+    reorderFrames: (startIndex: number, endIndex: number) => void;
+    
+    // API Logs
+    apiLogs: ApiLog[];
+    addApiLog: (log: ApiLog) => void;
+    clearApiLogs: () => void;
+
+    // Assets
+    assets?: Asset[];
+    addAsset?: (asset: Omit<Asset, 'id'>) => void;
+    updateAsset?: (id: string, updates: Partial<Asset>) => void;
+    deleteAsset?: (id: string) => void;
+    setAssets?: (assets: Asset[]) => void;
 }
