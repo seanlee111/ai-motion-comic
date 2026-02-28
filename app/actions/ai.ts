@@ -89,7 +89,13 @@ export async function generateVideoAction(
     }
 }
 
-export async function checkVideoStatusAction(taskId: string) {
+export async function checkVideoStatusAction(taskId: string): Promise<{
+    success: boolean;
+    status: string;
+    videoUrl?: string;
+    error?: string;
+    responseBody?: any;
+}> {
     try {
         const result = await aiClient.checkVideoTask(taskId);
         return { success: true, ...result };
