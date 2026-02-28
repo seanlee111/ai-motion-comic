@@ -23,7 +23,7 @@ interface StoryboardFrameProps {
 }
 
 // Model Selection Options - Filter for text-to-image and image-to-image models
-const MODEL_OPTIONS = AI_MODELS.filter(m => m.type === 'text-to-image' || m.type === 'image-to-image');
+const MODEL_OPTIONS = AI_MODELS.filter(m => (m.type === 'text-to-image' || m.type === 'image-to-image') && m.id.includes('jimeng'));
 
 // Helper to compress base64 images
 const compressImage = (src: string, maxDim = 640, quality = 0.6): Promise<string> => {
