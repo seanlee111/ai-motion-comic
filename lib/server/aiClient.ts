@@ -342,9 +342,8 @@ export class AIClient {
             return JSON.parse(jsonStr);
         } catch (e) {
             console.error("Failed to parse script JSON", content);
-            // Include content snippet in error message for better debugging
-            const snippet = content.length > 200 ? content.substring(0, 200) + "..." : content;
-            throw new Error(`Failed to parse script JSON response: ${snippet}`);
+            // Include FULL content in error message for better debugging
+            throw new Error(`Failed to parse script JSON response: ${content}`);
         }
     }
 }

@@ -341,7 +341,21 @@ export function ScriptParser() {
                             </span>
                             <span className="text-gray-500">{new Date(log.timestamp).toLocaleTimeString()} - {log.duration}ms</span>
                         </div>
-                        {log.error && <div className="text-red-400 mb-2">Error: {log.error}</div>}
+                        {log.error && (
+                            <div className="mb-2">
+                                <Collapsible>
+                                    <CollapsibleTrigger className="flex items-center gap-1 text-xs text-red-400 hover:text-red-300 mb-1 group">
+                                        <ChevronRight className="h-3 w-3 transition-transform group-data-[state=open]:rotate-90" /> 
+                                        Error Details
+                                    </CollapsibleTrigger>
+                                    <CollapsibleContent>
+                                        <div className="bg-[#2a1a1a] p-2 rounded overflow-auto max-h-[300px] text-xs font-mono text-red-300 whitespace-pre-wrap break-all border border-red-900/50">
+                                            {log.error}
+                                        </div>
+                                    </CollapsibleContent>
+                                </Collapsible>
+                            </div>
+                        )}
                         <Collapsible>
                             <CollapsibleTrigger className="flex items-center gap-1 text-gray-500 hover:text-gray-300 mb-1">
                                 <ChevronRight className="h-3 w-3" /> 请求详情
