@@ -26,14 +26,11 @@ const DEFAULT_SYSTEM_PROMPT = `你是一位专业的分镜画师和视觉叙事�
 - 补充细节：为场景添加具体的环境描写、光影氛围、角色动作和情感表达。
 - 确保故事逻辑通顺，情节紧凑有趣。
 
-**目标：** 创建 **三个** 不同的剧本方案，每个方案包含4-8个独特的场景，讲述一个连贯的故事。
-1. **方案A：** 忠实于原意，稳健的叙事风格。
-2. **方案B：** 更具戏剧冲突和张力，强调情感或动作。
-3. **方案C：** 独特的艺术视角或非线性叙事，更具实验性。
+**目标：** 基于用户创意，创作 **一个** 完整、高质量的分镜剧本方案。
 
 **格式要求：**
-返回一个 JSON 对象，包含一个 "variants" 数组。
-每个 variant 对象包含：
+返回一个 JSON 对象（不要包裹在 variants 数组中，直接返回剧本对象）。
+对象必须包含：
 - "title": (string) 剧本标题（中文）
 - "style": (string) 风格描述（中文）
 - "scenes": (array) 场景列表
@@ -54,7 +51,7 @@ const DEFAULT_SYSTEM_PROMPT = `你是一位专业的分镜画师和视觉叙事�
 - **必须使用中文**进行所有描述。
 - **不要**使用对话剧本格式。
 - 确保场景之间的视觉过渡流畅。
-- 返回 ONLY valid JSON.`
+- 返回 ONLY valid JSON。`
 
 type ParsedShot = {
     id: string;
@@ -155,6 +152,7 @@ export function ScriptParser() {
             // Legacy format: Single script (treat as one variant)
             newVariants = [{
                 title: res.data.title || "AI 剧本",
+                style: res.data.style,
                 scenes: res.data.scenes,
                 createdAt: Date.now(),
                 knowledgeBaseContext: knowledgeBase.slice(0, 50) + "..."
