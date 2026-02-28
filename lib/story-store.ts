@@ -145,16 +145,62 @@ export const useStoryStore = create<StoryStore>()(
         },
         removeItem: (name: string) => localStorage.removeItem(name),
       })),
-      // Only persist specific fields to avoid quota issues with large logs or images
-      partialize: (state) => ({
-          assets: state.assets,
-          frames: state.frames,
-          script: state.script,
-          // We can optionally persist logs, but maybe limit them further or exclude them if they are causing the issue
-          // For now, let's exclude logs from localStorage persistence as they are heavy and ephemeral
-          // apiLogs: state.apiLogs, 
-          // scriptLogs: state.scriptLogs
-      }),
+      partialize: (state) => {
+          // Deep clone to avoid mutating state during persistence
+          const persistedState = JSON.parse(JSON.stringify({
+              assets: state.assets || [],
+              frames: state.frames || [],
+              script: state.script || ''
+          }));
+
+          // Sanitize Assets: Remove base64/dataURL from imageUrl
+          persistedState.assets = persistedState.assets.map((asset: any) => {
+              if (asset.imageUrl && asset.imageUrl.startsWith('data:')) {
+                  // If it's a data URL, we don't persist it to localStorage
+                  // In a real app, this should have been uploaded to Blob. 
+                  // For now, we clear it to save space, or we could keep a tiny thumbnail if we had one.
+                  // BETTER STRATEGY: Only persist if it's http(s)
+                  return { ...asset, imageUrl: '' }; 
+              }
+              return asset;
+          });
+
+          // Sanitize Frames: Remove base64 from images
+          persistedState.frames = persistedState.frames.map((frame: any) => {
+              const cleanFrame = { ...frame };
+              
+              // Clean start/end image URLs
+              if (cleanFrame.startImageUrl?.startsWith('data:')) cleanFrame.startImageUrl = '';
+              if (cleanFrame.endImageUrl?.startsWith('data:')) cleanFrame.endImageUrl = '';
+
+              // Clean image arrays
+              if (cleanFrame.startImages) {
+                  cleanFrame.startImages = cleanFrame.startImages
+                      .filter((img: any) => !img.url.startsWith('data:'))
+                      .slice(0, 10); // Limit history depth
+              }
+              if (cleanFrame.endImages) {
+                  cleanFrame.endImages = cleanFrame.endImages
+                      .filter((img: any) => !img.url.startsWith('data:'))
+                      .slice(0, 10);
+              }
+              
+              // Clean custom uploads (these are likely data URLs, so we must drop them if not uploaded)
+              if (cleanFrame.customUploads) {
+                  cleanFrame.customUploads = cleanFrame.customUploads.filter((url: string) => !url.startsWith('data:'));
+              }
+              if (cleanFrame.startCustomUploads) {
+                  cleanFrame.startCustomUploads = cleanFrame.startCustomUploads.filter((url: string) => !url.startsWith('data:'));
+              }
+              if (cleanFrame.endCustomUploads) {
+                  cleanFrame.endCustomUploads = cleanFrame.endCustomUploads.filter((url: string) => !url.startsWith('data:'));
+              }
+
+              return cleanFrame;
+          });
+
+          return persistedState;
+      },
     }
   )
 )
