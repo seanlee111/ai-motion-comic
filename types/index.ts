@@ -106,6 +106,7 @@ export interface StoryStore {
     // API Logs
     apiLogs: ApiLog[];
     addApiLog: (log: ApiLog) => void;
+    deleteApiLog: (id: string) => void;
     clearApiLogs: () => void;
 
     // Assets
