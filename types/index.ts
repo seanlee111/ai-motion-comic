@@ -98,7 +98,7 @@ export interface StoryStore {
     script: string;
     setScript: (script: string) => void;
     setFrames: (frames: StoryboardFrame[]) => void;
-    addFrame: (frame: StoryboardFrame) => void;
+    addFrame: (frame?: Partial<StoryboardFrame>) => void;
     updateFrame: (id: string, updates: Partial<StoryboardFrame>) => void;
     deleteFrame: (id: string) => void;
     reorderFrames: (startIndex: number, endIndex: number) => void;
