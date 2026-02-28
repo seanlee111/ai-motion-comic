@@ -160,9 +160,10 @@ export function VideoGenerator() {
     try {
         const res = await generateVideoAction(startImg, endImg, prompt);
         
-        if (!res.success || !res.taskId) {
-            addLog(`❌ Submission Failed`, 'error', res.error || res.responseBody);
-            throw new Error(res.error || "Submission failed");
+        if (!res || !res.success || !res.taskId) {
+            const errorMsg = res?.error || res?.responseBody?.error?.message || "Submission failed";
+            addLog(`❌ Submission Failed`, 'error', errorMsg);
+            throw new Error(errorMsg);
         }
         
         addLog(`Task Submitted Successfully`, 'success', { taskId: res.taskId, payload: res.requestPayload });

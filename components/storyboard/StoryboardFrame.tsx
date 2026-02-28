@@ -842,10 +842,16 @@ export function StoryboardFrame({ frame, index }: StoryboardFrameProps) {
                                 const file = e.target.files?.[0];
                                 if (file) {
                                     const reader = new FileReader();
-                                    reader.onload = (e) => {
+                                    reader.onload = async (e) => {
                                         const result = e.target?.result as string;
                                         if (result) {
-                                            updateFrame(frame.id, { startImageUrl: result });
+                                            try {
+                                                const compressed = await compressImage(result, 1024, 0.7);
+                                                updateFrame(frame.id, { startImageUrl: compressed });
+                                            } catch (err) {
+                                                console.error("Compression failed", err);
+                                                toast.error("图片处理失败，请重试");
+                                            }
                                         }
                                     };
                                     reader.readAsDataURL(file);
@@ -893,10 +899,16 @@ export function StoryboardFrame({ frame, index }: StoryboardFrameProps) {
                                 const file = e.target.files?.[0];
                                 if (file) {
                                     const reader = new FileReader();
-                                    reader.onload = (e) => {
+                                    reader.onload = async (e) => {
                                         const result = e.target?.result as string;
                                         if (result) {
-                                            updateFrame(frame.id, { endImageUrl: result });
+                                            try {
+                                                const compressed = await compressImage(result, 1024, 0.7);
+                                                updateFrame(frame.id, { endImageUrl: compressed });
+                                            } catch (err) {
+                                                console.error("Compression failed", err);
+                                                toast.error("图片处理失败，请重试");
+                                            }
                                         }
                                     };
                                     reader.readAsDataURL(file);
