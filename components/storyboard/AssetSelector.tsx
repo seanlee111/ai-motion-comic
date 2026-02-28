@@ -31,7 +31,7 @@ export function AssetSelector({ type, value, onChange, multi = false }: AssetSel
   const { assets } = useStoryStore()
   const [open, setOpen] = React.useState(false)
   
-  const filteredAssets = assets.filter(a => a.type === type)
+  const filteredAssets = (assets || []).filter(a => a.type === type)
   
   const handleSelect = (assetId: string) => {
     if (multi) {
