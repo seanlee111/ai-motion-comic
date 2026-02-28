@@ -131,7 +131,20 @@ export const useStoryStore = create<StoryStore>()(
     }),
     {
       name: 'ai-motion-comic-data',
-      storage: createJSONStorage(() => localStorage),
+      storage: createJSONStorage(() => ({
+        getItem: (name: string) => localStorage.getItem(name),
+        setItem: (name: string, value: string) => {
+          try {
+            localStorage.setItem(name, value)
+          } catch (e) {
+            if (e instanceof DOMException && e.name === 'QuotaExceededError') {
+              console.warn("Storage full — clearing old state")
+              localStorage.removeItem(name)
+            }
+          }
+        },
+        removeItem: (name: string) => localStorage.removeItem(name),
+      })),
       // Only persist specific fields to avoid quota issues with large logs or images
       partialize: (state) => ({
           assets: state.assets,
