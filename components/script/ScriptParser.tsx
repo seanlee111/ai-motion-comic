@@ -24,28 +24,35 @@ const DEFAULT_SYSTEM_PROMPT = `你是一位专业的分镜画师和视觉叙事�
 - 补充细节：为场景添加具体的环境描写、光影氛围、角色动作和情感表达。
 - 确保故事逻辑通顺，情节紧凑有趣。
 
-**目标：** 创建一系列4-8个独特的场景，讲述一个连贯的故事，并具有清晰的视觉推进感。
+**目标：** 创建 **三个** 不同的剧本方案，每个方案包含4-8个独特的场景，讲述一个连贯的故事。
+1. **方案A：** 忠实于原意，稳健的叙事风格。
+2. **方案B：** 更具戏剧冲突和张力，强调情感或动作。
+3. **方案C：** 独特的艺术视角或非线性叙事，更具实验性。
 
 **格式要求：**
-1. **标题：** 每个场景必须以"[Scene X]"开头（例如：[Scene 1]）。
-2. **描述：** 紧接着在同一段落中提供详细的视觉描述。
-3. **要素：** 每个场景必须明确包含：
-   - **主体：** 谁或什么在焦点中？
-   - **动作：** 发生了什么？
-   - **镜头：** 镜头角度（如：广角、特写、低角度）和运动。
-   - **光影/氛围：** 时间、天气、光照风格（如：电影感、体积光、霓虹）。
-   - **风格：** 艺术风格或美学（如：赛博朋克、水彩、写实）。
+返回一个 JSON 对象，包含一个 "variants" 数组。
+每个 variant 对象包含：
+- "title": (string) 剧本标题（中文）
+- "style": (string) 风格描述（中文）
+- "scenes": (array) 场景列表
+
+每个场景对象必须包含：
+- "id": (string) Unique ID like "scene_1"
+- "location": (string) 场景标题（中文，如：内景 空间站 - 夜）
+- "description": (string) 详细视觉描述（中文）
+- "characters": (array of strings) 角色名称（中文）
+- "shots": (array) 镜头列表
+    - "id": (string) "shot_1"
+    - "description": (string) 镜头画面描述（中文）
+    - "camera": (string) 运镜方式（中文，如：推镜头、特写）
+    - "dialogue": (string) 对白（中文，可选）
+    - "character": (string) 焦点角色（中文，可选）
 
 **约束：**
-- **不要**使用对话剧本格式（如："Bob: Hello"）。如果角色说话，请描述他们的表情或动作。
+- **必须使用中文**进行所有描述。
+- **不要**使用对话剧本格式。
 - 确保场景之间的视觉过渡流畅。
-- 描述要生动，但要足够简洁，以便作为图像生成的提示词。
-
-**示例输出：**
-[Scene 1] 荒凉的火星殖民地日落时的广角建立镜头。红色的尘土在生锈的居住圆顶周围盘旋。光线是长长的、戏剧性的阴影，带着刺眼的橙色光辉。电影科幻风格，8k分辨率。
-
-[Scene 2] 沙地上一只破裂的头盔面罩的特写。面罩的反射中显示远处有一道神秘的蓝光正在逼近。高对比度，悬疑惊悚氛围。
-`
+- 返回 ONLY valid JSON.`
 
 type ParsedShot = {
     id: string;
@@ -65,6 +72,7 @@ type ParsedScene = {
 
 type ParsedScript = {
     title: string;
+    style?: string;
     scenes: ParsedScene[];
     createdAt?: number;
     knowledgeBaseContext?: string;
@@ -120,15 +128,34 @@ export function ScriptParser() {
             throw new Error(res.error);
         }
         
-        const newScript = { 
-            ...res.data, 
-            createdAt: Date.now(),
-            knowledgeBaseContext: knowledgeBase.slice(0, 50) + "..."
-        };
-        setVariants(prev => [newScript, ...prev]);
-        setSelectedVariantIndex(0); // Select the new one
-        setStoreScript(scriptInput); // Save raw script to store
-        toast.success("剧本灵感生成成功");
+        // Handle new variants format or legacy format
+        let newVariants: ParsedScript[] = [];
+        
+        if (res.data.variants && Array.isArray(res.data.variants)) {
+            // New format: Multiple variants
+            newVariants = res.data.variants.map((v: any) => ({
+                ...v,
+                createdAt: Date.now(),
+                knowledgeBaseContext: knowledgeBase.slice(0, 50) + "..."
+            }));
+        } else if (res.data.scenes) {
+            // Legacy format: Single script (treat as one variant)
+            newVariants = [{
+                title: res.data.title || "AI 剧本",
+                scenes: res.data.scenes,
+                createdAt: Date.now(),
+                knowledgeBaseContext: knowledgeBase.slice(0, 50) + "..."
+            }];
+        }
+
+        if (newVariants.length > 0) {
+            setVariants(prev => [...newVariants, ...prev]);
+            setSelectedVariantIndex(0); // Select the first new one
+            setStoreScript(scriptInput); // Save raw script to store
+            toast.success(`成功生成 ${newVariants.length} 个剧本方案`);
+        } else {
+            throw new Error("Invalid response format");
+        }
     } catch (e: any) {
         toast.error(e.message);
     } finally {
@@ -330,8 +357,13 @@ export function ScriptParser() {
                             >
                                 <div className="flex justify-between items-start mb-2">
                                     <h3 className="font-medium text-sm text-gray-200 line-clamp-1">{variant.title || `方案 ${variants.length - idx}`}</h3>
-                                    {idx === 0 && <Badge variant="secondary" className="text-[10px] h-4 px-1">最新</Badge>}
+                                    {idx < 3 && <Badge variant="secondary" className="text-[10px] h-4 px-1">最新</Badge>}
                                 </div>
+                                {variant.style && (
+                                    <Badge variant="outline" className="mb-2 text-[10px] border-blue-900/50 text-blue-400">
+                                        {variant.style}
+                                    </Badge>
+                                )}
                                 <div className="text-xs text-gray-500 line-clamp-2 mb-2">
                                     {variant.scenes?.[0]?.description || "无描述"}
                                 </div>
