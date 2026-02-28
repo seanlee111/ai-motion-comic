@@ -94,6 +94,6 @@ export async function checkVideoStatusAction(taskId: string) {
         const result = await aiClient.checkVideoTask(taskId);
         return { success: true, ...result };
     } catch (e: any) {
-        return { success: false, status: "failed", error: e.message };
+        return { success: false, status: "failed", error: e.message, responseBody: null };
     }
 }
