@@ -22,16 +22,47 @@ export interface GeneratedImage {
   shot?: 'start' | 'end';
 }
 
+export interface ParsedShot {
+    id: string;
+    description: string;
+    dialogue: string;
+    camera: string;
+    character: string;
+}
+
+export interface ParsedScene {
+    id: string;
+    location: string;
+    description: string;
+    characters: string[];
+    shots: ParsedShot[];
+}
+
+export interface ParsedScript {
+    id: string; // Add ID for management
+    title: string;
+    style?: string;
+    scenes: ParsedScene[];
+    createdAt?: number;
+    knowledgeBaseContext?: string;
+}
+
 export interface StoryboardFrame {
   id: string;
   
+  // Script Context (New)
+  scriptId?: string; // Link to parent script
+  sceneLocation?: string; // e.g., "内景 空间站 - 夜"
+  shotId?: string; // e.g., "shot_1"
+  shotHeader?: string; // e.g., "MS", "CU"
+
   // Script Data
   storyScript: string; // The core action description
   actionNotes?: string; // Camera movement, specific character acting details
   
   // Asset Links
   characterIds: string[]; // Changed from single ID to array
-  sceneId?: string;
+  sceneId?: string; // Link to visual scene asset (background)
   customUploads?: string[]; // Custom uploaded reference images (base64 or url)
 
   // Start Shot Specifics (Overrides)
@@ -121,4 +152,10 @@ export interface StoryStore {
     updateAsset?: (id: string, updates: Partial<Asset>) => void;
     deleteAsset?: (id: string) => void;
     setAssets?: (assets: Asset[]) => void;
+
+    // Scripts (New)
+    scripts: ParsedScript[];
+    addScript: (script: ParsedScript) => void;
+    updateScript: (id: string, updates: Partial<ParsedScript>) => void;
+    deleteScript: (id: string) => void;
 }

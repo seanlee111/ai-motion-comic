@@ -10,7 +10,7 @@ import { parseScriptAction } from "@/app/actions/script"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
 import { useStoryStore } from "@/lib/story-store"
-import { StoryboardFrame } from "@/types"
+import { StoryboardFrame, ParsedScript, ParsedScene, ParsedShot } from "@/types"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
@@ -55,30 +55,6 @@ const DEFAULT_SYSTEM_PROMPT = `你是一位专业的分镜画师和视觉叙事�
 - 确保场景之间的视觉过渡流畅。
 - 返回 ONLY valid JSON。`
 
-type ParsedShot = {
-    id: string;
-    description: string;
-    dialogue: string;
-    camera: string;
-    character: string;
-}
-
-type ParsedScene = {
-    id: string;
-    location: string;
-    description: string;
-    characters: string[];
-    shots: ParsedShot[];
-}
-
-type ParsedScript = {
-    title: string;
-    style?: string;
-    scenes: ParsedScene[];
-    createdAt?: number;
-    knowledgeBaseContext?: string;
-}
-
 export function ScriptParser() {
   const [scriptInput, setScriptInput] = useState("")
   // const [loading, setLoading] = useState(false)
@@ -96,7 +72,7 @@ export function ScriptParser() {
   const [selectedStyle, setSelectedStyle] = useState("default")
   const [shotCount, setShotCount] = useState("4-8")
   
-  const { setFrames, script: storeScript, setScript: setStoreScript, scriptLogs, addScriptLog } = useStoryStore()
+  const { setFrames, script: storeScript, setScript: setStoreScript, scriptLogs, addScriptLog, addScript } = useStoryStore()
 
   // Sync with store on mount
   useEffect(() => {
@@ -181,12 +157,14 @@ export function ScriptParser() {
             // New format: Multiple variants
             newVariants = res.data.variants.map((v: any) => ({
                 ...v,
+                id: crypto.randomUUID(),
                 createdAt: Date.now(),
                 knowledgeBaseContext: knowledgeBase.slice(0, 50) + "..."
             }));
         } else if (res.data.scenes) {
             // Legacy format: Single script (treat as one variant)
             newVariants = [{
+                id: crypto.randomUUID(),
                 title: res.data.title || "AI 剧本",
                 style: res.data.style,
                 scenes: res.data.scenes,
@@ -199,6 +177,10 @@ export function ScriptParser() {
             setVariants(prev => [...newVariants, ...prev]);
             setSelectedVariantIndex(0); // Select the first new one
             setStoreScript(scriptInput); // Save raw script to store
+            
+            // Save to store for Script Management
+            newVariants.forEach(script => addScript(script));
+            
             toast.success(`成功生成 ${newVariants.length} 个剧本方案`);
         } else {
             throw new Error("Invalid response format");
@@ -221,12 +203,20 @@ export function ScriptParser() {
           scene.shots.forEach(shot => {
               newFrames.push({
                   id: crypto.randomUUID(),
+                  
+                  // Linkage metadata
+                  scriptId: selectedScript.id,
+                  sceneId: scene.id,
+                  sceneLocation: scene.location,
+                  shotId: shot.id,
+                  shotHeader: shot.camera, // Using camera angle as header (MS, CU)
+
                   storyScript: shot.description,
+                  actionNotes: shot.camera, // Also store camera in action notes
                   characterIds: [],
                   customUploads: [],
                   startImages: [],
                   endImages: [],
-                  // We could store more metadata here if needed
               });
           });
       });

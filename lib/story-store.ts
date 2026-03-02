@@ -61,6 +61,16 @@ export const useStoryStore = create<StoryStore>()(
 
     script: '',
     setScript: (script: string) => set({ script }),
+    
+    // Scripts
+    scripts: [],
+    addScript: (script) => set((state) => ({ scripts: [script, ...state.scripts] })),
+    updateScript: (id, updates) => set((state) => ({
+        scripts: state.scripts.map(s => s.id === id ? { ...s, ...updates } : s)
+    })),
+    deleteScript: (id) => set((state) => ({
+        scripts: state.scripts.filter(s => s.id !== id)
+    })),
 
     generateStoryboardsFromScript: (script: string) => set((state: StoryStore) => {
         // Parse the script to extract scenes based on [Scene X] or similar headers
@@ -199,6 +209,9 @@ export const useStoryStore = create<StoryStore>()(
               return cleanFrame;
           });
 
+          // Sanitize Scripts
+          persistedState.scripts = persistedState.scripts || [];
+          
           return persistedState;
       },
     }

@@ -26,6 +26,11 @@ const sidebarItems = [
     icon: PenTool,
   },
   {
+    name: "剧本管理",
+    href: "/script-management",
+    icon: LayoutGrid,
+  },
+  {
     name: "关键帧生成",
     href: "/",
     icon: ImageIcon,
