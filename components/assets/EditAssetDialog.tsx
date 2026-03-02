@@ -10,9 +10,10 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { ScrollArea } from "@/components/ui/scroll-area"
 import { toast } from "sonner"
 import { cn, fileToDataURL, compressImage, dataURLtoFile } from "@/lib/utils"
-import { generateDescriptionAction, completeViewsAction } from "@/app/actions/ai"
+import { generateDescriptionAction } from "@/app/actions/ai"
 
 const VIEW_CONFIGS = {
     3: ["Front", "Side", "Back"],
@@ -32,7 +33,6 @@ export function EditAssetDialog({ asset, trigger }: { asset: Asset; trigger?: Re
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
   const [isDescribing, setIsDescribing] = useState(false)
-  const [isDrawing, setIsDrawing] = useState(false)
   const [apiLogs, setApiLogs] = useState<string[]>([])
   
   const [type, setType] = useState<"character" | "scene">(asset.type)
@@ -146,43 +146,6 @@ export function EditAssetDialog({ asset, trigger }: { asset: Asset; trigger?: Re
     }
   };
 
-  const handleSmartDraw = async () => {
-      const activeViews = Object.keys(viewImages);
-      if (activeViews.length === 0) {
-          toast.error("请先至少上传一张参考图片");
-          return;
-      }
-      
-      const missingViews = currentViews.filter(v => !viewImages[v]);
-      if (missingViews.length === 0) {
-          toast.info("所有视图已存在，无需补全");
-          return;
-      }
-
-      setIsDrawing(true);
-      addLog(`[Draw] Requesting views: ${missingViews.join(', ')}`)
-      try {
-          const result = await completeViewsAction(viewImages, missingViews, description);
-
-          if (!result.success) {
-              addLog(`[Draw] Error: ${result.error}`)
-              throw new Error(result.error);
-          }
-
-          addLog(`[Draw] Success. Generated: ${Object.keys(result.generatedViews || {}).join(', ')}`)
-          if (result.generatedViews) {
-              setViewImages(prev => ({ ...prev, ...result.generatedViews }));
-              toast.success(`成功补全 ${Object.keys(result.generatedViews).length} 个视图`);
-          }
-
-      } catch (e: any) {
-          addLog(`[Draw] Exception: ${e.message}`)
-          toast.error(e.message);
-      } finally {
-          setIsDrawing(false);
-      }
-  };
-
   const handleSubmit = async () => {
     if (!name || !updateAsset) return
     setLoading(true)
@@ -247,9 +210,9 @@ export function EditAssetDialog({ asset, trigger }: { asset: Asset; trigger?: Re
           </Button>
         )}
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[800px] p-0 overflow-hidden bg-[#1a1a1a] border-[#333] text-white">
-        <DialogHeader className="p-6 pb-2">
-          <div className="flex items-center justify-between">
+      <DialogContent className="sm:max-w-[800px] p-0 overflow-hidden bg-[#1a1a1a] border-[#333] text-white flex flex-col max-h-[90vh]">
+        <DialogHeader className="p-6 pb-2 shrink-0">
+          <div className="flex items-center justify-between mr-8">
             <DialogTitle className="text-xl font-bold">编辑主体</DialogTitle>
             {type === 'character' && (
                 <div className="flex items-center gap-2">
@@ -268,10 +231,11 @@ export function EditAssetDialog({ asset, trigger }: { asset: Asset; trigger?: Re
           </div>
         </DialogHeader>
 
-        <div className="p-6 pt-2 space-y-6">
-          {/* View Slots Grid */}
-          <div className="grid grid-cols-5 gap-3">
-             {currentViews.map((viewName) => {
+        <ScrollArea className="flex-1">
+            <div className="p-6 pt-2 space-y-6">
+            {/* View Slots Grid */}
+            <div className="grid grid-cols-5 gap-3">
+                {currentViews.map((viewName) => {
                  const hasImage = !!viewImages[viewName];
                  return (
                      <div key={viewName} className="space-y-2 flex flex-col">
@@ -308,43 +272,11 @@ export function EditAssetDialog({ asset, trigger }: { asset: Asset; trigger?: Re
                      </div>
                  )
              })}
-             
-             {/* Smart Draw Action (If missing views exist) */}
-             {type === 'character' && Object.keys(viewImages).length > 0 && Object.keys(viewImages).length < currentViews.length && (
-                 <div className="flex flex-col justify-end pb-1 items-center">
-                     <Button 
-                        variant="ghost" 
-                        size="icon" 
-                        onClick={handleSmartDraw}
-                        disabled={isDrawing}
-                        className={`h-12 w-12 rounded-full border transition-all duration-1000 relative overflow-hidden ${
-                            isDrawing 
-                            ? "bg-transparent border-transparent text-white" 
-                            : "bg-blue-600/20 text-blue-400 hover:bg-blue-600/30 hover:text-blue-300 border-blue-500/30"
-                        }`}
-                        title="智能补全剩余视角"
-                     >
-                         {isDrawing ? (
-                             <>
-                                <div className="absolute inset-0 bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 animate-[spin_3s_linear_infinite] opacity-50 blur-sm" />
-                                <div className="absolute inset-[2px] bg-[#1a1a1a] rounded-full z-10" />
-                                <Loader2 className="h-6 w-6 animate-[spin_3s_linear_infinite] relative z-20 text-blue-400" />
-                             </>
-                         ) : (
-                             <Wand2 className="h-6 w-6" />
-                         )}
-                     </Button>
-                     <span className={`text-[10px] mt-2 text-center font-medium transition-colors duration-1000 ${isDrawing ? "text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-400 animate-pulse" : "text-blue-400"}`}>
-                        {isDrawing ? "绘制中..." : "一键补全"}
-                     </span>
-                 </div>
-             )}
           </div>
 
           <div className="grid grid-cols-1 gap-6">
               <div className="flex items-center gap-4">
                   <div className="flex-1 space-y-2">
-                     <div className="text-2xl font-bold">{name}</div>
                      <Input 
                         value={name} 
                         onChange={e => setName(e.target.value)} 
@@ -405,8 +337,9 @@ export function EditAssetDialog({ asset, trigger }: { asset: Asset; trigger?: Re
               </div>
           </div>
         </div>
+        </ScrollArea>
 
-        <div className="p-6 pt-2 flex justify-end gap-3 bg-transparent">
+        <div className="p-6 pt-2 flex justify-end gap-3 bg-transparent shrink-0">
           <Button 
             variant="ghost" 
             onClick={() => setOpen(false)} 

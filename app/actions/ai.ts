@@ -38,37 +38,6 @@ export async function generateDescriptionAction(images: string[]) {
     }
 }
 
-export async function completeViewsAction(
-    references: Record<string, string>, 
-    missingViews: string[], 
-    description: string
-) {
-    try {
-        let primaryRefUrl = references["Front"];
-        if (!primaryRefUrl) {
-            primaryRefUrl = Object.values(references)[0] as string;
-        }
-        
-        // Convert to Base64 for Jimeng
-        const base64 = await urlToBase64(primaryRefUrl);
-        const generatedViews: Record<string, string> = {};
-
-        // Run sequentially
-        for (const view of missingViews) {
-            try {
-                const url = await aiClient.completeViews([base64], view, description);
-                if (url) generatedViews[view] = url;
-            } catch (e) {
-                console.error(`Failed view ${view}`, e);
-            }
-        }
-
-        return { success: true, generatedViews };
-    } catch (e: any) {
-        return { success: false, error: e.message };
-    }
-}
-
 export async function generateVideoAction(
     startImageUrl: string, 
     endImageUrl: string, 
