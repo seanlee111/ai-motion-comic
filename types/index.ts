@@ -7,10 +7,13 @@ export interface Asset {
   imageUrl?: string;
   imageUrls?: string[]; // Multiple reference images
   
-  // Character specific view mapping
+  // Character specific view mapping (Base Images)
   views?: {
       [key: string]: string; // "Front" | "Side" | "Back" | "Three-Quarter" | "Close-up" -> URL
   };
+
+  // Expression Images (New)
+  expressionImages?: string[]; // Array of expression image URLs
 }
 
 export interface GeneratedImage {

@@ -31,7 +31,7 @@ interface ShotControlsProps {
     updateFrame: (id: string, updates: Partial<IStoryboardFrame>) => void
     assets: Asset[]
     loading: string | null
-    onGenerate: (type: "start" | "end") => void
+    onGenerate: (type: "start" | "end", selectedExpression?: string) => void
     selectedModels: string[]
     toggleModel: (id: string) => void
 }
@@ -50,6 +50,9 @@ function ShotControls({ type, frame, updateFrame, assets, loading, onGenerate, s
 
     const selectedCharacters = (characterIds || []).map(id => assets.find(a => a.id === id)).filter(Boolean)
     const selectedScene = assets.find(a => a.id === sceneId)
+    
+    // Expression selection state (local for now, could be persisted)
+    const [selectedExpression, setSelectedExpression] = useState<string | undefined>(undefined);
 
     const handleScriptChange = (val: string) => {
         const updates: any = {}
@@ -128,15 +131,38 @@ function ShotControls({ type, frame, updateFrame, assets, loading, onGenerate, s
                   />
                   <div className="mt-2 flex flex-wrap gap-2">
                     {selectedCharacters.map((char: any) => (
-                      <div key={char.id} className="flex items-center gap-2">
-                        {char.imageUrl ? (
-                          <img src={char.imageUrl} alt={char.name} className="h-6 w-6 rounded-full object-cover border" />
-                        ) : (
-                          <div className="h-6 w-6 rounded-full bg-muted text-[10px] flex items-center justify-center border">
-                            {char.name?.slice(0, 1)}
+                      <div key={char.id} className="flex flex-col gap-1 w-full">
+                          <div className="flex items-center gap-2">
+                            {char.imageUrl ? (
+                              <img src={char.imageUrl} alt={char.name} className="h-6 w-6 rounded-full object-cover border" />
+                            ) : (
+                              <div className="h-6 w-6 rounded-full bg-muted text-[10px] flex items-center justify-center border">
+                                {char.name?.slice(0, 1)}
+                              </div>
+                            )}
+                            <span className="text-xs text-muted-foreground">{char.name}</span>
                           </div>
-                        )}
-                        <span className="text-xs text-muted-foreground">{char.name}</span>
+                          
+                          {/* Expression Selector */}
+                          {char.expressionImages && char.expressionImages.length > 0 && (
+                              <div className="ml-8">
+                                  <label className="text-[10px] text-muted-foreground mb-1 block">选择表情 (可选)</label>
+                                  <div className="flex flex-wrap gap-1">
+                                      {char.expressionImages.map((expUrl: string, idx: number) => (
+                                          <div 
+                                              key={idx}
+                                              onClick={() => setSelectedExpression(selectedExpression === expUrl ? undefined : expUrl)}
+                                              className={cn(
+                                                  "w-8 h-8 rounded border cursor-pointer overflow-hidden transition-all",
+                                                  selectedExpression === expUrl ? "ring-2 ring-primary border-primary" : "border-transparent opacity-60 hover:opacity-100"
+                                              )}
+                                          >
+                                              <img src={expUrl} className="w-full h-full object-cover" />
+                                          </div>
+                                      ))}
+                                  </div>
+                              </div>
+                          )}
                       </div>
                     ))}
                   </div>
@@ -251,7 +277,7 @@ function ShotControls({ type, frame, updateFrame, assets, loading, onGenerate, s
                 </div>
                 
                 <Button 
-                    onClick={() => onGenerate(type)} 
+                    onClick={() => onGenerate(type, selectedExpression)} 
                     disabled={!!loading}
                     className="w-full"
                 >
@@ -282,7 +308,7 @@ export function StoryboardFrame({ frame, index }: StoryboardFrameProps) {
       }
   }
 
-  const generateImage = async (target: "start" | "end") => {
+  const generateImage = async (target: "start" | "end", selectedExpression?: string) => {
     // Get specific config
     const script = target === 'start' ? (frame.startScript ?? frame.storyScript) : (frame.endScript ?? frame.storyScript)
     const actionNotes = target === 'start' ? (frame.startActionNotes ?? frame.actionNotes) : (frame.endActionNotes ?? frame.actionNotes)
@@ -354,6 +380,11 @@ export function StoryboardFrame({ frame, index }: StoryboardFrameProps) {
       // 2. Character Images
       characters.forEach(char => {
           if (char?.imageUrl) referenceImages.push(char.imageUrl);
+          
+          // Add selected expression if it belongs to this character
+          if (selectedExpression && char?.expressionImages?.includes(selectedExpression)) {
+              referenceImages.push(selectedExpression);
+          }
       });
 
       // 3. Custom Uploads

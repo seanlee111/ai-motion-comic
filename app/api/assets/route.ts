@@ -14,6 +14,7 @@ type RemoteAsset = {
   imageUrl?: string;
   imageUrls?: string[];
   views?: Record<string, string>;
+  expressionImages?: string[]; // New
 };
 
 const META_PREFIX = "assets/meta/";
@@ -268,6 +269,55 @@ export async function PATCH(req: NextRequest) {
         } catch {}
     }
 
+    // Handle new expression images
+    const expressionMetadataRaw = formData.get("expressionMetadata") as string | null;
+    const expressionFiles = formData.getAll("expressionFiles") as File[];
+    
+    let expressionImages: string[] = [];
+    if (expressionMetadataRaw) {
+        const metadata = JSON.parse(expressionMetadataRaw) as string[];
+        
+        // Upload expression files
+        const newExpressionUrls: string[] = [];
+        for (let i = 0; i < expressionFiles.length; i++) {
+            const file = expressionFiles[i];
+            if (!file.size) continue;
+            
+            const ext = file.type === "image/png" ? "png" : 
+                        file.type === "image/jpeg" ? "jpg" : "bin";
+            
+            const blob = await put(`${IMAGE_PREFIX}${id}_expr_${i}_${Date.now()}.${ext}`, file, {
+                access: "public",
+                contentType: file.type || "application/octet-stream",
+                addRandomSuffix: false
+            });
+            newExpressionUrls.push(blob.url);
+        }
+        
+        // Map metadata to final URLs
+        let fileIndex = 0;
+        metadata.forEach(item => {
+            if (item.startsWith("file:")) {
+                if (newExpressionUrls[fileIndex]) {
+                    expressionImages.push(newExpressionUrls[fileIndex]);
+                    fileIndex++;
+                }
+            } else {
+                expressionImages.push(item);
+            }
+        });
+    } else {
+        // Keep existing if not provided? Or clear?
+        // If formData doesn't contain it, maybe we should preserve existing?
+        // But our UI sends the full list every time. So if it's missing, it means empty?
+        // Let's check if the key exists in formData at all.
+        if (formData.has("expressionMetadata")) {
+            expressionImages = [];
+        } else {
+            expressionImages = existing.expressionImages || [];
+        }
+    }
+
     const updated: RemoteAsset = {
       ...existing,
       id,
@@ -277,14 +327,14 @@ export async function PATCH(req: NextRequest) {
       imageKeys: [],
       imageUrl: finalImageUrls.length > 0 ? finalImageUrls[0] : undefined,
       imageUrls: finalImageUrls,
-      views,
+      views, // Reconstructed views map
+      expressionImages,
     };
 
     await put(`${META_PREFIX}${id}.json`, JSON.stringify(updated), {
       access: "public",
       contentType: "application/json",
       addRandomSuffix: false,
-      allowOverwrite: true,
     });
 
     return NextResponse.json({ asset: updated });
