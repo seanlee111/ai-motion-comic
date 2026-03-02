@@ -10,17 +10,21 @@ import { EditAssetDialog } from "./EditAssetDialog"
 
 import { createAssetAction, deleteAssetAction, getAssetsAction, updateAssetAction } from "@/app/actions/assets"
 
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog"
+
 function AssetCard({ asset }: { asset: any }) {
   const { deleteAsset } = useStoryStore()
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false)
   
   const handleDelete = async () => {
-      if (!deleteAsset) return; // Guard against undefined
-      const res = await deleteAssetAction(asset.id);
-      if (res.success) {
-          deleteAsset(asset.id);
-      } else {
-          alert(res.error || "Delete failed");
-      }
+    if (!deleteAsset) return; // Guard against undefined
+    const res = await deleteAssetAction(asset.id);
+    if (res.success) {
+        deleteAsset(asset.id);
+        setShowDeleteDialog(false);
+    } else {
+        alert(res.error || "Delete failed");
+    }
   };
 
   const coverImage = asset.imageUrls?.[0] || asset.imageUrl;
@@ -54,14 +58,31 @@ function AssetCard({ asset }: { asset: any }) {
       </div>
       <div className="absolute top-1 right-1 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
         <EditAssetDialog asset={asset} />
-        <Button 
-          variant="destructive" 
-          size="icon" 
-          className="h-6 w-6" 
-          onClick={handleDelete}
-        >
-          <Trash2 className="h-3 w-3" />
-        </Button>
+        
+        <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+            <AlertDialogTrigger asChild>
+                <Button 
+                  variant="destructive" 
+                  size="icon" 
+                  className="h-6 w-6" 
+                  onClick={(e) => { e.stopPropagation(); setShowDeleteDialog(true); }}
+                >
+                  <Trash2 className="h-3 w-3" />
+                </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent className="bg-[#1a1a1a] border-[#333] text-white">
+                <AlertDialogHeader>
+                    <AlertDialogTitle>确认删除？</AlertDialogTitle>
+                    <AlertDialogDescription>
+                        此操作无法撤销。该资产及其所有关联图片将被永久删除。
+                    </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                    <AlertDialogCancel className="bg-[#333] hover:bg-[#444] text-white border-0">取消</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleDelete} className="bg-red-600 hover:bg-red-700">确认删除</AlertDialogAction>
+                </AlertDialogFooter>
+            </AlertDialogContent>
+        </AlertDialog>
       </div>
     </Card>
   )
