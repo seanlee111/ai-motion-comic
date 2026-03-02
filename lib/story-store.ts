@@ -63,9 +63,15 @@ export const useStoryStore = create<StoryStore>()(
     setScript: (script: string) => set({ script }),
     
     // Knowledge Base
-    knowledgeBase: '',
-    setKnowledgeBase: (kb: any) => set((state) => ({ 
-        knowledgeBase: typeof kb === 'function' ? kb(state.knowledgeBase || '') : kb 
+    knowledgeBase: [],
+    addKnowledgeItem: (item) => set((state) => ({
+        knowledgeBase: [...(state.knowledgeBase || []), { ...item, id: crypto.randomUUID(), createdAt: Date.now() }]
+    })),
+    updateKnowledgeItem: (id, updates) => set((state) => ({
+        knowledgeBase: state.knowledgeBase.map(k => k.id === id ? { ...k, ...updates } : k)
+    })),
+    deleteKnowledgeItem: (id) => set((state) => ({
+        knowledgeBase: state.knowledgeBase.filter(k => k.id !== id)
     })),
     
     // Scripts
@@ -167,7 +173,7 @@ export const useStoryStore = create<StoryStore>()(
               assets: state.assets || [],
               frames: state.frames || [],
               script: state.script || '',
-              knowledgeBase: state.knowledgeBase || '',
+              knowledgeBase: state.knowledgeBase || [],
               scripts: state.scripts || []
           }));
 

@@ -124,14 +124,25 @@ export interface ApiLog {
     responseBody?: any;
 }
 
+export interface KnowledgeItem {
+    id: string;
+    type: 'text' | 'file';
+    name: string; // "General Notes" or filename
+    content: string; // The text content
+    createdAt: number;
+}
+
 export interface StoryStore {
     frames: StoryboardFrame[];
     script: string;
     setScript: (script: string) => void;
     
     // Knowledge Base
-    knowledgeBase?: string;
-    setKnowledgeBase?: (kb: string | ((prev: string) => string)) => void;
+    knowledgeBase: KnowledgeItem[];
+    addKnowledgeItem: (item: Omit<KnowledgeItem, 'id' | 'createdAt'>) => void;
+    updateKnowledgeItem: (id: string, updates: Partial<KnowledgeItem>) => void;
+    deleteKnowledgeItem: (id: string) => void;
+    
     setFrames: (frames: StoryboardFrame[]) => void;
     addFrame: (frame?: Partial<StoryboardFrame>) => void;
     updateFrame: (id: string, updates: Partial<StoryboardFrame>) => void;

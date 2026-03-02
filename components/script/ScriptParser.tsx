@@ -1,16 +1,17 @@
 "use client"
 
 import { useState, useEffect, useRef } from "react"
-import { Loader2, Play, Layout, Wand2, Settings, ArrowRight, FileText, Sparkles, ChevronRight, Copy, RefreshCw, Book, Upload } from "lucide-react"
+import { Loader2, Play, Layout, Wand2, Settings, ArrowRight, FileText, Sparkles, ChevronRight, Copy, RefreshCw, Book, Upload, Trash2, Plus, Edit2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
+import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card"
 import { toast } from "sonner"
 import { parseScriptAction } from "@/app/actions/script"
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
 import { useStoryStore } from "@/lib/story-store"
-import { StoryboardFrame, ParsedScript, ParsedScene, ParsedShot } from "@/types"
+import { StoryboardFrame, ParsedScript, ParsedScene, ParsedShot, KnowledgeItem } from "@/types"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
@@ -67,11 +68,17 @@ export function ScriptParser() {
   const [showLogsDialog, setShowLogsDialog] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
   
+  // New Knowledge Base UI States
+  const [editingItem, setEditingItem] = useState<KnowledgeItem | null>(null)
+  const [newItemContent, setNewItemContent] = useState("")
+  const [newItemName, setNewItemName] = useState("")
+  const [showAddItem, setShowAddItem] = useState(false)
+  
   // New config states
   const [selectedStyle, setSelectedStyle] = useState("default")
   const [shotCount, setShotCount] = useState("4-8")
   
-  const { setFrames, script: storeScript, setScript: setStoreScript, scriptLogs, addScriptLog, addScript, knowledgeBase, setKnowledgeBase } = useStoryStore()
+  const { setFrames, script: storeScript, setScript: setStoreScript, scriptLogs, addScriptLog, addScript, knowledgeBase, addKnowledgeItem, updateKnowledgeItem, deleteKnowledgeItem } = useStoryStore()
 
   // Sync with store on mount
   useEffect(() => {
@@ -97,8 +104,12 @@ export function ScriptParser() {
           }
 
           if (text) {
-              setKnowledgeBase(prev => (prev ? prev + "\n\n" : "") + text);
-              toast.success("文件内容已追加到知识库");
+              addKnowledgeItem({
+                  type: 'file',
+                  name: file.name,
+                  content: text
+              });
+              toast.success(`已添加文档: ${file.name}`);
           }
       } catch (err) {
           console.error("File read error:", err);
@@ -109,6 +120,19 @@ export function ScriptParser() {
           if (fileInputRef.current) fileInputRef.current.value = "";
       }
   };
+  
+  const handleAddTextNote = () => {
+      if (!newItemContent.trim()) return;
+      addKnowledgeItem({
+          type: 'text',
+          name: newItemName || "未命名笔记",
+          content: newItemContent
+      });
+      setNewItemContent("");
+      setNewItemName("");
+      setShowAddItem(false);
+      toast.success("已添加笔记");
+  }
 
   const handleGenerate = async () => {
     if (!scriptInput.trim()) return;
@@ -121,7 +145,13 @@ export function ScriptParser() {
     const configContext = `【用户配置】：\n- 期望风格：${selectedStyle === 'default' ? '智能匹配' : selectedStyle}\n- 期望分镜数量：${shotCount}个场景`;
     
     let contextParts = [];
-    if (knowledgeBase.trim()) contextParts.push(`【参考知识库/背景设定】：\n${knowledgeBase}`);
+    
+    // Process Structured Knowledge Base
+    if (knowledgeBase && knowledgeBase.length > 0) {
+        const kbContent = knowledgeBase.map(item => `【参考资料: ${item.name}】:\n${item.content}`).join("\n\n");
+        contextParts.push(`【参考知识库/背景设定】：\n${kbContent}`);
+    }
+    
     contextParts.push(configContext);
     contextParts.push(`【用户创意】：\n${scriptInput}`);
     
@@ -158,7 +188,7 @@ export function ScriptParser() {
                 ...v,
                 id: crypto.randomUUID(),
                 createdAt: Date.now(),
-                knowledgeBaseContext: knowledgeBase.slice(0, 50) + "..."
+                knowledgeBaseContext: (knowledgeBase || []).map(k => k.name).join(", ")
             }));
         } else if (res.data.scenes) {
             // Legacy format: Single script (treat as one variant)
@@ -168,7 +198,7 @@ export function ScriptParser() {
                 style: res.data.style,
                 scenes: res.data.scenes,
                 createdAt: Date.now(),
-                knowledgeBaseContext: knowledgeBase.slice(0, 50) + "..."
+                knowledgeBaseContext: (knowledgeBase || []).map(k => k.name).join(", ")
             }];
         }
 
@@ -252,9 +282,10 @@ export function ScriptParser() {
                         <DialogContent className="max-w-2xl bg-[#1a1a1a] border-[#333] text-white">
                             <DialogHeader>
                                 <DialogTitle>剧本知识库</DialogTitle>
-                                <DialogDescription>上传背景设定、世界观文档或参考资料，AI 将基于此进行创作。</DialogDescription>
+                                <DialogDescription>上传背景设定、世界观文档或参考资料。文档内容将作为文本提取并发送给 AI。</DialogDescription>
                             </DialogHeader>
-                            <div className="space-y-4 py-4">
+                            
+                            <div className="flex-1 overflow-hidden flex flex-col gap-4 py-4">
                                 <div className="flex justify-between items-center">
                                     <div className="text-xs text-gray-500">支持 .txt, .docx 格式</div>
                                     <div className="flex gap-2">
@@ -269,6 +300,15 @@ export function ScriptParser() {
                                             variant="outline" 
                                             size="sm" 
                                             className="h-7 text-xs border-[#333] bg-[#222] hover:bg-[#333] text-gray-300"
+                                            onClick={() => setShowAddItem(true)}
+                                        >
+                                            <Plus className="h-3 w-3 mr-1" />
+                                            新建笔记
+                                        </Button>
+                                        <Button 
+                                            variant="outline" 
+                                            size="sm" 
+                                            className="h-7 text-xs border-[#333] bg-[#222] hover:bg-[#333] text-gray-300"
                                             onClick={() => fileInputRef.current?.click()}
                                             disabled={isUploading}
                                         >
@@ -277,16 +317,62 @@ export function ScriptParser() {
                                         </Button>
                                     </div>
                                 </div>
-                                <Textarea 
-                                    value={knowledgeBase}
-                                    onChange={(e) => setKnowledgeBase(e.target.value)}
-                                    placeholder="在此粘贴世界观设定、角色小传或风格指南..."
-                                    className="min-h-[200px] font-mono text-sm bg-[#111] border-[#333]"
-                                />
-                                <div className="flex justify-end gap-2">
-                                    <Button variant="ghost" onClick={() => setKnowledgeBase("")}>清空</Button>
-                                    <Button onClick={() => setShowKnowledgeDialog(false)}>保存设定</Button>
-                                </div>
+                                
+                                {showAddItem && (
+                                    <Card className="bg-[#222] border-[#444] p-3 animate-in fade-in slide-in-from-top-2">
+                                        <div className="space-y-3">
+                                            <Input 
+                                                placeholder="笔记标题" 
+                                                value={newItemName}
+                                                onChange={e => setNewItemName(e.target.value)}
+                                                className="h-8 bg-[#111] border-[#333] text-xs"
+                                            />
+                                            <Textarea 
+                                                placeholder="笔记内容..." 
+                                                value={newItemContent}
+                                                onChange={e => setNewItemContent(e.target.value)}
+                                                className="min-h-[100px] bg-[#111] border-[#333] text-xs"
+                                            />
+                                            <div className="flex justify-end gap-2">
+                                                <Button size="sm" variant="ghost" onClick={() => setShowAddItem(false)}>取消</Button>
+                                                <Button size="sm" onClick={handleAddTextNote}>保存</Button>
+                                            </div>
+                                        </div>
+                                    </Card>
+                                )}
+
+                                <ScrollArea className="flex-1 border border-[#333] rounded bg-[#111] p-2">
+                                    {(!knowledgeBase || knowledgeBase.length === 0) ? (
+                                        <div className="flex flex-col items-center justify-center h-full text-gray-500 text-xs py-10">
+                                            <Book className="h-8 w-8 mb-2 opacity-20" />
+                                            <p>暂无资料</p>
+                                        </div>
+                                    ) : (
+                                        <div className="space-y-2">
+                                            {knowledgeBase.map(item => (
+                                                <div key={item.id} className="bg-[#222] p-3 rounded border border-[#333] group hover:border-[#555] transition-colors">
+                                                    <div className="flex items-start justify-between mb-2">
+                                                        <div className="flex items-center gap-2">
+                                                            {item.type === 'file' ? <FileText className="h-4 w-4 text-blue-400" /> : <FileText className="h-4 w-4 text-yellow-400" />}
+                                                            <span className="text-sm font-medium text-gray-200">{item.name}</span>
+                                                        </div>
+                                                        <Button 
+                                                            variant="ghost" 
+                                                            size="icon" 
+                                                            className="h-6 w-6 text-gray-500 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity"
+                                                            onClick={() => deleteKnowledgeItem(item.id)}
+                                                        >
+                                                            <Trash2 className="h-3 w-3" />
+                                                        </Button>
+                                                    </div>
+                                                    <div className="text-xs text-gray-400 line-clamp-3 font-mono bg-[#111] p-2 rounded">
+                                                        {item.content}
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </ScrollArea>
                             </div>
                         </DialogContent>
                     </Dialog>
