@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { toast } from "sonner"
+import { fileToDataURL, compressImage, dataURLtoFile } from "@/lib/utils"
 import {
   Dialog,
   DialogContent,
@@ -26,15 +27,6 @@ import { createAssetAction } from "@/app/actions/assets"
 import { generateDescriptionAction } from "@/app/actions/ai"
 
 const MAX_IMAGES = 5;
-
-const fileToBase64 = (file: File): Promise<string> => {
-    return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.readAsDataURL(file);
-        reader.onload = () => resolve(reader.result as string);
-        reader.onerror = error => reject(error);
-    });
-};
 
 export function CreateAssetDialog() {
   const { addAsset } = useStoryStore()
@@ -59,8 +51,21 @@ export function CreateAssetDialog() {
 
       for (let i = 0; i < selectedFiles.length; i++) {
         const file = selectedFiles[i]
-        newFiles.push(file)
-        newPreviews.push(URL.createObjectURL(file))
+        
+        // Compress image before storing
+        try {
+            const dataUrl = await fileToDataURL(file);
+            const compressedDataUrl = await compressImage(dataUrl, 1024, 0.7); // 1024px max, 0.7 quality
+            const compressedFile = dataURLtoFile(compressedDataUrl, file.name);
+            
+            newFiles.push(compressedFile);
+            newPreviews.push(compressedDataUrl);
+        } catch (e) {
+            console.error("Compression failed", e);
+            // Fallback to original file if compression fails
+            newFiles.push(file);
+            newPreviews.push(URL.createObjectURL(file));
+        }
       }
 
       const combinedFiles = [...files, ...newFiles].slice(0, MAX_IMAGES)
@@ -92,7 +97,7 @@ export function CreateAssetDialog() {
     
     setIsDescribing(true);
     try {
-        const base64Images = await Promise.all(files.map(fileToBase64));
+        const base64Images = await Promise.all(files.map(fileToDataURL));
         const result = await generateDescriptionAction(base64Images);
         
         if (!result.success) {
@@ -124,8 +129,9 @@ export function CreateAssetDialog() {
       });
 
       const res = await createAssetAction(formData)
-      if (!res.success) {
-        throw new Error(res.error || "创建素材失败")
+      
+      if (!res || !res.success) {
+        throw new Error(res?.error || "创建素材失败")
       }
 
       if (res.asset && addAsset) {

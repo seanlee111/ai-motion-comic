@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { toast } from "sonner"
-import { cn } from "@/lib/utils"
+import { cn, fileToDataURL, compressImage, dataURLtoFile } from "@/lib/utils"
 import { generateDescriptionAction, completeViewsAction } from "@/app/actions/ai"
 
 const VIEW_CONFIGS = {
@@ -26,15 +26,6 @@ const VIEW_LABELS: Record<string, string> = {
     "Three-Quarter": "3/4侧视图",
     "Close-up": "特写"
 }
-
-const fileToBase64 = (file: File): Promise<string> => {
-    return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.readAsDataURL(file);
-        reader.onload = () => resolve(reader.result as string);
-        reader.onerror = error => reject(error);
-    });
-};
 
 export function EditAssetDialog({ asset, trigger }: { asset: Asset; trigger?: React.ReactNode }) {
   const { updateAsset } = useStoryStore()
@@ -83,14 +74,24 @@ export function EditAssetDialog({ asset, trigger }: { asset: Asset; trigger?: Re
 
   const currentViews = VIEW_CONFIGS[viewMode]
 
-  const handleFileChange = (viewName: string, e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (viewName: string, e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
 
-    const previewUrl = URL.createObjectURL(file)
-    
-    setViewImages(prev => ({ ...prev, [viewName]: previewUrl }))
-    setNewFilesMap(prev => ({ ...prev, [viewName]: file }))
+    try {
+        const dataUrl = await fileToDataURL(file);
+        const compressedDataUrl = await compressImage(dataUrl, 1024, 0.7);
+        const compressedFile = dataURLtoFile(compressedDataUrl, file.name);
+        
+        setViewImages(prev => ({ ...prev, [viewName]: compressedDataUrl }))
+        setNewFilesMap(prev => ({ ...prev, [viewName]: compressedFile }))
+    } catch (e) {
+        console.error("Compression failed", e);
+        // Fallback
+        const previewUrl = URL.createObjectURL(file)
+        setViewImages(prev => ({ ...prev, [viewName]: previewUrl }))
+        setNewFilesMap(prev => ({ ...prev, [viewName]: file }))
+    }
     
     // Clear input
     if (fileInputRefs.current[viewName]) {
