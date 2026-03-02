@@ -62,17 +62,16 @@ export function ScriptParser() {
   const [variants, setVariants] = useState<ParsedScript[]>([])
   const [selectedVariantIndex, setSelectedVariantIndex] = useState<number | null>(null)
   const [systemPrompt, setSystemPrompt] = useState(DEFAULT_SYSTEM_PROMPT)
-  const [knowledgeBase, setKnowledgeBase] = useState("")
-    const [showKnowledgeDialog, setShowKnowledgeDialog] = useState(false)
-    const fileInputRef = useRef<HTMLInputElement>(null)
-    const [isUploading, setIsUploading] = useState(false)
+  const [showKnowledgeDialog, setShowKnowledgeDialog] = useState(false)
+  const [isUploading, setIsUploading] = useState(false)
   const [showLogsDialog, setShowLogsDialog] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
   
   // New config states
   const [selectedStyle, setSelectedStyle] = useState("default")
   const [shotCount, setShotCount] = useState("4-8")
   
-  const { setFrames, script: storeScript, setScript: setStoreScript, scriptLogs, addScriptLog, addScript } = useStoryStore()
+  const { setFrames, script: storeScript, setScript: setStoreScript, scriptLogs, addScriptLog, addScript, knowledgeBase, setKnowledgeBase } = useStoryStore()
 
   // Sync with store on mount
   useEffect(() => {

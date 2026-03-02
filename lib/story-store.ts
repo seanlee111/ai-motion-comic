@@ -62,6 +62,12 @@ export const useStoryStore = create<StoryStore>()(
     script: '',
     setScript: (script: string) => set({ script }),
     
+    // Knowledge Base
+    knowledgeBase: '',
+    setKnowledgeBase: (kb: any) => set((state) => ({ 
+        knowledgeBase: typeof kb === 'function' ? kb(state.knowledgeBase || '') : kb 
+    })),
+    
     // Scripts
     scripts: [],
     addScript: (script) => set((state) => ({ scripts: [script, ...state.scripts] })),
@@ -160,7 +166,9 @@ export const useStoryStore = create<StoryStore>()(
           const persistedState = JSON.parse(JSON.stringify({
               assets: state.assets || [],
               frames: state.frames || [],
-              script: state.script || ''
+              script: state.script || '',
+              knowledgeBase: state.knowledgeBase || '',
+              scripts: state.scripts || []
           }));
 
           // Sanitize Assets: Remove base64/dataURL from imageUrl

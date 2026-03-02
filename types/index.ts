@@ -128,6 +128,10 @@ export interface StoryStore {
     frames: StoryboardFrame[];
     script: string;
     setScript: (script: string) => void;
+    
+    // Knowledge Base
+    knowledgeBase?: string;
+    setKnowledgeBase?: (kb: string | ((prev: string) => string)) => void;
     setFrames: (frames: StoryboardFrame[]) => void;
     addFrame: (frame?: Partial<StoryboardFrame>) => void;
     updateFrame: (id: string, updates: Partial<StoryboardFrame>) => void;
