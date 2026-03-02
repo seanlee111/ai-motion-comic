@@ -418,6 +418,45 @@ export function EditAssetDialog({ asset, trigger }: { asset: Asset; trigger?: Re
                   </div>
               </div>
 
+              <div className="space-y-3 relative">
+                 <div className="flex justify-between items-end">
+                     <Label className="text-gray-400">描述</Label>
+                 </div>
+                 {/* API Log Viewer - Helpful for debugging */}
+                 <div className="text-[10px] text-gray-500 font-mono mb-1 select-all h-[60px] overflow-y-auto bg-black/20 p-2 rounded border border-white/5">
+                    {apiLogs.length === 0 ? "Ready." : apiLogs.map((log, i) => (
+                        <div key={i} className="whitespace-nowrap">{log}</div>
+                    ))}
+                 </div>
+                 <div className="relative group/desc">
+                     <div className={`absolute -inset-[1px] rounded-xl bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 opacity-0 transition-opacity duration-1000 ${isDescribing ? "opacity-100 animate-[pulse_3s_cubic-bezier(0.4,0,0.6,1)_infinite]" : ""}`} />
+                     <Textarea
+                        value={description}
+                        onChange={(e) => setDescription(e.target.value)}
+                        className={`min-h-[140px] bg-[#111] border-0 rounded-xl resize-none text-gray-300 p-4 leading-relaxed focus-visible:ring-1 focus-visible:ring-gray-700 relative z-10 ${isDescribing ? "bg-[#111]/90" : ""}`}
+                        placeholder="输入详细描述..."
+                      />
+                      <Button 
+                        size="sm"
+                        onClick={handleSmartDescription}
+                        disabled={isDescribing || Object.keys(viewImages).length === 0}
+                        className={`absolute bottom-3 right-3 border-0 rounded-full h-8 px-3 text-xs gap-1.5 transition-all duration-500 z-20 overflow-hidden ${
+                            isDescribing 
+                            ? "bg-transparent text-white ring-1 ring-white/20" 
+                            : "bg-[#333] hover:bg-[#444] text-white"
+                        }`}
+                      >
+                         {isDescribing && (
+                             <div className="absolute inset-0 bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 animate-[shimmer_3s_infinite] opacity-50" />
+                         )}
+                         <span className="relative flex items-center gap-1.5">
+                            {isDescribing ? <Loader2 className="h-3 w-3 animate-[spin_3s_linear_infinite]" /> : <Sparkles className="h-3 w-3" />}
+                            {isDescribing ? "生成中..." : "智能描述"}
+                         </span>
+                      </Button>
+                 </div>
+              </div>
+
               {type === 'character' && (
                   <div className="space-y-3">
                       <div className="flex items-center justify-between">
