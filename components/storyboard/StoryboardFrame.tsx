@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { Wand2, Trash2, Download, Loader2, Clock, Move, ChevronLeft, ChevronRight, Layers, Upload, X } from "lucide-react"
-import { useStoryStore } from "@/lib/story-store"
+import { useStoryStore, useStoryboardStore } from "@/lib/story-store"
 import { AssetSelector } from "./AssetSelector"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
@@ -16,6 +16,7 @@ import { StoryboardFrame as IStoryboardFrame, GeneratedImage, Asset } from "@/ty
 
 import { InpaintingEditor } from "./InpaintingEditor"
 import { AI_MODELS } from "@/lib/ai-models"
+import { PromptService } from "@/lib/services/prompt-service"
 
 interface StoryboardFrameProps {
   frame: IStoryboardFrame
@@ -291,6 +292,10 @@ function ShotControls({ type, frame, updateFrame, assets, loading, onGenerate, s
 
 export function StoryboardFrame({ frame, index }: StoryboardFrameProps) {
   const { updateFrame, deleteFrame, assets, addApiLog } = useStoryStore()
+  // Use direct access to storyboard store for frame-specific operations to avoid re-renders of the whole app
+  const frameFromStore = useStoryboardStore(state => state.frames.find(f => f.id === frame.id))
+  const currentFrame = frameFromStore || frame
+  
   const safeAssets = assets || []
   
   const [loading, setLoading] = useState<"start" | "end" | "all" | null>(null)
@@ -336,38 +341,18 @@ export function StoryboardFrame({ frame, index }: StoryboardFrameProps) {
     
     try {
       // Resolve character references
-      const characters = (characterIds || []).map(id => safeAssets.find(a => a.id === id)).filter(Boolean)
+      const characters = (characterIds || []).map(id => safeAssets.find(a => a.id === id)).filter(Boolean) as Asset[]
       const scene = safeAssets.find(a => a.id === sceneId)
       
-      // Optimized Prompt Construction
-      const promptParts: string[] = [];
-      
-      // 1. Scene
-      if (scene) {
-          const sceneDesc = scene.description ? `, ${scene.description}` : "";
-          promptParts.push(`Scene: ${scene.name}${sceneDesc}`);
-      }
-      
-      // 2. Characters
-      if (characters.length > 0) {
-          const charParts = characters.map(char => {
-              if (!char) return "";
-              const charDesc = char.description ? ` (${char.description})` : "";
-              return `${char.name}${charDesc}`;
-          }).filter(Boolean);
-          if (charParts.length > 0) promptParts.push(`Characters: ${charParts.join(", ")}`);
-      }
-      
-      // 3. Action & Context
-      const timeContext = target === "start" ? "Opening shot, start of action" : "Closing shot, end of action";
-      promptParts.push(`Action: ${script}`);
-      if (actionNotes) promptParts.push(actionNotes);
-      promptParts.push(timeContext);
-      
-      // 4. Style & Quality
-      promptParts.push("Masterpiece, cinematic lighting, 8k, highly detailed");
-      
-      const fullPrompt = promptParts.join(". ");
+      // Use PromptService to build the prompt
+      const fullPrompt = PromptService.build({
+          script,
+          actionNotes,
+          scene,
+          characters,
+          timeContext: target === "start" ? "Opening shot, start of action" : "Closing shot, end of action",
+          // We can add style override here if we have it in store later
+      });
 
       // Gather all reference images
       const referenceImages: string[] = [];
@@ -489,7 +474,7 @@ export function StoryboardFrame({ frame, index }: StoryboardFrameProps) {
                   shot: result.target
               }));
               
-              const freshFrame = useStoryStore.getState().frames.find(f => f.id === frame.id)
+              const freshFrame = useStoryboardStore.getState().frames.find(f => f.id === frame.id)
               if (!freshFrame) return
 
               if (target === "start") {
@@ -528,7 +513,7 @@ export function StoryboardFrame({ frame, index }: StoryboardFrameProps) {
                     const newImagesRaw = data.images || [];
                     if (newImagesRaw.length === 0) return; 
 
-                    const freshFrame = useStoryStore.getState().frames.find(f => f.id === frame.id)
+                    const freshFrame = useStoryboardStore.getState().frames.find(f => f.id === frame.id)
                     if (!freshFrame) return
 
                     const newGeneratedImages: GeneratedImage[] = newImagesRaw.map((img: any) => ({
@@ -588,7 +573,7 @@ export function StoryboardFrame({ frame, index }: StoryboardFrameProps) {
           timestamp: Date.now()
       }
       
-      const freshFrame = useStoryStore.getState().frames.find(f => f.id === frame.id)
+      const freshFrame = useStoryboardStore.getState().frames.find(f => f.id === frame.id)
       if (!freshFrame) return
 
       if (type === "start") {
@@ -639,7 +624,7 @@ export function StoryboardFrame({ frame, index }: StoryboardFrameProps) {
   }
 
   // --- Group Images by Model ---
-  const allImages = [...(frame.startImages || []), ...(frame.endImages || [])];
+  const allImages = [...(currentFrame.startImages || []), ...(currentFrame.endImages || [])];
   const uniqueImages = Array.from(new Map(allImages.map(item => [item.id, item])).values());
 
   const filteredImages = modelFilter === "all" ? uniqueImages : uniqueImages.filter(i => i.modelId === modelFilter)
@@ -688,7 +673,7 @@ export function StoryboardFrame({ frame, index }: StoryboardFrameProps) {
           <TabsContent value="start">
             <ShotControls 
                 type="start"
-                frame={frame}
+                frame={currentFrame}
                 updateFrame={updateFrame}
                 assets={safeAssets}
                 loading={loading}
@@ -701,7 +686,7 @@ export function StoryboardFrame({ frame, index }: StoryboardFrameProps) {
           <TabsContent value="end">
             <ShotControls 
                 type="end"
-                frame={frame}
+                frame={currentFrame}
                 updateFrame={updateFrame}
                 assets={safeAssets}
                 loading={loading}
@@ -828,16 +813,16 @@ export function StoryboardFrame({ frame, index }: StoryboardFrameProps) {
                 <div 
                     className={cn(
                         "aspect-video rounded-md border-2 border-dashed flex items-center justify-center relative overflow-hidden bg-muted/20 transition-all",
-                        frame.startImageUrl ? "border-solid border-green-500/50" : "hover:border-primary/50"
+                        currentFrame.startImageUrl ? "border-solid border-green-500/50" : "hover:border-primary/50"
                     )}
                     onDrop={(e) => handleDrop(e, "start")}
                     onDragOver={handleDragOver}
                 >
-                    {frame.startImageUrl ? (
+                    {currentFrame.startImageUrl ? (
                         <>
-                            <img src={frame.startImageUrl} alt="起始" className="w-full h-full object-cover" />
+                            <img src={currentFrame.startImageUrl} alt="起始" className="w-full h-full object-cover" />
                             <div className="absolute bottom-1 right-1 flex gap-1">
-                                <Button variant="secondary" size="icon" className="h-6 w-6 rounded-full opacity-80 hover:opacity-100" onClick={() => window.open(frame.startImageUrl, '_blank')}>
+                                <Button variant="secondary" size="icon" className="h-6 w-6 rounded-full opacity-80 hover:opacity-100" onClick={() => window.open(currentFrame.startImageUrl, '_blank')}>
                                     <Download className="h-3 w-3" />
                                 </Button>
                             </div>
@@ -885,16 +870,16 @@ export function StoryboardFrame({ frame, index }: StoryboardFrameProps) {
                 <div 
                     className={cn(
                         "aspect-video rounded-md border-2 border-dashed flex items-center justify-center relative overflow-hidden bg-muted/20 transition-all",
-                        frame.endImageUrl ? "border-solid border-green-500/50" : "hover:border-primary/50"
+                        currentFrame.endImageUrl ? "border-solid border-green-500/50" : "hover:border-primary/50"
                     )}
                     onDrop={(e) => handleDrop(e, "end")}
                     onDragOver={handleDragOver}
                 >
-                    {frame.endImageUrl ? (
+                    {currentFrame.endImageUrl ? (
                         <>
-                            <img src={frame.endImageUrl} alt="结束" className="w-full h-full object-cover" />
+                            <img src={currentFrame.endImageUrl} alt="结束" className="w-full h-full object-cover" />
                             <div className="absolute bottom-1 right-1 flex gap-1">
-                                <Button variant="secondary" size="icon" className="h-6 w-6 rounded-full opacity-80 hover:opacity-100" onClick={() => window.open(frame.endImageUrl, '_blank')}>
+                                <Button variant="secondary" size="icon" className="h-6 w-6 rounded-full opacity-80 hover:opacity-100" onClick={() => window.open(currentFrame.endImageUrl, '_blank')}>
                                     <Download className="h-3 w-3" />
                                 </Button>
                             </div>

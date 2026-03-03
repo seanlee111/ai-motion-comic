@@ -1,123 +1,76 @@
 import { create } from 'zustand'
-import { persist, createJSONStorage } from 'zustand/middleware'
-import { StoryStore, Asset, StoryboardFrame, ApiLog } from '@/types'
+import { useAssetStore } from './stores/asset-store'
+import { useScriptStore } from './stores/script-store'
+import { useStoryboardStore } from './stores/storyboard-store'
+import { StoryStore, Asset, StoryboardFrame, ApiLog, KnowledgeItem, ParsedScript } from '@/types'
 
-export const useStoryStore = create<StoryStore>()(
-  persist(
-    (set) => ({
-      assets: [],
-      frames: [
-        { 
-            id: 'frame-1', 
-            storyScript: '',
-            characterIds: [],
-            customUploads: [],
-            startImages: [],
-            endImages: []
-        }
-    ],
+// Re-export the new stores for direct usage
+export { useAssetStore, useScriptStore, useStoryboardStore }
 
-    addAsset: (assetData: Omit<Asset, 'id'>) => set((state: StoryStore) => ({
-        assets: [...(state.assets || []), { ...assetData, id: crypto.randomUUID() }]
-    })),
+// Create a compatibility layer that aggregates all stores
+// This ensures existing components continue to work without changes
+export const useStoryStore = create<StoryStore>()((set, get) => ({
+    // Assets Delegate
+    get assets() { return useAssetStore.getState().assets },
+    addAsset: (a) => useAssetStore.getState().addAsset(a),
+    updateAsset: (id, u) => useAssetStore.getState().updateAsset(id, u),
+    deleteAsset: (id) => useAssetStore.getState().deleteAsset(id),
+    setAssets: (a) => useAssetStore.getState().setAssets(a),
 
-    updateAsset: (id: string, updates: Partial<Asset>) => set((state: StoryStore) => ({
-        assets: (state.assets || []).map(a => a.id === id ? { ...a, ...updates } : a)
-    })),
-
-    deleteAsset: (id: string) => set((state: StoryStore) => ({
-        assets: (state.assets || []).filter(a => a.id !== id)
-    })),
-    setAssets: (assets: Asset[]) => set({ assets }),
-
-    addFrame: (frameData?: Partial<StoryboardFrame>) => set((state: StoryStore) => ({
-        frames: [...state.frames, { 
-            id: crypto.randomUUID(), 
-            storyScript: '', 
-            characterIds: [],
-            customUploads: [],
-            startImages: [],
-            endImages: [],
-            ...frameData 
-        }]
-    })),
-
-    updateFrame: (id: string, updates: Partial<StoryboardFrame>) => set((state: StoryStore) => ({
-        frames: state.frames.map(f => f.id === id ? { ...f, ...updates } : f)
-    })),
-
-    deleteFrame: (id: string) => set((state: StoryStore) => ({
-        frames: state.frames.filter(f => f.id !== id)
-    })),
-
-    reorderFrames: (fromIndex: number, toIndex: number) => set((state: StoryStore) => {
-        const newFrames = [...state.frames];
-        const [moved] = newFrames.splice(fromIndex, 1);
-        newFrames.splice(toIndex, 0, moved);
-        return { frames: newFrames };
-    }),
-
-    setFrames: (frames: StoryboardFrame[]) => set({ frames }),
-
-    script: '',
-    setScript: (script: string) => set({ script }),
+    // Scripts Delegate
+    get script() { return useScriptStore.getState().script },
+    setScript: (s) => useScriptStore.getState().setScript(s),
     
-    // Knowledge Base
-    knowledgeBase: [],
-    addKnowledgeItem: (item) => set((state) => ({
-        knowledgeBase: [...(state.knowledgeBase || []), { ...item, id: crypto.randomUUID(), createdAt: Date.now() }]
-    })),
-    updateKnowledgeItem: (id, updates) => set((state) => ({
-        knowledgeBase: state.knowledgeBase.map(k => k.id === id ? { ...k, ...updates } : k)
-    })),
-    deleteKnowledgeItem: (id) => set((state) => ({
-        knowledgeBase: state.knowledgeBase.filter(k => k.id !== id)
-    })),
+    get knowledgeBase() { return useScriptStore.getState().knowledgeBase },
+    addKnowledgeItem: (i) => useScriptStore.getState().addKnowledgeItem(i),
+    updateKnowledgeItem: (id, u) => useScriptStore.getState().updateKnowledgeItem(id, u),
+    deleteKnowledgeItem: (id) => useScriptStore.getState().deleteKnowledgeItem(id),
     
-    // Scripts
-    scripts: [],
-    addScript: (script) => set((state) => ({ scripts: [script, ...state.scripts] })),
-    updateScript: (id, updates) => set((state) => ({
-        scripts: state.scripts.map(s => s.id === id ? { ...s, ...updates } : s)
-    })),
-    deleteScript: (id) => set((state) => ({
-        scripts: state.scripts.filter(s => s.id !== id)
-    })),
+    get scripts() { return useScriptStore.getState().scripts },
+    addScript: (s) => useScriptStore.getState().addScript(s),
+    updateScript: (id, u) => useScriptStore.getState().updateScript(id, u),
+    deleteScript: (id) => useScriptStore.getState().deleteScript(id),
 
-    generateStoryboardsFromScript: (script: string) => set((state: StoryStore) => {
-        // Parse the script to extract scenes based on [Scene X] or similar headers
-        // If no headers found, fallback to paragraph splitting
+    // Storyboard Delegate
+    get frames() { return useStoryboardStore.getState().frames },
+    setFrames: (f) => useStoryboardStore.getState().setFrames(f),
+    addFrame: (f) => useStoryboardStore.getState().addFrame(f),
+    updateFrame: (id, u) => useStoryboardStore.getState().updateFrame(id, u),
+    deleteFrame: (id) => useStoryboardStore.getState().deleteFrame(id),
+    reorderFrames: (from, to) => useStoryboardStore.getState().reorderFrames(from, to),
+    
+    get apiLogs() { return useStoryboardStore.getState().apiLogs },
+    addApiLog: (l) => useStoryboardStore.getState().addApiLog(l),
+    deleteApiLog: (id) => useStoryboardStore.getState().deleteApiLog(id),
+    clearApiLogs: () => useStoryboardStore.getState().clearApiLogs(),
+    
+    // Script Logs (Currently mapped to apiLogs in new store structure or we can add specific log store if needed)
+    // For now, let's map scriptLogs to apiLogs for simplicity as they are similar
+    get scriptLogs() { return useStoryboardStore.getState().apiLogs },
+    addScriptLog: (l) => useStoryboardStore.getState().addApiLog(l),
+    deleteScriptLog: (id) => useStoryboardStore.getState().deleteApiLog(id),
+    clearScriptLogs: () => useStoryboardStore.getState().clearApiLogs(),
+    
+    // Legacy Generator (Moved logic here or into a service)
+    generateStoryboardsFromScript: (script: string) => {
+        // This logic is better placed in a service, but for compatibility we keep it.
+        // It updates the storyboard store directly.
+        const sceneRegex = /\[?Scene\s+\d+\]?:?/i;
         let segments: string[] = [];
         
-        // Regex to match [Scene X] or Scene X: or similar headers
-        const sceneRegex = /\[?Scene\s+\d+\]?:?/i;
-        
         if (sceneRegex.test(script)) {
-            // Split by the regex but keep the delimiters or reconstruct them
-            // Since JS split doesn't easily keep delimiters in a way that groups them with following text without complex lookahead,
-            // we'll split and then regroup.
             const rawSegments = script.split(/(\[?Scene\s+\d+\]?:?)/i).filter(s => s.trim().length > 0);
-            
             let currentSegment = "";
-            
             for (const seg of rawSegments) {
                 if (sceneRegex.test(seg)) {
-                    // It's a header
-                    if (currentSegment) {
-                        segments.push(currentSegment.trim());
-                    }
+                    if (currentSegment) segments.push(currentSegment.trim());
                     currentSegment = seg;
                 } else {
-                    // It's content
                     currentSegment += " " + seg;
                 }
             }
-            if (currentSegment) {
-                segments.push(currentSegment.trim());
-            }
+            if (currentSegment) segments.push(currentSegment.trim());
         } else {
-             // Fallback to double newline split for paragraphs, merging single newlines
-             // Also treat [Scene X] style blocks as segments if found
              const blocks = script.split(/(\[Scene\s+\d+\][^\[]*)/g).filter(s => s.trim().length > 0);
              if (blocks.length > 1) {
                  segments = blocks;
@@ -126,8 +79,7 @@ export const useStoryStore = create<StoryStore>()(
              }
         }
         
-        // Fallback: if segments is empty (e.g. script was just whitespace), return current state
-        if (segments.length === 0) return state;
+        if (segments.length === 0) return;
 
         const newFrames: StoryboardFrame[] = segments.map((segment: string) => ({
             id: crypto.randomUUID(),
@@ -138,96 +90,22 @@ export const useStoryStore = create<StoryStore>()(
             endImages: []
         }));
         
-        return { frames: newFrames };
-      }),
-
-      apiLogs: [],
-      addApiLog: (log) => set((state) => ({ apiLogs: [log, ...(state.apiLogs || [])].slice(0, 100) })), // Keep last 100 logs
-      deleteApiLog: (id) => set((state) => ({ apiLogs: (state.apiLogs || []).filter(l => l.id !== id) })),
-      clearApiLogs: () => set({ apiLogs: [] }),
-
-      scriptLogs: [],
-      addScriptLog: (log) => set((state) => ({ scriptLogs: [log, ...(state.scriptLogs || [])].slice(0, 100) })),
-      deleteScriptLog: (id) => set((state) => ({ scriptLogs: (state.scriptLogs || []).filter(l => l.id !== id) })),
-      clearScriptLogs: () => set({ scriptLogs: [] }),
-    }),
-    {
-      name: 'ai-motion-comic-data',
-      storage: createJSONStorage(() => ({
-        getItem: (name: string) => localStorage.getItem(name),
-        setItem: (name: string, value: string) => {
-          try {
-            localStorage.setItem(name, value)
-          } catch (e) {
-            if (e instanceof DOMException && e.name === 'QuotaExceededError') {
-              console.warn("Storage full — clearing old state")
-              localStorage.removeItem(name)
-            }
-          }
-        },
-        removeItem: (name: string) => localStorage.removeItem(name),
-      })),
-      partialize: (state) => {
-          // Deep clone to avoid mutating state during persistence
-          const persistedState = JSON.parse(JSON.stringify({
-              assets: state.assets || [],
-              frames: state.frames || [],
-              script: state.script || '',
-              knowledgeBase: state.knowledgeBase || [],
-              scripts: state.scripts || []
-          }));
-
-          // Sanitize Assets: Remove base64/dataURL from imageUrl
-          persistedState.assets = persistedState.assets.map((asset: any) => {
-              if (asset.imageUrl && asset.imageUrl.startsWith('data:')) {
-                  // If it's a data URL, we don't persist it to localStorage
-                  // In a real app, this should have been uploaded to Blob. 
-                  // For now, we clear it to save space, or we could keep a tiny thumbnail if we had one.
-                  // BETTER STRATEGY: Only persist if it's http(s)
-                  return { ...asset, imageUrl: '' }; 
-              }
-              return asset;
-          });
-
-          // Sanitize Frames: Remove base64 from images
-          persistedState.frames = persistedState.frames.map((frame: any) => {
-              const cleanFrame = { ...frame };
-              
-              // Clean start/end image URLs
-              if (cleanFrame.startImageUrl?.startsWith('data:')) cleanFrame.startImageUrl = '';
-              if (cleanFrame.endImageUrl?.startsWith('data:')) cleanFrame.endImageUrl = '';
-
-              // Clean image arrays
-              if (cleanFrame.startImages) {
-                  cleanFrame.startImages = cleanFrame.startImages
-                      .filter((img: any) => !img.url.startsWith('data:'))
-                      .slice(0, 10); // Limit history depth
-              }
-              if (cleanFrame.endImages) {
-                  cleanFrame.endImages = cleanFrame.endImages
-                      .filter((img: any) => !img.url.startsWith('data:'))
-                      .slice(0, 10);
-              }
-              
-              // Clean custom uploads (these are likely data URLs, so we must drop them if not uploaded)
-              if (cleanFrame.customUploads) {
-                  cleanFrame.customUploads = cleanFrame.customUploads.filter((url: string) => !url.startsWith('data:'));
-              }
-              if (cleanFrame.startCustomUploads) {
-                  cleanFrame.startCustomUploads = cleanFrame.startCustomUploads.filter((url: string) => !url.startsWith('data:'));
-              }
-              if (cleanFrame.endCustomUploads) {
-                  cleanFrame.endCustomUploads = cleanFrame.endCustomUploads.filter((url: string) => !url.startsWith('data:'));
-              }
-
-              return cleanFrame;
-          });
-
-          // Sanitize Scripts
-          persistedState.scripts = persistedState.scripts || [];
-          
-          return persistedState;
-      },
+        useStoryboardStore.getState().setFrames(newFrames);
     }
-  )
-)
+}))
+
+// Subscribe to sub-stores to trigger updates in the aggregated store
+// This is a bit of a hack to make the aggregated store reactive
+// In a real refactor, components should migrate to use specific stores.
+const sub1 = useAssetStore.subscribe((state) => useStoryStore.setState({ assets: state.assets }));
+const sub2 = useScriptStore.subscribe((state) => useStoryStore.setState({ 
+    script: state.script, 
+    knowledgeBase: state.knowledgeBase,
+    scripts: state.scripts 
+}));
+const sub3 = useStoryboardStore.subscribe((state) => useStoryStore.setState({ 
+    frames: state.frames,
+    apiLogs: state.apiLogs,
+    scriptLogs: state.apiLogs 
+}));
+
